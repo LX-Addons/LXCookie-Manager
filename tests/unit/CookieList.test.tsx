@@ -68,6 +68,17 @@ vi.mock("@/utils", async (importOriginal) => {
     maskCookieValue: vi.fn((_value: string) => "••••••••"),
     getCookieKey: vi.fn((name: string, domain: string) => `${name}-${domain}`),
     isSensitiveCookie: vi.fn(() => false),
+    isInList: vi.fn((domain: string, list: string[]) => {
+      const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
+      return list.some((item) => {
+        const normalizedItem = item.replace(/^\./, "").toLowerCase();
+        return (
+          normalizedDomain === normalizedItem ||
+          normalizedDomain.endsWith("." + normalizedItem) ||
+          normalizedItem.endsWith("." + normalizedDomain)
+        );
+      });
+    }),
   };
 });
 
@@ -366,6 +377,29 @@ describe("CookieList", () => {
 
     expect(mockOnMessage).toHaveBeenCalled();
     expect(mockOnAddToBlacklist).toHaveBeenCalled();
+  });
+
+  it("should show message when onAddToBlacklist is not provided", () => {
+    render(
+      <CookieList
+        cookies={mockCookies}
+        currentDomain="example.com"
+        onMessage={mockOnMessage}
+        whitelist={[]}
+        blacklist={[]}
+      />
+    );
+
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const selectAllCheckbox = screen.getByRole("checkbox", { name: /全选/ });
+    fireEvent.click(selectAllCheckbox);
+
+    const addToBlacklistBtn = screen.getByText("加入黑名单");
+    fireEvent.click(addToBlacklistBtn);
+
+    expect(mockOnMessage).toHaveBeenCalledWith("功能不可用", true);
   });
 
   it("should show cookie details when expanded", () => {
