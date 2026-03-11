@@ -991,4 +991,60 @@ describe("CookieListContent", () => {
 
     expect(screen.getByText(/已选择/)).toBeTruthy();
   });
+
+  it("should only add new domains to whitelist", () => {
+    render(
+      <CookieListContentWithConfirm
+        cookies={mockCookies}
+        currentDomain="example.com"
+        onUpdate={mockOnUpdate}
+        onMessage={mockOnMessage}
+        whitelist={["example.com"]}
+        blacklist={[]}
+        onAddToWhitelist={mockOnAddToWhitelist}
+        onAddToBlacklist={mockOnAddToBlacklist}
+      />
+    );
+
+    // Need to expand the list first
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const selectAllCheckbox = screen.getByRole("checkbox", { name: /全选/ });
+    fireEvent.click(selectAllCheckbox);
+
+    const addToWhitelistBtn = screen.getByText("加入白名单");
+    fireEvent.click(addToWhitelistBtn);
+
+    // Should only add test.com (not example.com which is already in whitelist)
+    expect(mockOnAddToWhitelist).toHaveBeenCalledWith(["test.com"]);
+  });
+
+  it("should only add new domains to blacklist", () => {
+    render(
+      <CookieListContentWithConfirm
+        cookies={mockCookies}
+        currentDomain="example.com"
+        onUpdate={mockOnUpdate}
+        onMessage={mockOnMessage}
+        whitelist={[]}
+        blacklist={["example.com"]}
+        onAddToWhitelist={mockOnAddToWhitelist}
+        onAddToBlacklist={mockOnAddToBlacklist}
+      />
+    );
+
+    // Need to expand the list first
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const selectAllCheckbox = screen.getByRole("checkbox", { name: /全选/ });
+    fireEvent.click(selectAllCheckbox);
+
+    const addToBlacklistBtn = screen.getByText("加入黑名单");
+    fireEvent.click(addToBlacklistBtn);
+
+    // Should only add test.com (not example.com which is already in blacklist)
+    expect(mockOnAddToBlacklist).toHaveBeenCalledWith(["test.com"]);
+  });
 });
