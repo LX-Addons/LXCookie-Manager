@@ -10,6 +10,12 @@ const icons = {
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
+  vite: (env) => ({
+    logLevel: "debug",
+    build: {
+      minify: false,
+    },
+  }),
   manifest: {
     name: "Cookie Manager Pro",
     description: "高级Cookie管理，支持白名单/黑名单功能和选择性Cookie清除",
