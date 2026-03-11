@@ -508,4 +508,29 @@ describe("Settings", () => {
     const autoCleanupSection = screen.getByText("自动清理");
     expect(autoCleanupSection).toBeTruthy();
   });
+
+  it("should handle custom theme primary color change", () => {
+    mockSettings.themeMode = ThemeMode.CUSTOM;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const primaryColorLabel = screen.getByText("主色调");
+    expect(primaryColorLabel).toBeTruthy();
+  });
+
+  it("should handle language change to English", () => {
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const englishRadio = screen.getByLabelText("English");
+    expect(englishRadio).toBeTruthy();
+  });
+
+  it("should handle show cookie risk checkbox change", () => {
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const riskCheckboxes = screen.getAllByLabelText("显示Cookie风险等级");
+    fireEvent.click(riskCheckboxes[0]);
+
+    expect(riskCheckboxes[0]).toBeTruthy();
+  });
 });

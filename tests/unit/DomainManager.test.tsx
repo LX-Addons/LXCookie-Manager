@@ -126,6 +126,22 @@ describe("DomainManager", () => {
     expect(clearButton).toBeTruthy();
   });
 
+  it("should call onClearBlacklist when clear button is clicked", () => {
+    render(
+      <DomainManager
+        type="blacklist"
+        currentDomain="example.com"
+        onMessage={mockOnMessage}
+        onClearBlacklist={mockOnClearBlacklist}
+      />
+    );
+
+    const clearButton = screen.getByText("清除黑名单Cookie");
+    fireEvent.click(clearButton);
+
+    expect(mockOnClearBlacklist).toHaveBeenCalled();
+  });
+
   it("should add valid domain to list", () => {
     render(
       <DomainManager type="whitelist" currentDomain="example.com" onMessage={mockOnMessage} />
