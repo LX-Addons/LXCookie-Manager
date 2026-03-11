@@ -408,7 +408,7 @@ function IndexPopup() {
           </h1>
         </header>
 
-        <div className="tabs" role="tablist" onKeyDown={handleTabKeyDown}>
+        <div className="tabs" role="tablist" tabIndex={0} onKeyDown={handleTabKeyDown}>
           {tabs.map((tab) => (
             <button
               key={tab.id}

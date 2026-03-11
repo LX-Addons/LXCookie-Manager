@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Cookie, SameSite } from "@/types";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -25,17 +25,20 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
   );
   const { t } = useTranslation();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
     onClose();
-  };
-
-  const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onClose();
-    }
   };
 
   const handleDialogKeyDown = (e: React.KeyboardEvent) => {
@@ -43,13 +46,7 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
   };
 
   return (
-    <div
-      className="confirm-overlay"
-      onClick={onClose}
-      tabIndex={0}
-      onKeyDown={handleOverlayKeyDown}
-      data-testid="cookie-editor"
-    >
+    <div className="confirm-overlay" onClick={onClose} data-testid="cookie-editor">
       <dialog
         className="confirm-dialog cookie-editor-dialog"
         onClick={(e) => e.stopPropagation()}

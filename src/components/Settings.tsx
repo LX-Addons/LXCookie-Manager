@@ -51,7 +51,7 @@ export const Settings = ({ onMessage }: Props) => {
             { value: ModeType.BLACKLIST, label: t("settings.blacklistMode") },
           ]}
           value={settings.mode}
-          onChange={(value) => updateSetting("mode", value as ModeType)}
+          onChange={(value) => updateSetting("mode", value)}
         />
       </div>
 

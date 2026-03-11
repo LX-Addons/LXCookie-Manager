@@ -32,16 +32,6 @@ export function ConfirmDialog({
     [onCancel]
   );
 
-  const handleOverlayKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onCancel();
-      }
-    },
-    [onCancel]
-  );
-
   useEffect(() => {
     if (isOpen && confirmBtnRef.current) {
       confirmBtnRef.current.focus();
@@ -62,12 +52,7 @@ export function ConfirmDialog({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="confirm-overlay"
-      onClick={handleOverlayClick}
-      onKeyDown={handleOverlayKeyDown}
-      tabIndex={-1}
-    >
+    <div className="confirm-overlay" onClick={handleOverlayClick}>
       <dialog className="confirm-dialog" open>
         <h3 id="confirm-title" className={`confirm-title ${variant === "danger" ? "danger" : ""}`}>
           {title}
