@@ -10,8 +10,7 @@ const icons = {
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react"],
-  vite: (env) => ({
-    logLevel: "debug",
+  vite: (_env) => ({
     build: {
       minify: false,
     },
