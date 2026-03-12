@@ -1,9 +1,33 @@
 import { useState, useEffect, useCallback } from "react";
 import { storage } from "wxt/utils/storage";
 
-// Define the valid storage key types
 type StorageKey = `local:${string}` | `session:${string}` | `sync:${string}` | `managed:${string}`;
 
+/**
+ * A React hook for managing WXT extension storage with automatic sync.
+ *
+ * @template T - The type of the stored value
+ * @param key - The storage key (must be prefixed with storage area: local:, session:, sync:, or managed:)
+ * @param defaultValue - The default value to use when no stored value exists.
+ *   **IMPORTANT**: This must be a stable reference (module-level constant or memoized value).
+ *   Passing inline object/array literals will cause unnecessary re-renders and effect re-runs.
+ *   Example: `useStorage('key', [])` is acceptable but `useStorage('key', { foo: 'bar' })` is not recommended.
+ *
+ * @returns A tuple of [value, setValue] similar to useState
+ *
+ * @example
+ * // ✅ Good: module-level constant
+ * const DEFAULT_SETTINGS = { theme: 'light' };
+ * useStorage('local:settings', DEFAULT_SETTINGS);
+ *
+ * @example
+ * // ✅ Acceptable: empty array (no merge logic needed)
+ * useStorage('local:items', []);
+ *
+ * @example
+ * // ❌ Avoid: inline object literal
+ * useStorage('local:settings', { theme: 'light' }); // Creates new reference each render
+ */
 export function useStorage<T>(key: StorageKey, defaultValue: T) {
   const [value, setValue] = useState<T>(defaultValue);
 

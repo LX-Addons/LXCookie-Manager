@@ -86,13 +86,6 @@ const cleanupTab = async (tab: { url?: string; id?: number }, settings: Settings
 };
 
 const cleanupOpenTabsOnStartup = async (settings: Settings) => {
-  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-  if (activeTab?.url) {
-    await cleanupTab(activeTab, settings);
-    return;
-  }
-
   const allTabs = await chrome.tabs.query({});
   for (const tab of allTabs) {
     await cleanupTab(tab, settings);
@@ -123,11 +116,15 @@ const handleTabUpdated = async (
     const previousUrl = tabUrlMap.get(tabId);
     if (previousUrl && previousUrl !== changeInfo.url) {
       try {
-        const url = new URL(previousUrl);
-        await performCleanup({
-          domain: url.hostname,
-          ...getCleanupOptions(settings),
-        });
+        const previousHostname = new URL(previousUrl).hostname;
+        const currentHostname = new URL(changeInfo.url).hostname;
+
+        if (previousHostname !== currentHostname) {
+          await performCleanup({
+            domain: previousHostname,
+            ...getCleanupOptions(settings),
+          });
+        }
       } catch (e) {
         console.error("Failed to cleanup on navigation:", e);
       }
@@ -140,48 +137,35 @@ const handleTabUpdated = async (
   }
 };
 
-const handleTabRemoved = async (tabId: number) => {
+const handleTabRemoved = async (tabId: number, removeInfo: chrome.tabs.TabRemoveInfo) => {
   const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-  if (!settings?.enableAutoCleanup || !settings?.cleanupOnTabClose) return;
+  if (!settings?.enableAutoCleanup) return;
 
   const closedUrl = tabUrlMap.get(tabId);
-  if (closedUrl) {
-    try {
-      const url = new URL(closedUrl);
-      await performCleanup({
-        domain: url.hostname,
-        ...getCleanupOptions(settings),
-      });
-    } catch (e) {
-      console.error("Failed to cleanup on tab close:", e);
-    }
-    tabUrlMap.delete(tabId);
-  }
-};
-
-const handleWindowRemoved = async () => {
-  const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-  if (!settings?.enableAutoCleanup || !settings?.cleanupOnBrowserClose) return;
+  if (!closedUrl) return;
 
   try {
-    const tabs = await chrome.tabs.query({});
-    const domainsToClean = new Set<string>();
+    const url = new URL(closedUrl);
 
-    for (const tab of tabs) {
-      if (tab.url) {
-        try {
-          const url = new URL(tab.url);
-          domainsToClean.add(url.hostname);
-        } catch {
-          // Invalid URL, skip
-        }
+    if (removeInfo.isWindowClosing) {
+      if (settings.cleanupOnBrowserClose) {
+        const domainsToClean = (await storage.getItem<string[]>("local:cleanupOnStartup")) || [];
+        domainsToClean.push(url.hostname);
+        await storage.setItem("local:cleanupOnStartup", Array.from(new Set(domainsToClean)));
+      }
+    } else {
+      if (settings.cleanupOnTabClose) {
+        await performCleanup({
+          domain: url.hostname,
+          ...getCleanupOptions(settings),
+        });
       }
     }
-
-    await storage.setItem("local:cleanupOnStartup", Array.from(domainsToClean));
   } catch (e) {
-    console.error("Failed to prepare cleanup on browser close:", e);
+    console.error("Failed to cleanup on tab close:", e);
   }
+
+  tabUrlMap.delete(tabId);
 };
 
 const handleStartup = async () => {
@@ -235,7 +219,6 @@ export default defineBackground(() => {
 
   chrome.tabs.onUpdated.addListener(handleTabUpdated);
   chrome.tabs.onRemoved.addListener(handleTabRemoved);
-  chrome.windows.onRemoved.addListener(handleWindowRemoved);
   chrome.runtime.onStartup.addListener(handleStartup);
 
   chrome.alarms.onAlarm.addListener(async (alarm) => {

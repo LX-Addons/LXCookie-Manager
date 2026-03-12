@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, Mock, afterEach } from "vitest";
 import { render, fireEvent, cleanup } from "@testing-library/react";
 import IndexPopup from "@/entrypoints/popup/App";
 import * as storageHook from "@/hooks/useStorage";
+import { DEFAULT_SETTINGS } from "@/lib/store";
 
 const mockMatchMedia = (overrides: Partial<MediaQueryList> = {}) => {
   Object.defineProperty(globalThis, "matchMedia", {
@@ -26,17 +27,6 @@ interface MockStorageOptions {
   settings?: Record<string, unknown>;
 }
 
-const defaultSettings = {
-  mode: "whitelist",
-  clearType: "all",
-  enableAutoCleanup: false,
-  cleanupOnTabDiscard: false,
-  cleanupOnStartup: false,
-  clearCache: false,
-  clearLocalStorage: false,
-  clearIndexedDB: false,
-};
-
 const createMockStorage = (overrides: MockStorageOptions = {}) => {
   return (key: string, defaultValue: unknown) => {
     if (key === "local:whitelist") {
@@ -46,7 +36,7 @@ const createMockStorage = (overrides: MockStorageOptions = {}) => {
       return [overrides.blacklist ?? [], vi.fn()];
     }
     if (key === "local:settings") {
-      return [{ ...defaultSettings, ...overrides.settings }, vi.fn()];
+      return [{ ...DEFAULT_SETTINGS, ...overrides.settings }, vi.fn()];
     }
     return [defaultValue, vi.fn()];
   };
