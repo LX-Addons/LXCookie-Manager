@@ -188,6 +188,10 @@ const handleTabRemoved = async (tabId: number, removeInfo: chrome.tabs.TabRemove
   const settings = await storage.getItem<Settings>(SETTINGS_KEY);
   if (!settings?.enableAutoCleanup) return;
 
+  if (!tabUrlMap.size) {
+    await initializeTabUrlMap();
+  }
+
   const closedUrl = tabUrlMap.get(tabId);
   if (!closedUrl) return;
 

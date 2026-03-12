@@ -337,7 +337,7 @@ describe("IndexPopup", () => {
 
     const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
     for (const key of keys) {
-      fireEvent.keyDown(tabs!, { key });
+      fireEvent.keyDown(tabs, { key });
     }
   });
 

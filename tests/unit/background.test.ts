@@ -42,12 +42,17 @@ vi.mock("@/lib/store", async (importOriginal) => {
 });
 
 const listeners = {
-  onInstalled: [] as Array<() => void>,
-  onStartup: [] as Array<() => void>,
-  onUpdated: [] as Array<(tabId: number, changeInfo: unknown, tab: unknown) => void>,
-  onAlarm: [] as Array<(alarm: { name: string }) => void>,
+  onInstalled: [] as Array<() => Promise<void> | void>,
+  onStartup: [] as Array<() => Promise<void> | void>,
+  onUpdated: [] as Array<
+    (tabId: number, changeInfo: unknown, tab: unknown) => Promise<void> | void
+  >,
+  onAlarm: [] as Array<(alarm: { name: string }) => Promise<void> | void>,
   onRemoved: [] as Array<
-    (tabId: number, removeInfo: { isWindowClosing: boolean; windowId?: number }) => void
+    (
+      tabId: number,
+      removeInfo: { isWindowClosing: boolean; windowId?: number }
+    ) => Promise<void> | void
   >,
 };
 
