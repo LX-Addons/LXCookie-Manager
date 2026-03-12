@@ -152,5 +152,47 @@ describe("CheckboxGroup", () => {
 
       expect(mockOnChange).toHaveBeenCalledWith(["option1", "option2"]);
     });
+
+    it("should handle multiple checkboxes being toggled in sequence", () => {
+      const mockOnChange = vi.fn();
+      const options = [
+        { value: "option1", label: "Option 1", checked: false },
+        { value: "option2", label: "Option 2", checked: false },
+        { value: "option3", label: "Option 3", checked: false },
+      ];
+
+      const { rerender } = render(<CheckboxGroup options={options} onChange={mockOnChange} />);
+
+      // Click first checkbox
+      const checkboxes = screen.getAllByRole("checkbox");
+      fireEvent.click(checkboxes[0]);
+      expect(mockOnChange).toHaveBeenLastCalledWith(["option1"]);
+
+      // Simulate state update and rerender
+      const updatedOptions1 = [
+        { value: "option1", label: "Option 1", checked: true },
+        { value: "option2", label: "Option 2", checked: false },
+        { value: "option3", label: "Option 3", checked: false },
+      ];
+      rerender(<CheckboxGroup options={updatedOptions1} onChange={mockOnChange} />);
+
+      // Click second checkbox
+      const checkboxes2 = screen.getAllByRole("checkbox");
+      fireEvent.click(checkboxes2[1]);
+      expect(mockOnChange).toHaveBeenLastCalledWith(["option1", "option2"]);
+
+      // Simulate state update and rerender
+      const updatedOptions2 = [
+        { value: "option1", label: "Option 1", checked: true },
+        { value: "option2", label: "Option 2", checked: true },
+        { value: "option3", label: "Option 3", checked: false },
+      ];
+      rerender(<CheckboxGroup options={updatedOptions2} onChange={mockOnChange} />);
+
+      // Click first checkbox to uncheck
+      const checkboxes3 = screen.getAllByRole("checkbox");
+      fireEvent.click(checkboxes3[0]);
+      expect(mockOnChange).toHaveBeenLastCalledWith(["option2"]);
+    });
   });
 });
