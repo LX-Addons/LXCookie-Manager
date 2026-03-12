@@ -1,6 +1,6 @@
 import { useState, memo, useMemo } from "react";
-import type { Cookie } from "~types";
-import { COOKIE_VALUE_MASK } from "~constants";
+import type { Cookie } from "@/types";
+import { COOKIE_VALUE_MASK } from "@/lib/constants";
 import {
   assessCookieRisk,
   getRiskLevelColor,
@@ -13,10 +13,10 @@ import {
   toggleSetValue,
   isSensitiveCookie,
   isInList,
-} from "~utils";
+} from "@/utils";
 import { CookieEditor } from "./CookieEditor";
 import { ConfirmDialogWrapper, type ShowConfirmFn } from "./ConfirmDialogWrapper";
-import { useTranslation } from "~hooks/useTranslation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Props {
   cookies: Cookie[];
@@ -339,6 +339,7 @@ export const CookieListContent = memo(
                                   type="checkbox"
                                   checked={isSelected}
                                   onChange={() => toggleCookieSelection(key)}
+                                  aria-label={`选择 ${cookie.name}`}
                                 />
                               </label>
                               <div className="cookie-name">

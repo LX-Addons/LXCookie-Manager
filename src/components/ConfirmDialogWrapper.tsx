@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { useConfirmDialog } from "~hooks/useConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface ConfirmDialogWrapperProps {
   children: (showConfirm: ShowConfirmFn) => ReactNode;

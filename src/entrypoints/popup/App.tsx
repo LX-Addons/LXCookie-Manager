@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useStorage } from "@plasmohq/storage/hook";
-import { DomainManager } from "~components/DomainManager";
-import { Settings } from "~components/Settings";
-import { ClearLog } from "~components/ClearLog";
-import { CookieList } from "~components/CookieList";
-import { ErrorBoundary } from "~components/ErrorBoundary";
-import { ConfirmDialog } from "~components/ConfirmDialog";
-import { useTranslation } from "~hooks/useTranslation";
-import { useConfirmDialog } from "~hooks/useConfirmDialog";
+import { createRoot } from "react-dom/client";
+import { useStorage } from "@/hooks/useStorage";
+import { DomainManager } from "@/components/DomainManager";
+import { Settings } from "@/components/Settings";
+import { ClearLog } from "@/components/ClearLog";
+import { CookieList } from "@/components/CookieList";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useTranslation } from "@/hooks/useTranslation";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   WHITELIST_KEY,
   BLACKLIST_KEY,
@@ -15,22 +16,22 @@ import {
   CLEAR_LOG_KEY,
   DEFAULT_SETTINGS,
   LOG_RETENTION_MAP,
-} from "~store";
+} from "@/lib/store";
 import type {
   DomainList,
   CookieStats,
   Settings as SettingsType,
   ClearLogEntry,
   Cookie,
-} from "~types";
-import { CookieClearType, ThemeMode, LogRetention, ModeType } from "~types";
-import { isDomainMatch, isInList, isTrackingCookie, isThirdPartyCookie } from "~utils";
+} from "@/types";
+import { CookieClearType, ThemeMode, LogRetention, ModeType } from "@/types";
+import { isDomainMatch, isInList, isTrackingCookie, isThirdPartyCookie } from "@/utils";
 import {
   performCleanupWithFilter,
   cleanupExpiredCookies as cleanupExpiredCookiesUtil,
   performCleanup,
-} from "~utils/cleanup";
-import { MESSAGE_DURATION, DEBOUNCE_DELAY_MS } from "~constants";
+} from "@/utils/cleanup";
+import { MESSAGE_DURATION, DEBOUNCE_DELAY_MS } from "@/lib/constants";
 import "./style.css";
 
 function IndexPopup() {
@@ -47,12 +48,13 @@ function IndexPopup() {
   });
   const [currentCookies, setCurrentCookies] = useState<Cookie[]>([]);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() => {
-    if (typeof window !== "undefined") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    if (typeof globalThis !== "undefined") {
+      return globalThis.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
     return "light";
   });
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logIdCounterRef = useRef<number>(0);
 
   const { confirmState, showConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
@@ -100,7 +102,10 @@ function IndexPopup() {
         setActiveTab(tabs[0].id);
       } else if (e.key === "End") {
         e.preventDefault();
-        setActiveTab(tabs[tabs.length - 1].id);
+        const lastTab = tabs.at(-1);
+        if (lastTab) {
+          setActiveTab(lastTab.id);
+        }
       }
     },
     [activeTab, tabs]
@@ -160,8 +165,10 @@ function IndexPopup() {
       action: "clear" | "edit" | "delete" | "import" | "export" = "clear",
       details?: string
     ) => {
+      // 使用递增计数器生成唯一ID，避免使用 Math.random()
+      logIdCounterRef.current += 1;
       const newLog: ClearLogEntry = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `${Date.now()}-${logIdCounterRef.current}`,
         domain,
         cookieType,
         count,
@@ -338,7 +345,7 @@ function IndexPopup() {
   }, [updateStats]);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const mediaQuery = globalThis.matchMedia("(prefers-color-scheme: dark)");
 
     const handler = (e: MediaQueryListEvent) => {
       setSystemTheme(e.matches ? "dark" : "light");
@@ -401,7 +408,7 @@ function IndexPopup() {
           </h1>
         </header>
 
-        <div className="tabs" role="tablist" onKeyDown={handleTabKeyDown}>
+        <div className="tabs" role="tablist" tabIndex={0} onKeyDown={handleTabKeyDown}>
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -594,3 +601,18 @@ function IndexPopup() {
 }
 
 export default IndexPopup;
+
+// Only render in browser environment, not in tests
+// In test environment, vitest sets import.meta.env.TEST to true
+const isTestEnvironment =
+  import.meta.env?.TEST === true ||
+  (typeof globalThis !== "undefined" &&
+    (globalThis as typeof globalThis & { __VITEST__?: boolean }).__VITEST__);
+
+if (!isTestEnvironment) {
+  const rootElement = document.getElementById("root");
+  if (rootElement) {
+    const root = createRoot(rootElement);
+    root.render(<IndexPopup />);
+  }
+}

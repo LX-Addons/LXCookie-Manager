@@ -8,7 +8,7 @@
   </h3>
   <p align="center">
     智能白名单/黑名单管理，精准控制 Cookie 生命周期<br>
-    基于 Plasmo 框架构建，完美兼容 Chrome/Edge 浏览器
+    基于 WXT 框架构建，完美兼容 Chrome/Edge 浏览器
   </p>
 
   <p align="center">
@@ -148,13 +148,13 @@ Cookie_Manager_Pro/
 
 ## 🛠️ 技术栈
 
-|         技术          |  版本  | 说明               |
-| :-------------------: | :----: | ------------------ |
-|      **Plasmo**       | 0.90.5 | 现代浏览器扩展框架 |
-|       **React**       | 18.2.0 | 前端 UI 框架       |
-|    **TypeScript**     | 5.3.3  | 类型安全开发       |
-| **@plasmohq/storage** | 1.10.0 | 扩展存储管理       |
-|     **Manifest**      |   V3   | Chrome 扩展规范    |
+|           技术            |  版本   | 说明               |
+| :-----------------------: | :-----: | ------------------ |
+|          **WXT**          | 0.20.17 | 现代浏览器扩展框架 |
+|         **React**         | 18.2.0  | 前端 UI 框架       |
+|      **TypeScript**       |  5.3.3  | 类型安全开发       |
+| **@wxt-dev/module-react** |  1.1.2  | WXT React 模块     |
+|       **Manifest**        |   V3    | Chrome 扩展规范    |
 
 ---
 

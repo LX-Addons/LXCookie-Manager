@@ -8,10 +8,10 @@ import {
   SCHEDULE_INTERVAL_MAP,
   DEFAULT_CUSTOM_THEME,
   DEFAULT_SETTINGS,
-} from "../../store";
-import { CookieClearType, LogRetention, ThemeMode, ModeType, ScheduleInterval } from "../../types";
+} from "@/lib/store";
+import { CookieClearType, LogRetention, ThemeMode, ModeType, ScheduleInterval } from "@/types";
 
-vi.mock("@plasmohq/storage", () => ({
+vi.mock("wxt/utils/storage", () => ({
   Storage: class {
     async get() {
       return undefined;
@@ -24,20 +24,20 @@ vi.mock("@plasmohq/storage", () => ({
 
 describe("store", () => {
   describe("Storage Keys", () => {
-    it("WHITELIST_KEY should be 'whitelist'", () => {
-      expect(WHITELIST_KEY).toBe("whitelist");
+    it("WHITELIST_KEY should be 'local:whitelist'", () => {
+      expect(WHITELIST_KEY).toBe("local:whitelist");
     });
 
-    it("BLACKLIST_KEY should be 'blacklist'", () => {
-      expect(BLACKLIST_KEY).toBe("blacklist");
+    it("BLACKLIST_KEY should be 'local:blacklist'", () => {
+      expect(BLACKLIST_KEY).toBe("local:blacklist");
     });
 
-    it("SETTINGS_KEY should be 'settings'", () => {
-      expect(SETTINGS_KEY).toBe("settings");
+    it("SETTINGS_KEY should be 'local:settings'", () => {
+      expect(SETTINGS_KEY).toBe("local:settings");
     });
 
-    it("CLEAR_LOG_KEY should be 'clearLog'", () => {
-      expect(CLEAR_LOG_KEY).toBe("clearLog");
+    it("CLEAR_LOG_KEY should be 'local:clearLog'", () => {
+      expect(CLEAR_LOG_KEY).toBe("local:clearLog");
     });
   });
 
@@ -140,44 +140,48 @@ describe("store", () => {
       expect(DEFAULT_SETTINGS.mode).toBe(ModeType.WHITELIST);
     });
 
-    it("should have clearLocalStorage as false", () => {
+    it("should have correct clearLocalStorage", () => {
       expect(DEFAULT_SETTINGS.clearLocalStorage).toBe(false);
     });
 
-    it("should have clearIndexedDB as false", () => {
+    it("should have correct clearIndexedDB", () => {
       expect(DEFAULT_SETTINGS.clearIndexedDB).toBe(false);
     });
 
-    it("should have clearCache as false", () => {
+    it("should have correct clearCache", () => {
       expect(DEFAULT_SETTINGS.clearCache).toBe(false);
     });
 
-    it("should have enableAutoCleanup as false", () => {
+    it("should have correct enableAutoCleanup", () => {
       expect(DEFAULT_SETTINGS.enableAutoCleanup).toBe(false);
     });
 
-    it("should have cleanupOnTabDiscard as false", () => {
+    it("should have correct cleanupOnTabDiscard", () => {
       expect(DEFAULT_SETTINGS.cleanupOnTabDiscard).toBe(false);
     });
 
-    it("should have cleanupOnStartup as false", () => {
+    it("should have correct cleanupOnStartup", () => {
       expect(DEFAULT_SETTINGS.cleanupOnStartup).toBe(false);
     });
 
-    it("should have cleanupExpiredCookies as false", () => {
+    it("should have correct cleanupExpiredCookies", () => {
       expect(DEFAULT_SETTINGS.cleanupExpiredCookies).toBe(false);
+    });
+
+    it("should have correct customTheme", () => {
+      expect(DEFAULT_SETTINGS.customTheme).toEqual(DEFAULT_CUSTOM_THEME);
     });
 
     it("should have correct scheduleInterval", () => {
       expect(DEFAULT_SETTINGS.scheduleInterval).toBe(ScheduleInterval.DISABLED);
     });
 
-    it("should have showCookieRisk as true", () => {
+    it("should have correct showCookieRisk", () => {
       expect(DEFAULT_SETTINGS.showCookieRisk).toBe(true);
     });
 
-    it("should have customTheme equal to DEFAULT_CUSTOM_THEME", () => {
-      expect(DEFAULT_SETTINGS.customTheme).toEqual(DEFAULT_CUSTOM_THEME);
+    it("should have correct locale", () => {
+      expect(DEFAULT_SETTINGS.locale).toBe("zh-CN");
     });
   });
 });

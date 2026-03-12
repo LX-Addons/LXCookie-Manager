@@ -4,7 +4,7 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 
 expect.extend(matchers);
 
-vi.mock("~hooks/useTranslation", () => ({
+vi.mock("@/hooks/useTranslation", () => ({
   useTranslation: vi.fn(() => {
     const translations: Record<string, string> = {
       "common.confirm": "确定",
@@ -48,210 +48,204 @@ vi.mock("~hooks/useTranslation", () => ({
       "popup.noExpiredFound": "没有找到过期的 Cookie",
       "popup.cleanExpiredFailed": "清理过期 Cookie 失败",
       "popup.addedToWhitelist": "已添加 {domain} 到白名单",
-      "popup.alreadyInWhitelist": "{domain} 已在白名单中",
       "popup.addedToBlacklist": "已添加 {domain} 到黑名单",
+      "popup.alreadyInWhitelist": "{domain} 已在白名单中",
       "popup.alreadyInBlacklist": "{domain} 已在黑名单中",
-      "popup.clearedSuccess": "{successMsg} {count} 个Cookie",
-      "popup.confirmClear": "清除确认",
-      "popup.confirmClearCurrent": "确定要清除 {domain} 的Cookie吗？",
-      "popup.confirmClearAll": "确定要清除所有Cookie吗？（白名单除外）",
-      "popup.clearedBlacklist": "已清除黑名单网站的 {count} 个Cookie",
-      "popup.noBlacklistCookies": "黑名单网站暂无Cookie可清除",
+      "whitelist.title": "白名单",
+      "whitelist.description": "白名单中的网站不会被清理 Cookie",
+      "whitelist.empty": "白名单为空",
+      "whitelist.add": "添加",
+      "whitelist.inputPlaceholder": "输入域名（如：example.com）",
+      "whitelist.invalidDomain": "请输入有效的域名",
+      "whitelist.addFailed": "添加到白名单失败",
+      "whitelist.removeFailed": "从白名单移除失败",
+      "blacklist.title": "黑名单",
+      "blacklist.description": "黑名单中的网站会被清理 Cookie",
+      "blacklist.empty": "黑名单为空",
+      "blacklist.add": "添加",
+      "blacklist.inputPlaceholder": "输入域名（如：example.com）",
+      "blacklist.invalidDomain": "请输入有效的域名",
+      "blacklist.addFailed": "添加到黑名单失败",
+      "blacklist.removeFailed": "从黑名单移除失败",
       "settings.workMode": "工作模式",
-      "settings.workModeDesc": "控制 Cookie 清理的应用范围，根据您的需求选择合适的保护策略",
-      "settings.whitelistMode": "白名单模式：仅白名单内网站不执行清理",
-      "settings.blacklistMode": "黑名单模式：仅黑名单内网站执行清理",
-      "settings.cookieClearType": "Cookie清除类型",
-      "settings.cookieClearTypeDesc":
-        "选择要清除的 Cookie 类型，会话 Cookie 在关闭浏览器后会自动失效",
-      "settings.clearSessionOnly": "仅清除会话Cookie",
-      "settings.clearPersistentOnly": "仅清除持久Cookie",
-      "settings.clearAll": "清除所有Cookie",
+      "settings.workModeDesc": "控制 Cookie 清理的应用范围",
+      "settings.whitelistMode": "白名单模式",
+      "settings.blacklistMode": "黑名单模式",
+      "settings.cookieClearType": "Cookie 清除类型",
+      "settings.cookieClearTypeDesc": "选择要清除的 Cookie 类型",
+      "settings.clearSessionOnly": "仅清除会话 Cookie",
+      "settings.clearPersistentOnly": "仅清除持久 Cookie",
+      "settings.clearAll": "清除所有 Cookie",
       "settings.scheduledCleanup": "定时清理",
-      "settings.scheduledCleanupDesc": "设置自动清理的时间间隔，确保您的隐私得到持续保护",
+      "settings.scheduledCleanupDesc": "设置自动清理的时间间隔",
       "settings.disabled": "禁用",
       "settings.hourly": "每小时",
       "settings.daily": "每天",
       "settings.weekly": "每周",
-      "settings.logRetention": "日志保留时长",
-      "settings.logRetentionDesc": "控制操作日志的保存时间，过长时间的日志会占用存储空间",
-      "settings.oneHour": "1小时",
-      "settings.sixHours": "6小时",
-      "settings.twelveHours": "12小时",
-      "settings.oneDay": "1天",
-      "settings.threeDays": "3天",
-      "settings.sevenDays": "7天",
-      "settings.tenDays": "10天",
-      "settings.thirtyDays": "30天",
-      "settings.forever": "永久",
+      "settings.clearCache": "清除缓存",
+      "settings.clearCacheDesc": "同时清除浏览器缓存",
+      "settings.clearLocalStorage": "清除 LocalStorage",
+      "settings.clearLocalStorageDesc": "同时清除本地存储",
+      "settings.clearIndexedDB": "清除 IndexedDB",
+      "settings.clearIndexedDBDesc": "同时清除 IndexedDB 数据库",
+      "settings.cleanupOnStartup": "启动时清理",
+      "settings.cleanupOnStartupDesc": "浏览器启动时自动清理",
+      "settings.cleanupExpiredCookies": "清理过期 Cookie",
+      "settings.cleanupExpiredCookiesDesc": "自动识别并清理过期 Cookie",
+      "settings.logRetention": "日志保留时间",
+      "settings.logRetentionDesc": "设置清理日志的保留时间",
+      "settings.oneHour": "1 小时",
+      "settings.sixHours": "6 小时",
+      "settings.twelveHours": "12 小时",
+      "settings.oneDay": "1 天",
+      "settings.threeDays": "3 天",
+      "settings.sevenDays": "7 天",
+      "settings.tenDays": "10 天",
+      "settings.thirtyDays": "30 天",
       "settings.themeMode": "主题模式",
-      "settings.themeModeDesc": "选择您喜欢的界面主题，自定义主题可以让您完全掌控视觉效果",
-      "settings.followBrowser": "跟随浏览器",
-      "settings.light": "亮色",
-      "settings.dark": "暗色",
-      "settings.custom": "自定义",
+      "settings.themeModeDesc": "选择界面主题风格",
+      "settings.themeAuto": "跟随系统",
+      "settings.themeLight": "浅色主题",
+      "settings.themeDark": "深色主题",
+      "settings.customTheme": "自定义主题",
+      "settings.customThemeDesc": "自定义主题颜色",
       "settings.primaryColor": "主色调",
       "settings.successColor": "成功色",
       "settings.warningColor": "警告色",
       "settings.dangerColor": "危险色",
-      "settings.bgPrimary": "主背景",
-      "settings.bgSecondary": "次背景",
-      "settings.textPrimary": "主文字",
-      "settings.textSecondary": "次文字",
-      "settings.autoCleanup": "自动清理",
-      "settings.autoCleanupDesc": "配置不同场景下的自动清理行为，减少手动操作的繁琐",
-      "settings.enableAutoCleanup": "启用自动清理",
-      "settings.cleanupOnTabDiscard": "启用已丢弃/未加载标签的清理",
-      "settings.cleanupOnStartup": "启动时清理打开标签页的 Cookie",
-      "settings.cleanupExpiredCookies": "清理所有过期的 Cookie",
-      "settings.privacyProtection": "隐私保护",
-      "settings.privacyProtectionDesc": "增强您的在线隐私保护，识别并警示潜在的追踪行为",
-      "settings.showCookieRisk": "显示 Cookie 风险评估",
-      "settings.advancedCleanup": "高级清理",
-      "settings.advancedCleanupDesc": "除了 Cookie 外，还可以清理其他可能存储您数据的浏览器存储",
-      "settings.clearLocalStorage": "清理本地存储",
-      "settings.clearIndexedDB": "清理索引数据库",
-      "settings.clearCache": "清理缓存",
-      "settings.settingsSaved": "设置已保存",
-      "settings.language": "语言设置",
-      "settings.languageDesc": "选择您喜欢的界面语言",
-      "domainManager.whitelistDomains": "白名单域名",
-      "domainManager.blacklistDomains": "黑名单域名",
-      "domainManager.whitelistHelp": "白名单中的域名Cookie不会被清除",
-      "domainManager.blacklistHelp": "黑名单中的域名Cookie将被优先清除",
-      "domainManager.domainPlaceholder": "例如: google.com",
-      "domainManager.addCurrentWebsite": "添加当前网站",
-      "domainManager.clearBlacklistCookies": "清除黑名单Cookie",
-      "domainManager.domainEmpty": "域名不能为空",
-      "domainManager.invalidDomain": "域名格式不正确",
-      "domainManager.alreadyInList": "{domain} 已在{listType}中",
-      "domainManager.addedToList": "已添加到{listType}",
-      "domainManager.deleted": "已删除",
-      "clearLog.clearLogs": "清除日志",
-      "clearLog.clearExpired": "清除过期",
-      "clearLog.exportLogs": "导出日志",
-      "clearLog.clearAllLogs": "清除全部",
-      "clearLog.confirmClearLogs": "确定要清除所有日志记录吗？",
-      "clearLog.logsCleared": "已清除所有日志",
-      "clearLog.logRetentionForever": "日志保留设置为永久，无需清理",
-      "clearLog.expiredLogsCleared": "已清除 {count} 条过期日志",
-      "clearLog.noExpiredLogs": "没有需要清理的过期日志",
-      "clearLog.logsExported": "日志已导出",
-      "clearLog.noLogs": "暂无清除日志记录",
-      "cookieList.noCookies": "当前网站暂无 Cookie",
-      "cookieList.cookieDetails": "Cookie 详情 ({count})",
-      "cookieList.selected": "{count} 个已选中",
-      "cookieList.deleteSelected": "删除选中",
-      "cookieList.addToWhitelist": "加入白名单",
-      "cookieList.addToBlacklist": "加入黑名单",
-      "cookieList.selectAll": "全选",
-      "cookieList.deletedCookie": "已删除 Cookie: {name}",
-      "cookieList.deleteCookieFailed": "删除 Cookie 失败",
-      "cookieList.deleteSensitiveCookie": "删除敏感 Cookie",
-      "cookieList.deleteConfirm": "删除确认",
-      "cookieList.deleteSensitiveMessage":
-        '即将删除敏感 Cookie "{name}"，这可能导致您在该网站的登录状态失效。确定要继续吗？',
-      "cookieList.deleteMessage": '确定要删除 Cookie "{name}" 吗？',
-      "cookieList.cookieUpdated": "Cookie 已更新",
-      "cookieList.updateCookieFailed": "更新 Cookie 失败",
-      "cookieList.deleteSelectedSensitive": "批量删除敏感 Cookie",
-      "cookieList.deleteSelectedConfirm": "批量删除确认",
-      "cookieList.deleteSelectedSensitiveMessage":
-        "选中的 Cookie 中包含 {sensitiveCount} 个敏感 Cookie，删除后可能影响登录状态。确定要删除选中的 {selectedCount} 个 Cookie 吗？",
-      "cookieList.deleteSelectedMessage": "确定要删除选中的 {selectedCount} 个 Cookie 吗？",
-      "cookieList.deletedSelected": "已删除 {count} 个 Cookie",
-      "cookieList.functionUnavailable": "此功能当前不可用",
-      "cookieList.addedDomainsToWhitelist": "已添加 {count} 个域名到白名单",
-      "cookieList.domainsAlreadyInWhitelist": "所选域名已在白名单中",
-      "cookieList.selectDomainsFirst": "请先选择要添加的域名",
-      "cookieList.addedDomainsToBlacklist": "已添加 {count} 个域名到黑名单",
-      "cookieList.domainsAlreadyInBlacklist": "所选域名已在黑名单中",
-      "cookieList.sensitiveCookie": "敏感 Cookie",
+      "settings.bgPrimaryColor": "主背景色",
+      "settings.bgSecondaryColor": "次背景色",
+      "settings.textPrimaryColor": "主文字色",
+      "settings.textSecondaryColor": "次文字色",
+      "settings.resetTheme": "重置主题",
+      "settings.language": "语言",
+      "settings.languageDesc": "选择界面语言",
+      "settings.showCookieRisk": "显示 Cookie 风险等级",
+      "settings.showCookieRiskDesc": "在列表中显示风险等级",
+      "log.title": "清理日志",
+      "log.empty": "暂无清理日志",
+      "log.clear": "清空日志",
+      "log.clearConfirm": "确定要清空所有日志吗？",
+      "log.clearSuccess": "日志已清空",
+      "log.clearFailed": "清空日志失败",
+      "log.time": "时间",
+      "log.type": "类型",
+      "log.domains": "域名",
+      "log.count": "数量",
+      "log.auto": "自动",
+      "log.manual": "手动",
+      "log.all": "全部",
+      "log.current": "当前",
+      "risk.low": "低风险",
+      "risk.medium": "中风险",
+      "risk.high": "高风险",
+      "risk.unknown": "未知",
+      "cookieList.title": "Cookie 列表",
+      "cookieList.empty": "暂无 Cookie",
+      "cookieList.search": "搜索 Cookie",
+      "cookieList.name": "名称",
+      "cookieList.domain": "域名",
+      "cookieList.value": "值",
+      "cookieList.expiration": "过期时间",
+      "cookieList.session": "会话",
+      "cookieList.httpOnly": "HttpOnly",
+      "cookieList.secure": "安全",
+      "cookieList.sameSite": "SameSite",
+      "cookieList.risk": "风险等级",
+      "cookieList.actions": "操作",
       "cookieList.edit": "编辑",
-      "cookieList.hide": "隐藏",
-      "cookieList.show": "显示",
-      "cookieList.value": "值:",
-      "cookieList.path": "路径:",
-      "cookieList.secure": "安全:",
-      "cookieList.httpOnly": "仅 HTTP:",
-      "cookieList.sameSite": "SameSite:",
-      "cookieList.notSet": "未设置",
-      "cookieList.expirationTime": "过期时间:",
-      "cookieList.lowRisk": "低风险",
-      "cookieList.mediumRisk": "中风险",
-      "cookieList.highRisk": "高风险",
-      "cookieList.trackingCookie": "疑似追踪 Cookie",
-      "cookieList.thirdPartyCookie": "第三方 Cookie",
-      "cookieList.notHttpOnly": "非 HttpOnly（可被 JavaScript 访问）",
-      "cookieList.notSecure": "非 Secure（可能在不安全连接中传输）",
-      "cookieEditor.editCookie": "编辑 Cookie",
-      "cookieEditor.createCookie": "新建 Cookie",
-      "cookieEditor.name": "名称",
-      "cookieEditor.value": "值",
-      "cookieEditor.domain": "域名",
-      "cookieEditor.path": "路径",
-      "cookieEditor.expiration": "过期时间（Unix 时间戳，可选）",
-      "cookieEditor.expirationPlaceholder": "留空表示会话 Cookie",
-      "cookieEditor.sameSite": "SameSite",
-      "cookieEditor.unspecified": "未设置",
-      "cookieEditor.strict": "Strict",
-      "cookieEditor.lax": "Lax",
-      "cookieEditor.none": "None",
-      "cookieEditor.secureOnly": "Secure（仅 HTTPS）",
-      "cookieEditor.httpOnlyOnly": "HttpOnly（禁止 JavaScript 访问）",
-      "errorBoundary.error": "出错了",
-      "errorBoundary.errorMessage": "抱歉，扩展遇到了一个错误。请尝试重新加载。",
-      "errorBoundary.retry": "重试",
-      "cookieTypes.session": "会话Cookie",
-      "cookieTypes.persistent": "持久Cookie",
-      "cookieTypes.all": "所有Cookie",
-      "actions.clear": "清除",
-      "actions.edit": "编辑",
-      "actions.delete": "删除",
-      "actions.import": "导入",
-      "actions.export": "导出",
-      "actions.action": "操作",
-    };
-
-    const t = (key: string, params?: Record<string, string | number>) => {
-      let result = translations[key] || key;
-      if (key === "domainManager.addedToList" && params?.listType === "白名单") {
-        return "已添加到白名单";
-      }
-      if (key === "domainManager.addedToList" && params?.listType === "黑名单") {
-        return "已添加到黑名单";
-      }
-      if (key === "domainManager.alreadyInList" && params?.listType === "白名单") {
-        return `${params.domain} 已在白名单中`;
-      }
-      if (key === "domainManager.alreadyInList" && params?.listType === "黑名单") {
-        return `${params.domain} 已在黑名单中`;
-      }
-      if (params) {
-        Object.entries(params).forEach(([k, v]) => {
-          result = result.replace(`{${k}}`, String(v));
-        });
-      }
-      return result;
+      "cookieList.delete": "删除",
+      "cookieList.deleteConfirm": "确定要删除这个 Cookie 吗？",
+      "cookieList.deleteFailed": "删除 Cookie 失败",
+      "cookieList.editFailed": "编辑 Cookie 失败",
+      "confirm.title": "确认操作",
+      "confirm.clearAllCookies": "确定要清除所有 Cookie 吗？",
+      "confirm.clearCurrentDomain": "确定要清除当前网站的所有 Cookie 吗？",
+      "confirm.clearCookies": "确定要清除选中的 Cookie 吗？",
+      "message.noCookiesToClear": "没有需要清除的 Cookie",
+      "message.clearSuccess": "成功清除 {count} 个 Cookie",
+      "message.clearFailed": "清除 Cookie 失败",
+      "message.noDomain": "无法获取当前网站域名",
+      "message.domainNotInWhitelist": "域名不在白名单中",
+      "message.domainNotInBlacklist": "域名不在黑名单中",
     };
 
     return {
-      t,
-      setLocale: vi.fn(),
-      detectBrowserLocale: vi.fn(() => "zh-CN"),
+      t: (key: string, params?: Record<string, string | number>) => {
+        let text = translations[key] || key;
+        if (params) {
+          Object.entries(params).forEach(([k, v]) => {
+            text = text.replace(`{${k}}`, String(v));
+          });
+        }
+        return text;
+      },
       locale: "zh-CN",
+      setLocale: vi.fn(),
     };
   }),
 }));
 
-vi.mock("@plasmohq/storage/hook", () => ({
+afterEach(() => {
+  cleanup();
+});
+
+class MockStorage {
+  private data = new Map<string, unknown>();
+
+  get(key: string): unknown {
+    return this.data.get(key);
+  }
+
+  set(key: string, value: unknown): void {
+    this.data.set(key, value);
+  }
+
+  remove(key: string): void {
+    this.data.delete(key);
+  }
+
+  clear(): void {
+    this.data.clear();
+  }
+}
+
+const mockStorage = new MockStorage();
+
+vi.mock("wxt/utils/storage", () => ({
+  Storage: MockStorage,
+  storage: {
+    getItem: vi.fn(async (key: string) => mockStorage.get(key)),
+    setItem: vi.fn(async (key: string, value: unknown) => {
+      mockStorage.set(key, value);
+    }),
+    watch: vi.fn(() => {
+      return vi.fn();
+    }),
+  },
+}));
+
+vi.mock("@/hooks/useStorage", () => ({
   useStorage: vi.fn((key: string, defaultValue: unknown) => {
     if (key === "settings") {
       const defaultSettings = defaultValue as Record<string, unknown>;
       return [
         {
-          ...defaultSettings,
-          locale: "zh-CN",
+          mode: defaultSettings.mode || "whitelist",
+          clearType: defaultSettings.clearType || "all",
+          enableAutoCleanup: defaultSettings.enableAutoCleanup || false,
+          cleanupOnTabDiscard: defaultSettings.cleanupOnTabDiscard || false,
+          cleanupOnStartup: defaultSettings.cleanupOnStartup || false,
+          clearCache: defaultSettings.clearCache || false,
+          clearLocalStorage: defaultSettings.clearLocalStorage || false,
+          clearIndexedDB: defaultSettings.clearIndexedDB || false,
+          cleanupExpiredCookies: defaultSettings.cleanupExpiredCookies || false,
+          logRetention: defaultSettings.logRetention || "7d",
+          themeMode: defaultSettings.themeMode || "auto",
+          customTheme: defaultSettings.customTheme || {},
+          scheduleInterval: defaultSettings.scheduleInterval || "disabled",
+          showCookieRisk: defaultSettings.showCookieRisk ?? true,
+          locale: defaultSettings.locale || "zh-CN",
         },
         vi.fn(),
       ];
@@ -260,86 +254,69 @@ vi.mock("@plasmohq/storage/hook", () => ({
   }),
 }));
 
-const mockStorage = new Map<string, unknown>();
-
-class MockStorage {
-  async get(key: string) {
-    return mockStorage.get(key);
-  }
-  async set(key: string, value: unknown) {
-    mockStorage.set(key, value);
-  }
-}
-
-vi.mock("@plasmohq/storage", () => ({
-  Storage: MockStorage,
-}));
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const createMockEvent = <T extends (...args: any[]) => any = () => void>() => ({
-  addListener: vi.fn<(callback: T) => void>(),
-  removeListener: vi.fn<(callback: T) => void>(),
-  hasListener: vi.fn<(callback: T) => boolean>(() => false),
-  hasListeners: vi.fn<() => boolean>(() => false),
-});
-
+// Mock Chrome API
 global.chrome = {
   cookies: {
-    getAll: vi.fn(() => Promise.resolve([])),
-    remove: vi.fn(() => Promise.resolve({})),
-    set: vi.fn(() => Promise.resolve({})),
-    get: vi.fn(),
+    getAll: vi.fn(),
     getAllCookieStores: vi.fn(),
-    onChanged: createMockEvent<(changeInfo: chrome.cookies.CookieChangeInfo) => void>(),
-  },
-  browsingData: {
     remove: vi.fn(),
+    set: vi.fn(),
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
   },
   tabs: {
-    query: vi.fn(() => Promise.resolve([])),
-    onUpdated: createMockEvent(),
-    onRemoved: createMockEvent(),
-    onCreated: createMockEvent(),
-    onActivated: createMockEvent(),
+    query: vi.fn(),
+    onActivated: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
+    onUpdated: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
   },
   storage: {
     local: {
       get: vi.fn(),
       set: vi.fn(),
       remove: vi.fn(),
-      clear: vi.fn(),
-      onChanged: createMockEvent(),
     },
-    sync: {
-      get: vi.fn(),
-      set: vi.fn(),
-      remove: vi.fn(),
-      clear: vi.fn(),
-      onChanged: createMockEvent(),
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
     },
-    onChanged: createMockEvent(),
   },
   runtime: {
-    lastError: undefined as chrome.runtime.LastError | undefined,
-    onInstalled: createMockEvent(),
-    onStartup: createMockEvent(),
-    onMessage: createMockEvent(),
-    sendMessage: vi.fn(),
-    getURL: vi.fn((path: string) => `chrome-extension://mock-id/${path}`),
-    getManifest: vi.fn(() => ({ manifest_version: 3, name: "Test", version: "1.0" })),
+    onStartup: {
+      addListener: vi.fn(),
+    },
+    onInstalled: {
+      addListener: vi.fn(),
+    },
+    getManifest: vi.fn(),
   },
-  alarms: {
-    create: vi.fn(),
-    get: vi.fn(() => Promise.resolve(undefined)),
-    getAll: vi.fn(() => Promise.resolve([])),
-    clear: vi.fn(() => Promise.resolve(true)),
-    clearAll: vi.fn(() => Promise.resolve(true)),
-    onAlarm: createMockEvent(),
+  i18n: {
+    getMessage: vi.fn((key: string) => key),
+    getUILanguage: vi.fn(() => "zh-CN"),
+  },
+  browsingData: {
+    remove: vi.fn(),
   },
 } as unknown as typeof chrome;
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-  mockStorage.clear();
+// Mock window.matchMedia
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
 });

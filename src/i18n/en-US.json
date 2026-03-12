@@ -106,6 +106,7 @@
     "privacyProtection": "Privacy Protection",
     "privacyProtectionDesc": "Enhance your online privacy protection by identifying and alerting you to potential tracking behavior",
     "showCookieRisk": "Show cookie risk assessment",
+    "showCookieRiskDesc": "Display risk level assessment for each cookie in the list",
     "advancedCleanup": "Advanced Cleanup",
     "advancedCleanupDesc": "In addition to cookies, you can also clean other browser storage that may store your data",
     "clearLocalStorage": "Clear local storage",

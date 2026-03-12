@@ -154,10 +154,10 @@
   --bg-card: #1e293b;
   --bg-muted: #1e293b;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-muted: #94a3b8;
   --text-disabled: #64748b;
   --text-on-primary: #0f172a;
 
@@ -194,10 +194,10 @@
     --bg-card: #1e293b;
     --bg-muted: #1e293b;
 
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-tertiary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --text-tertiary: #cbd5e1;
+    --text-muted: #94a3b8;
     --text-disabled: #64748b;
     --text-on-primary: #0f172a;
 
@@ -254,7 +254,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-#__plasmo {
+#root {
   width: 380px;
   height: 520px;
   min-width: 380px;
@@ -1180,7 +1180,7 @@ header h1 {
   text-align: right;
   word-break: break-all;
   flex: 1;
-  font-family: "SF Mono", "Monaco", "Consolas", "Liberation Mono", monospace;
+  font-family: "SF Mono", Monaco, Consolas, "Liberation Mono", monospace;
   font-size: var(--font-size-xs);
 }
 

@@ -8,7 +8,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/", "build/", "dist/", ".plasmo/", "*.min.js", "package-lock.json"],
+    ignores: ["node_modules/", "build/", "dist/", ".wxt/", "*.min.js", "package-lock.json"],
   },
   {
     files: ["**/*.{ts,tsx}"],

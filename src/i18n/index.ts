@@ -1,6 +1,6 @@
 import zhCN from "./zh-CN.json";
 import enUS from "./en-US.json";
-import type { Locale as ProjectLocale } from "~types";
+import type { Locale as ProjectLocale } from "@/types";
 import type { Translations } from "./types";
 
 type Locale = ProjectLocale;
@@ -48,7 +48,7 @@ export function t(path: string, params?: Record<string, string | number>): strin
   }
 
   if (params) {
-    return value.replace(/\{(\w+)\}/g, (_, key) => {
+    return value.replaceAll(/\{(\w+)\}/g, (_, key) => {
       return params[key]?.toString() || `{${key}}`;
     });
   }

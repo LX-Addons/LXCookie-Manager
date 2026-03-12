@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { Cookie, SameSite } from "~types";
-import { useTranslation } from "~hooks/useTranslation";
+import { useState, useEffect } from "react";
+import type { Cookie, SameSite } from "@/types";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Props {
   isOpen: boolean;
@@ -25,37 +25,45 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
   );
   const { t } = useTranslation();
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
     onClose();
   };
 
-  const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onClose();
-    }
-  };
-
   const handleDialogKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation();
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
   };
 
   return (
     <div
       className="confirm-overlay"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      onKeyDown={handleOverlayKeyDown}
+      onClick={handleOverlayClick}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      role="presentation"
+      data-testid="cookie-editor"
     >
-      <div
+      <dialog
         className="confirm-dialog cookie-editor-dialog"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleDialogKeyDown}
-        role="dialog"
-        aria-modal="true"
+        open
       >
         <h3 className="confirm-title">
           {cookie ? t("cookieEditor.editCookie") : t("cookieEditor.createCookie")}
@@ -165,15 +173,20 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
             </label>
           </div>
           <div className="confirm-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+              data-testid="cancel-editor"
+            >
               {t("common.cancel")}
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" data-testid="save-editor">
               {t("common.save")}
             </button>
           </div>
         </form>
-      </div>
+      </dialog>
     </div>
   );
 };

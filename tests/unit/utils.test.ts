@@ -22,8 +22,8 @@ import {
   toggleSetValue,
   validateDomain,
   isSensitiveCookie,
-} from "../../utils";
-import { CookieClearType } from "../../types";
+} from "@/utils";
+import { CookieClearType } from "@/types";
 
 const createMockCookies = () =>
   [

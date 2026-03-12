@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeDomain, isDomainMatch, isInList, getCookieTypeName } from "../../utils";
+import { normalizeDomain, isDomainMatch, isInList, getCookieTypeName } from "@/utils";
 
 describe("normalizeDomain", () => {
   it("should remove leading dot", () => {

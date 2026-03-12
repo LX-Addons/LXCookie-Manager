@@ -7,7 +7,7 @@ import {
   COOKIE_VALUE_MASK,
   TRACKING_COOKIE_KEYWORDS,
   THIRD_PARTY_TRACKERS,
-} from "../../constants";
+} from "@/lib/constants";
 
 describe("constants", () => {
   describe("MESSAGE_DURATION", () => {

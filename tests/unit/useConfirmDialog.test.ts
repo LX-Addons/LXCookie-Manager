@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 describe("useConfirmDialog", () => {
   it("should initialize with closed state", () => {

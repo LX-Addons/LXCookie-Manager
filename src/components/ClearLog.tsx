@@ -1,11 +1,11 @@
-import { useStorage } from "@plasmohq/storage/hook";
-import { CLEAR_LOG_KEY, SETTINGS_KEY, DEFAULT_SETTINGS, LOG_RETENTION_MAP } from "~store";
-import type { ClearLogEntry, Settings } from "~types";
-import { LogRetention } from "~types";
-import { getCookieTypeName, getActionText, getActionColor, formatLogTime } from "~utils";
+import { useStorage } from "@/hooks/useStorage";
+import { CLEAR_LOG_KEY, SETTINGS_KEY, DEFAULT_SETTINGS, LOG_RETENTION_MAP } from "@/lib/store";
+import type { ClearLogEntry, Settings } from "@/types";
+import { LogRetention } from "@/types";
+import { getCookieTypeName, getActionText, getActionColor, formatLogTime } from "@/utils";
 import { useMemo } from "react";
 import { ConfirmDialogWrapper, type ShowConfirmFn } from "./ConfirmDialogWrapper";
-import { useTranslation } from "~hooks/useTranslation";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Props {
   onMessage: (msg: string) => void;

@@ -1,6 +1,39 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { CookieEditor } from "../../components/CookieEditor";
+import { CookieEditor } from "@/components/CookieEditor";
+
+vi.mock("@/hooks/useTranslation", () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, string | number>) => {
+      const translations: Record<string, string> = {
+        "cookieEditor.createCookie": "新建 Cookie",
+        "cookieEditor.editCookie": "编辑 Cookie",
+        "cookieEditor.name": "名称",
+        "cookieEditor.value": "值",
+        "cookieEditor.domain": "域名",
+        "cookieEditor.path": "路径",
+        "cookieEditor.expiration": "过期时间",
+        "cookieEditor.expirationPlaceholder": "留空表示会话 Cookie",
+        "cookieEditor.sameSite": "SameSite",
+        "cookieEditor.unspecified": "未指定",
+        "cookieEditor.strict": "严格",
+        "cookieEditor.lax": "宽松",
+        "cookieEditor.none": "无",
+        "cookieEditor.secureOnly": "仅安全连接",
+        "cookieEditor.httpOnlyOnly": "仅 HttpOnly",
+        "common.cancel": "取消",
+        "common.save": "保存",
+      };
+      let text = translations[key] || key;
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          text = text.replace(`{${k}}`, String(v));
+        });
+      }
+      return text;
+    },
+  }),
+}));
 
 const mockCookie = {
   name: "test",
@@ -162,37 +195,12 @@ describe("CookieEditor", () => {
     }
   });
 
-  it("should call onClose when Enter key is pressed on overlay", () => {
+  it("should close on Escape key press", () => {
     const onClose = vi.fn();
     render(<CookieEditor isOpen={true} cookie={null} onClose={onClose} onSave={vi.fn()} />);
 
-    const overlay = document.querySelector(".confirm-overlay");
-    if (overlay) {
-      fireEvent.keyDown(overlay, { key: "Enter" });
-      expect(onClose).toHaveBeenCalled();
-    }
-  });
-
-  it("should call onClose when Space key is pressed on overlay", () => {
-    const onClose = vi.fn();
-    render(<CookieEditor isOpen={true} cookie={null} onClose={onClose} onSave={vi.fn()} />);
-
-    const overlay = document.querySelector(".confirm-overlay");
-    if (overlay) {
-      fireEvent.keyDown(overlay, { key: " " });
-      expect(onClose).toHaveBeenCalled();
-    }
-  });
-
-  it("should not call onClose when other keys are pressed on overlay", () => {
-    const onClose = vi.fn();
-    render(<CookieEditor isOpen={true} cookie={null} onClose={onClose} onSave={vi.fn()} />);
-
-    const overlay = document.querySelector(".confirm-overlay");
-    if (overlay) {
-      fireEvent.keyDown(overlay, { key: "Escape" });
-      expect(onClose).not.toHaveBeenCalled();
-    }
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("should update form data when cookie prop changes", () => {

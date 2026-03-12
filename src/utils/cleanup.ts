@@ -1,8 +1,8 @@
-import { storage, WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "~store";
-import type { Settings } from "~types";
-import { ModeType, CookieClearType } from "~types";
-import { isInList, isDomainMatch } from "~utils";
-import { clearBrowserData, clearCookies, type ClearBrowserDataOptions } from "~utils";
+import { storage, WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
+import type { Settings } from "@/types";
+import { ModeType, CookieClearType } from "@/types";
+import { isInList, isDomainMatch } from "@/utils";
+import { clearBrowserData, clearCookies, type ClearBrowserDataOptions } from "@/utils";
 
 export interface CleanupOptions {
   domain: string;
@@ -26,14 +26,14 @@ const getCleanupSettings = async (
   clearType: CookieClearType;
   clearOptions: ClearBrowserDataOptions;
 }> => {
-  let settings = await storage.get<Settings>(SETTINGS_KEY);
+  let settings = await storage.getItem<Settings>(SETTINGS_KEY);
   if (!settings) {
     settings = DEFAULT_SETTINGS;
-    await storage.set(SETTINGS_KEY, DEFAULT_SETTINGS);
+    await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
   }
 
-  const whitelist = (await storage.get<string[]>(WHITELIST_KEY)) || [];
-  const blacklist = (await storage.get<string[]>(BLACKLIST_KEY)) || [];
+  const whitelist = (await storage.getItem<string[]>(WHITELIST_KEY)) || [];
+  const blacklist = (await storage.getItem<string[]>(BLACKLIST_KEY)) || [];
 
   const clearType = options?.clearType ?? settings.clearType;
   const clearOptions: ClearBrowserDataOptions = {

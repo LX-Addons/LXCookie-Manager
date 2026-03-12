@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
-import { useStorage } from "@plasmohq/storage/hook";
-import { WHITELIST_KEY, BLACKLIST_KEY } from "~store";
-import type { DomainList } from "~types";
-import { validateDomain } from "~utils";
-import { useTranslation } from "~hooks/useTranslation";
+import { useStorage } from "@/hooks/useStorage";
+import { WHITELIST_KEY, BLACKLIST_KEY } from "@/lib/store";
+import type { DomainList } from "@/types";
+import { validateDomain } from "@/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Props {
   type: "whitelist" | "blacklist";

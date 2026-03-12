@@ -106,6 +106,7 @@
     "privacyProtection": "隐私保护",
     "privacyProtectionDesc": "增强您的在线隐私保护，识别并警示潜在的追踪行为",
     "showCookieRisk": "显示 Cookie 风险评估",
+    "showCookieRiskDesc": "在 Cookie 列表中显示每个 Cookie 的风险等级评估",
     "advancedCleanup": "高级清理",
     "advancedCleanupDesc": "除了 Cookie 外，还可以清理其他可能存储您数据的浏览器存储",
     "clearLocalStorage": "清理本地存储",

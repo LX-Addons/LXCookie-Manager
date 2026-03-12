@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { CheckboxGroup } from "../../components/CheckboxGroup";
+import { CheckboxGroup } from "@/components/CheckboxGroup";
 
 describe("CheckboxGroup", () => {
   it("should render all options", () => {

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useCallback } from "react";
 
 interface ConfirmDialogProps {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  variant?: "danger" | "warning";
+  readonly isOpen: boolean;
+  readonly title: string;
+  readonly message: string;
+  readonly confirmText?: string;
+  readonly cancelText?: string;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+  readonly variant?: "danger" | "warning";
 }
 
 export function ConfirmDialog({
@@ -26,16 +26,6 @@ export function ConfirmDialog({
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) {
-        onCancel();
-      }
-    },
-    [onCancel]
-  );
-
-  const handleOverlayKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
         onCancel();
       }
     },
@@ -64,14 +54,11 @@ export function ConfirmDialog({
   return (
     <div
       className="confirm-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-title"
       onClick={handleOverlayClick}
-      onKeyDown={handleOverlayKeyDown}
-      tabIndex={-1}
+      onKeyDown={(e) => e.key === "Escape" && onCancel()}
+      role="presentation"
     >
-      <div className="confirm-dialog">
+      <dialog className="confirm-dialog" open>
         <h3 id="confirm-title" className={`confirm-title ${variant === "danger" ? "danger" : ""}`}>
           {title}
         </h3>
@@ -88,7 +75,7 @@ export function ConfirmDialog({
             {confirmText}
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

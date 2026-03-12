@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { RadioGroup } from "../../components/RadioGroup";
+import { RadioGroup } from "@/components/RadioGroup";
 
 describe("RadioGroup", () => {
   it("should render all options", () => {

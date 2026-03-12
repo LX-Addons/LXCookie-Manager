@@ -1,9 +1,9 @@
-import { CookieClearType, CookieRisk } from "./types";
+import { CookieClearType, CookieRisk } from "@/types";
 import {
   TRACKING_COOKIE_KEYWORDS,
   THIRD_PARTY_TRACKERS,
   SENSITIVE_COOKIE_KEYWORDS,
-} from "./constants";
+} from "@/lib/constants";
 
 export const normalizeDomain = (domain: string): string => {
   return domain.replace(/^\./, "").toLowerCase();
@@ -88,40 +88,62 @@ export const isThirdPartyCookie = (cookieDomain: string, currentDomain?: string)
   return !isDomainMatch(normalizedCookie, normalizedCurrent);
 };
 
+const buildRiskReason = (t?: (key: string) => string): ((reasonKey: string) => string) => {
+  return (reasonKey: string) => {
+    const reasonMap: Record<string, string> = {
+      tracking: t ? t("cookieList.trackingCookie") : "疑似追踪 Cookie",
+      thirdParty: t ? t("cookieList.thirdPartyCookie") : "第三方 Cookie",
+      notHttpOnly: t ? t("cookieList.notHttpOnly") : "非 HttpOnly（可被 JavaScript 访问）",
+      notSecure: t ? t("cookieList.notSecure") : "非 Secure（可能在不安全连接中传输）",
+      lowRisk: t ? t("cookieList.lowRisk") : "低风险",
+    };
+    return reasonMap[reasonKey] || reasonKey;
+  };
+};
+
+const determineRiskLevel = (
+  isTracking: boolean,
+  isThirdParty: boolean,
+  isHttpOnly: boolean,
+  isSecure: boolean
+): "low" | "medium" | "high" => {
+  if (isTracking) return "high";
+
+  if (!isHttpOnly || !isSecure || isThirdParty) return "medium";
+
+  return "low";
+};
+
 export const assessCookieRisk = (
   cookie: { name: string; domain: string; httpOnly: boolean; secure?: boolean },
   currentDomain?: string,
   t?: (key: string) => string
 ): CookieRisk => {
-  let riskLevel: "low" | "medium" | "high" = "low";
-  const reasons: string[] = [];
-
+  const getReason = buildRiskReason(t);
   const isTracking = isTrackingCookie(cookie);
   const isThirdParty = isThirdPartyCookie(cookie.domain, currentDomain);
+  const isHttpOnly = cookie.httpOnly;
+  const isSecure = cookie.secure ?? false;
 
+  const riskLevel = determineRiskLevel(isTracking, isThirdParty, isHttpOnly, isSecure);
+
+  const reasons: string[] = [];
   if (isTracking) {
-    riskLevel = "high";
-    reasons.push(t ? t("cookieList.trackingCookie") : "疑似追踪 Cookie");
+    reasons.push(getReason("tracking"));
   }
-
   if (isThirdParty) {
-    if (riskLevel === "low") riskLevel = "medium";
-    reasons.push(t ? t("cookieList.thirdPartyCookie") : "第三方 Cookie");
+    reasons.push(getReason("thirdParty"));
   }
-
-  if (!cookie.httpOnly) {
-    if (riskLevel === "low") riskLevel = "medium";
-    reasons.push(t ? t("cookieList.notHttpOnly") : "非 HttpOnly（可被 JavaScript 访问）");
+  if (!isHttpOnly) {
+    reasons.push(getReason("notHttpOnly"));
   }
-
-  if (!cookie.secure && cookie.domain.startsWith(".")) {
-    if (riskLevel === "low") riskLevel = "medium";
-    reasons.push(t ? t("cookieList.notSecure") : "非 Secure（可能在不安全连接中传输）");
+  if (!isSecure && cookie.domain.startsWith(".")) {
+    reasons.push(getReason("notSecure"));
   }
 
   return {
     level: riskLevel,
-    reason: reasons.length > 0 ? reasons.join("、") : t ? t("cookieList.lowRisk") : "低风险",
+    reason: reasons.length > 0 ? reasons.join("、") : getReason("lowRisk"),
     isTracking,
     isThirdParty,
   };
@@ -372,8 +394,9 @@ export const formatLogTime = (timestamp: number, _t?: (key: string) => string): 
 };
 
 export const maskCookieValue = (value: string, mask: string): string => {
+  if (!value || value.length === 0) return mask;
   if (value.length <= 8) return mask;
-  return value.substring(0, 4) + mask.substring(4);
+  return value.slice(0, 4) + mask.substring(4);
 };
 
 export const getCookieKey = (name: string, domain: string): string => {
