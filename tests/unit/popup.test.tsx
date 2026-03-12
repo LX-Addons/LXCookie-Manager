@@ -21,6 +21,35 @@ const mockMatchMedia = (overrides: Partial<MediaQueryList> = {}) => {
   });
 };
 
+// Helper function to create mock storage implementation
+const createMockStorage = (overrides: { whitelist?: string[]; blacklist?: string[]; settings?: Record<string, unknown> } = {}) => {
+  return (key: string, defaultValue: unknown) => {
+    if (key === "local:whitelist") {
+      return [overrides.whitelist ?? [], vi.fn()];
+    }
+    if (key === "local:blacklist") {
+      return [overrides.blacklist ?? [], vi.fn()];
+    }
+    if (key === "local:settings") {
+      return [
+        {
+          mode: "whitelist",
+          clearType: "all",
+          enableAutoCleanup: false,
+          cleanupOnTabDiscard: false,
+          cleanupOnStartup: false,
+          clearCache: false,
+          clearLocalStorage: false,
+          clearIndexedDB: false,
+          ...overrides.settings,
+        },
+        vi.fn(),
+      ];
+    }
+    return [defaultValue, vi.fn()];
+  };
+};
+
 vi.mock("@/hooks/useStorage", () => ({
   useStorage: vi.fn(),
 }));
@@ -183,30 +212,7 @@ describe("IndexPopup", () => {
       },
     } as unknown as typeof chrome;
 
-    (storageHook.useStorage as Mock).mockImplementation((key: string, defaultValue: unknown) => {
-      if (key === "local:whitelist") {
-        return [[], vi.fn()];
-      }
-      if (key === "local:blacklist") {
-        return [[], vi.fn()];
-      }
-      if (key === "local:settings") {
-        return [
-          {
-            mode: "whitelist",
-            clearType: "all",
-            enableAutoCleanup: false,
-            cleanupOnTabDiscard: false,
-            cleanupOnStartup: false,
-            clearCache: false,
-            clearLocalStorage: false,
-            clearIndexedDB: false,
-          },
-          vi.fn(),
-        ];
-      }
-      return [defaultValue, vi.fn()];
-    });
+    (storageHook.useStorage as Mock).mockImplementation(createMockStorage());
 
     mockMatchMedia();
   });
