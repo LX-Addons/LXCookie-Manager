@@ -109,9 +109,12 @@ export const Settings = ({ onMessage }: Props) => {
             },
           ]}
           onChange={(values) => {
-            updateSetting("clearCache", values.includes("clearCache"));
-            updateSetting("clearLocalStorage", values.includes("clearLocalStorage"));
-            updateSetting("clearIndexedDB", values.includes("clearIndexedDB"));
+            setSettings((prev) => ({
+              ...prev,
+              clearCache: values.includes("clearCache"),
+              clearLocalStorage: values.includes("clearLocalStorage"),
+              clearIndexedDB: values.includes("clearIndexedDB"),
+            }));
           }}
         />
       </div>
@@ -148,11 +151,14 @@ export const Settings = ({ onMessage }: Props) => {
             },
           ]}
           onChange={(values) => {
-            updateSetting("cleanupOnTabClose", values.includes("cleanupOnTabClose"));
-            updateSetting("cleanupOnBrowserClose", values.includes("cleanupOnBrowserClose"));
-            updateSetting("cleanupOnNavigate", values.includes("cleanupOnNavigate"));
-            updateSetting("cleanupOnStartup", values.includes("cleanupOnStartup"));
-            updateSetting("cleanupExpiredCookies", values.includes("cleanupExpiredCookies"));
+            setSettings((prev) => ({
+              ...prev,
+              cleanupOnTabClose: values.includes("cleanupOnTabClose"),
+              cleanupOnBrowserClose: values.includes("cleanupOnBrowserClose"),
+              cleanupOnNavigate: values.includes("cleanupOnNavigate"),
+              cleanupOnStartup: values.includes("cleanupOnStartup"),
+              cleanupExpiredCookies: values.includes("cleanupExpiredCookies"),
+            }));
           }}
         />
       </div>
