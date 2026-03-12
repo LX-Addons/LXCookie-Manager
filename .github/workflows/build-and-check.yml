@@ -13,12 +13,12 @@ on:
         default: false
         type: boolean
       skip_tests:
-        description: "跳过 E2E 测试（加快构建速度)
+        description: "跳过 E2E 测试（加快构建速度）"
         required: false
         default: false
         type: boolean
       clear_caches:
-        description: "清除旧的 npm和WXT 缓存后再构建"
+        description: "清除旧的 npm 和 WXT 缓存后再构建"
         required: false
         default: false
         type: boolean
@@ -36,7 +36,6 @@ concurrency:
 env:
   NODE_VERSION: "24"
   EXTENSION_SIZE_LIMIT_MB: 10
-  # Force Node.js 24 for actions until it becomes default (June 2, 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -48,7 +47,8 @@ jobs:
       cache_key: ${{ steps.cache-key.outputs.key }}
       artifact_retention: ${{ steps.retention.outputs.days }}
     steps:
-      - name: 检出仓仓库        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
 
       - name: 生成缓存 key
         id: cache-key
@@ -68,7 +68,8 @@ jobs:
             echo "days=7" >> $GITHUB_OUTPUT
           fi
 
-      - name: 清除当前分支旧缓�?        if: ${{ github.event.inputs.clear_caches == 'true' || github.event_name == 'push' }}
+      - name: 清除当前分支旧缓存
+        if: ${{ github.event.inputs.clear_caches == 'true' || github.event_name == 'push' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -100,7 +101,7 @@ jobs:
                 
                 for (const cache of caches) {
                   if (cache.key.startsWith(prefix)) {
-                    console.log(`🗑�?删除缓存: ${cache.key}`);
+                    console.log(`🗑️ 删除缓存: ${cache.key}`);
                     try {
                       await github.rest.actions.deleteActionsCacheById({
                         owner,
@@ -109,7 +110,7 @@ jobs:
                       });
                       cachesCleared++;
                     } catch (error) {
-                      console.error(`�?删除失败: ${error.message}`);
+                      console.error(`❌ 删除失败: ${error.message}`);
                     }
                   }
                 }
@@ -119,25 +120,27 @@ jobs:
               }
             }
 
-            console.log(`\n�?成功清除 ${cachesCleared} 个缓存`);
+            console.log(`\n✅ 成功清除 ${cachesCleared} 个缓存`);
 
       - name: 输出准备摘要
         run: |
           echo "## 🚀 环境准备完成" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 配置�?| �?|" >> $GITHUB_STEP_SUMMARY
+          echo "| 配置项 | 值 |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| **分支** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **事件类型** | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **缓存 Key** | \`${{ steps.cache-key.outputs.key }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **产物保留** | ${{ steps.retention.outputs.days }} �?|" >> $GITHUB_STEP_SUMMARY
+          echo "| **产物保留** | ${{ steps.retention.outputs.days }} 天 |" >> $GITHUB_STEP_SUMMARY
 
   lint:
-    name: 代码检�?    runs-on: ubuntu-latest
+    name: 代码检查
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [setup]
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
 
       - name: 配置 Node.js
         uses: actions/setup-node@v4
@@ -160,21 +163,25 @@ jobs:
         if: steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
-      - name: TypeScript 类型检�?        run: npx tsc --noEmit
+      - name: TypeScript 类型检查
+        run: npx tsc --noEmit
 
-      - name: ESLint 代码检�?        run: npm run lint
+      - name: ESLint 代码检查
+        run: npm run lint
 
-      - name: Prettier 格式检�?        run: npm run format:check
+      - name: Prettier 格式检查
+        run: npm run format:check
 
-      - name: 输出检查摘�?        if: always()
+      - name: 输出检查摘要
+        if: always()
         run: |
-          echo "## 🔍 代码检查结�? >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 代码检查结果" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 检查项 | 状�?|" >> $GITHUB_STEP_SUMMARY
+          echo "| 检查项 | 状态 |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript 类型检�?| �?通过 |" >> $GITHUB_STEP_SUMMARY
-          echo "| ESLint 代码检�?| �?通过 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Prettier 格式检�?| �?通过 |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript 类型检查 | ✅ 通过 |" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint 代码检查 | ✅ 通过 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Prettier 格式检查 | ✅ 通过 |" >> $GITHUB_STEP_SUMMARY
 
   test:
     name: 单元测试
@@ -185,7 +192,8 @@ jobs:
       matrix:
         node-version: [20, 24]
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -241,9 +249,9 @@ jobs:
           if [ "${{ steps.sonar.outcome }}" = "failure" ]; then
             echo "### ⚠️ SonarCloud 扫描失败" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "SonarCloud 代码质量扫描未能完成，请检�?SONAR_TOKEN 配置或访�?SonarCloud 查看详情�? >> $GITHUB_STEP_SUMMARY
+            echo "SonarCloud 代码质量扫描未能完成，请检查 SONAR_TOKEN 配置或访问 SonarCloud 查看详情。" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ steps.sonar.outcome }}" = "success" ]; then
-            echo "### �?SonarCloud 扫描完成" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ SonarCloud 扫描完成" >> $GITHUB_STEP_SUMMARY
           fi
 
   security:
@@ -252,7 +260,8 @@ jobs:
     timeout-minutes: 15
     needs: [setup]
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -277,7 +286,8 @@ jobs:
         if: steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline
 
-      - name: 检查密钥泄�?        uses: trufflesecurity/trufflehog@main
+      - name: 检查密钥泄露
+        uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -286,7 +296,7 @@ jobs:
       - name: 依赖安全审计
         id: audit
         run: |
-          echo "### 🛡�?依赖安全审计" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
           AUDIT_OUTPUT=$(npm audit --audit-level=moderate 2>&1) || true
 
@@ -299,31 +309,32 @@ jobs:
 
           if echo "$AUDIT_OUTPUT" | grep -q "found 0 vulnerabilities"; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "�?未发现安全漏�? >> $GITHUB_STEP_SUMMARY
+            echo "✅ 未发现安全漏洞" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=clean" >> $GITHUB_OUTPUT
           else
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **发现安全漏洞�?* 请查看上方审计报告并修复�? >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=warning" >> $GITHUB_OUTPUT
           fi
 
-      - name: 安全模式检�?        run: |
-          echo "### 🔍 安全模式检�? >> $GITHUB_STEP_SUMMARY
+      - name: 安全模式检查
+        run: |
+          echo "### 🔍 安全模式检查" >> $GITHUB_STEP_SUMMARY
           EXIT_CODE=0
 
-          echo "#### eval 使用检�? >> $GITHUB_STEP_SUMMARY
+          echo "#### eval 使用检查" >> $GITHUB_STEP_SUMMARY
           if grep -r "eval(" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | grep -v ".wxt"; then
-            echo "�?发现 eval() 使用 - 潜在安全风险" >> $GITHUB_STEP_SUMMARY
+            echo "❌ 发现 eval() 使用 - 潜在安全风险" >> $GITHUB_STEP_SUMMARY
             EXIT_CODE=1
           else
-            echo "�?未发�?eval() 使用" >> $GITHUB_STEP_SUMMARY
+            echo "✅ 未发现 eval() 使用" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "#### dangerouslySetInnerHTML 检�? >> $GITHUB_STEP_SUMMARY
+          echo "#### dangerouslySetInnerHTML 检查" >> $GITHUB_STEP_SUMMARY
           if grep -r "dangerouslySetInnerHTML" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | grep -v ".wxt"; then
             echo "⚠️ 发现 dangerouslySetInnerHTML 使用 - XSS 风险" >> $GITHUB_STEP_SUMMARY
           else
-            echo "�?未发�?dangerouslySetInnerHTML 使用" >> $GITHUB_STEP_SUMMARY
+            echo "✅ 未发现 dangerouslySetInnerHTML 使用" >> $GITHUB_STEP_SUMMARY
           fi
 
           exit $EXIT_CODE
@@ -338,7 +349,8 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.version.outputs.name }}
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
 
       - name: 配置 Node.js
         uses: actions/setup-node@v4
@@ -373,15 +385,15 @@ jobs:
       - name: 构建扩展
         run: |
           set -e
-          echo "🔨 开始构�?.."
+          echo "🔨 开始构建..."
           npm run build 2>&1
-          echo "�?构建命令完成"
+          echo "✅ 构建命令完成"
 
-          echo "📁 构建后检�?.output/ 目录:"
+          echo "📁 构建后检查 .output/ 目录:"
           if [ -d ".output" ]; then
             ls -la .output/
           else
-            echo "�?.output/ 目录不存�?
+            echo "❌ .output/ 目录不存在"
             echo "📁 当前目录内容:"
             ls -la
             exit 1
@@ -395,14 +407,15 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
-      - name: 检查扩展体�?        run: |
+      - name: 检查扩展体积
+        run: |
           BUILD_DIR=".output/chrome-mv3"
           if [ ! -d "$BUILD_DIR" ]; then
-            echo "�?构建目录不存�? $BUILD_DIR"
+            echo "❌ 构建目录不存在: $BUILD_DIR"
             echo "📁 当前目录内容:"
             ls -la
             echo "📁 .output/ 目录内容:"
-            ls -la .output/ 2>/dev/null || echo ".output/ 目录不存�?
+            ls -la .output/ 2>/dev/null || echo ".output/ 目录不存在"
             exit 1
           fi
 
@@ -411,17 +424,17 @@ jobs:
           echo "📊 扩展体积: ${SIZE_MB}MB (${SIZE_KB}KB)"
 
           if [ "$SIZE_MB" -gt "${{ env.EXTENSION_SIZE_LIMIT_MB }}" ]; then
-            echo "�?扩展体积 (${SIZE_MB}MB) 超出限制 (${{ env.EXTENSION_SIZE_LIMIT_MB }}MB)"
+            echo "❌ 扩展体积 (${SIZE_MB}MB) 超出限制 (${{ env.EXTENSION_SIZE_LIMIT_MB }}MB)"
             exit 1
           fi
-          echo "�?扩展体积符合限制"
+          echo "✅ 扩展体积符合限制"
 
       - name: 验证构建产物
         run: |
           BUILD_DIR=".output/chrome-mv3"
 
           if [ ! -d "$BUILD_DIR" ]; then
-            echo "�?构建目录不存�? $BUILD_DIR"
+            echo "❌ 构建目录不存在: $BUILD_DIR"
             exit 1
           fi
 
@@ -431,9 +444,9 @@ jobs:
           REQUIRED_FILES=("manifest.json" "popup.html")
           for file in "${REQUIRED_FILES[@]}"; do
             if [ -f "$BUILD_DIR/$file" ]; then
-              echo "�?$file 存在"
+              echo "✅ $file 存在"
             else
-              echo "�?$file 缺失"
+              echo "❌ $file 缺失"
               exit 1
             fi
           done
@@ -445,37 +458,37 @@ jobs:
 
       - name: 打包扩展
         run: |
-          echo "📁 打包�?.output/ 目录内容:"
+          echo "📁 打包前 .output/ 目录内容:"
           ls -la .output/
 
           npm run zip
 
-          echo "📁 打包�?.output/ 目录内容:"
+          echo "📁 打包后 .output/ 目录内容:"
           ls -la .output/
 
       - name: 验证构建产物
         run: |
-          echo "📁 检�?.output/ 目录:"
-          ls -la .output/ || echo "目录不存�?
+          echo "📁 检查 .output/ 目录:"
+          ls -la .output/ || echo "目录不存在"
 
           if [ ! -d ".output" ]; then
-            echo "�?.output/ 目录不存�?
+            echo "❌ .output/ 目录不存在"
             exit 1
           fi
 
           if [ ! -d ".output/chrome-mv3" ]; then
-            echo "�?.output/chrome-mv3/ 目录不存�?
+            echo "❌ .output/chrome-mv3/ 目录不存在"
             echo "📁 .output/ 目录内容:"
             ls -la .output/
             exit 1
           fi
 
           if [ -z "$(ls -A .output/chrome-mv3/)" ]; then
-            echo "�?.output/chrome-mv3/ 目录为空"
+            echo "❌ .output/chrome-mv3/ 目录为空"
             exit 1
           fi
 
-          echo "�?构建产物验证通过"
+          echo "✅ 构建产物验证通过"
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
@@ -489,11 +502,11 @@ jobs:
         run: |
           echo "## 📦 构建完成" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 项目 | �?|" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| **版本** | \`${{ steps.version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **名称** | \`${{ steps.version.outputs.name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **产物保留** | ${{ needs.setup.outputs.artifact_retention }} �?|" >> $GITHUB_STEP_SUMMARY
+          echo "| **产物保留** | ${{ needs.setup.outputs.artifact_retention }} 天 |" >> $GITHUB_STEP_SUMMARY
 
   e2e:
     name: E2E测试
@@ -502,7 +515,8 @@ jobs:
     needs: [setup, build]
     if: always() && needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
 
       - name: 配置 Node.js
         uses: actions/setup-node@v4
@@ -528,7 +542,7 @@ jobs:
       - name: 列出可用 Artifacts
         run: |
           echo "📦 尝试下载 artifact: extension-build"
-          echo "🔍 工作流运�?ID: ${{ github.run_id }}"
+          echo "🔍 工作流运行 ID: ${{ github.run_id }}"
 
       - name: 下载构建产物
         uses: actions/download-artifact@v4
@@ -544,28 +558,28 @@ jobs:
           echo "📁 .output/ 目录内容:"
           ls -la .output/ || echo "目录为空或不存在"
 
-          # 检查下载后的目录结�?          if [ -d ".output" ] && [ -f ".output/manifest.json" ]; then
-            echo "�?找到 manifest.json �?.output/ 根目�?
+          if [ -d ".output" ] && [ -f ".output/manifest.json" ]; then
+            echo "✅ 找到 manifest.json 在 .output/ 根目录"
             SOURCE_DIR=".output"
           elif [ -d ".output/chrome-mv3" ]; then
-            echo "�?找到构建目录: .output/chrome-mv3"
+            echo "✅ 找到构建目录: .output/chrome-mv3"
             SOURCE_DIR=".output/chrome-mv3"
           else
-            echo "�?未找到构建产物，检查所有目�?.."
+            echo "❌ 未找到构建产物，检查所有目录..."
             find . -name "manifest.json" -type f 2>/dev/null | head -5
             echo "📁 当前目录完整内容:"
             ls -laR
             exit 1
           fi
 
-          # E2E 测试期望的目录结构是 build/chrome-mv3-prod
           mkdir -p build/chrome-mv3-prod
           cp -r "$SOURCE_DIR"/* build/chrome-mv3-prod/
 
-          echo "📁 最�?build/chrome-mv3-prod/ 目录内容:"
+          echo "📁 最终 build/chrome-mv3-prod/ 目录内容:"
           ls -la build/chrome-mv3-prod/
 
-      - name: 安装 Playwright 浏览�?        run: npx playwright install --with-deps chromium
+      - name: 安装 Playwright 浏览器
+        run: npx playwright install --with-deps chromium
 
       - name: 运行 E2E 测试
         run: xvfb-run --auto-servernum npm run test:e2e
@@ -585,7 +599,8 @@ jobs:
     needs: [setup, lint, test, security, build, e2e]
     if: always() && github.event_name == 'pull_request'
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
 
       - name: 获取版本信息
         id: info
@@ -616,8 +631,8 @@ jobs:
             const isDependabot = '${{ steps.dependabot.outputs.is_dependabot }}' === 'true';
 
             const statusEmoji = (result) => {
-              if (result === 'success') return '�?;
-              if (result === 'failure') return '�?;
+              if (result === 'success') return '✅';
+              if (result === 'failure') return '❌';
               if (result === 'skipped') return '⏭️';
               return '⚠️';
             };
@@ -633,21 +648,21 @@ jobs:
               return `![${label}](https://img.shields.io/badge/${encodeURIComponent(label)}-${result}-${color}?style=flat-square)`;
             };
 
-            let body = `## 🛠�?扩展构建仪表盘\n\n`;
+            let body = `## 🛠️ 扩展构建仪表盘\n\n`;
             body += `> **版本:** \`${version}\` | **分支:** \`${{ github.ref_name }}\` | **运行 ID:** [#${{ github.run_number }}](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})\n\n`;
 
             body += `### 📊 检查结果概览\n\n`;
-            body += `| 阶段 | 检查项 | 状�?| 说明 |\n`;
+            body += `| 阶段 | 检查项 | 状态 | 说明 |\n`;
             body += `| :---: | :--- | :---: | :--- |\n`;
-            body += `| 🚀 | **环境准备** | ${statusEmoji(setupResult)} | 缓存与产物配�?|\n`;
-            body += `| 🔍 | **代码检�?* | ${statusEmoji(lintResult)} | TypeScript + ESLint + Prettier |\n`;
-            body += `| 🧪 | **单元测试** | ${statusEmoji(testResult)} | Node.js 18/20 多版本测�?|\n`;
-            body += `| 🛡�?| **安全扫描** | ${statusEmoji(securityResult)} | 密钥泄露 + 依赖审计 |\n`;
+            body += `| 🚀 | **环境准备** | ${statusEmoji(setupResult)} | 缓存与产物配置 |\n`;
+            body += `| 🔍 | **代码检查** | ${statusEmoji(lintResult)} | TypeScript + ESLint + Prettier |\n`;
+            body += `| 🧪 | **单元测试** | ${statusEmoji(testResult)} | Node.js 18/20 多版本测试 |\n`;
+            body += `| 🛡️ | **安全扫描** | ${statusEmoji(securityResult)} | 密钥泄露 + 依赖审计 |\n`;
             body += `| 📦 | **扩展构建** | ${statusEmoji(buildResult)} | WXT 生产构建 |\n`;
-            body += `| 🎭 | **E2E 测试** | ${statusEmoji(e2eResult)} | Playwright 浏览器测�?|\n\n`;
+            body += `| 🎭 | **E2E 测试** | ${statusEmoji(e2eResult)} | Playwright 浏览器测试 |\n\n`;
 
-            body += `### 🏷�?状态徽章\n\n`;
-            body += `${getBadge('代码检�?, lintResult)} ${getBadge('单元测试', testResult)} ${getBadge('安全扫描', securityResult)} ${getBadge('构建', buildResult)} ${getBadge('E2E测试', e2eResult)}\n\n`;
+            body += `### 🏷️ 状态徽章\n\n`;
+            body += `${getBadge('代码检查', lintResult)} ${getBadge('单元测试', testResult)} ${getBadge('安全扫描', securityResult)} ${getBadge('构建', buildResult)} ${getBadge('E2E测试', e2eResult)}\n\n`;
 
             const results = {
               lint: lintResult,
@@ -662,7 +677,7 @@ jobs:
             const e2eSuccess = e2eResult === 'success' || e2eResult === 'skipped';
 
             if (allSuccess && e2eSuccess) {
-              body += `> 🎉 **所有检查已通过�?* 代码已准备好合并。\n\n`;
+              body += `> 🎉 **所有检查已通过！** 代码已准备好合并。\n\n`;
             } else {
               body += `> ⚠️ **部分检查未通过**，请查看上方详情或检查日志。\n\n`;
             }
@@ -670,15 +685,15 @@ jobs:
             if (buildResult === 'success') {
               body += `---\n\n`;
               body += `### 📥 下载构建产物\n\n`;
-              body += `构建产物可在 [工作流运行页面](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}) �?**Artifacts** 区域下载。\n\n`;
+              body += `构建产物可在 [工作流运行页面](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}) 的 **Artifacts** 区域下载。\n\n`;
             }
 
             if (isDependabot) {
               body += `---\n\n`;
               body += `### 🤖 Dependabot 依赖更新\n\n`;
               if (allSuccess && e2eSuccess) {
-                body += `�?所有关键检查已通过，已添加 \`待审核\` 标签。\n\n`;
-                body += `⚠️ **需要人工审核后才能合并到主分支�?*\n`;
+                body += `✅ 所有关键检查已通过，已添加 \`待审核\` 标签。\n\n`;
+                body += `⚠️ **需要人工审核后才能合并到主分支！**\n`;
               } else {
                 body += `⚠️ 部分检查未通过，需要人工审核。\n`;
               }
@@ -700,18 +715,18 @@ jobs:
     steps:
       - name: 创建失败摘要
         run: |
-          echo "## �?构建失败" >> $GITHUB_STEP_SUMMARY
+          echo "## ❌ 构建失败" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 阶段 | 任务 | 状�?|" >> $GITHUB_STEP_SUMMARY
+          echo "| 阶段 | 任务 | 状态 |" >> $GITHUB_STEP_SUMMARY
           echo "| :---: | :--- | :---: |" >> $GITHUB_STEP_SUMMARY
           echo "| 🚀 | 环境准备 | ${{ needs.setup.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔍 | 代码检�?| ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 | 代码检查 | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🧪 | 单元测试 | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🛡�?| 安全扫描 | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛡️ | 安全扫描 | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📦 | 构建 | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🎭 | E2E 测试 | ${{ needs.e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "请查�?[工作流日志](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) 了解详情�? >> $GITHUB_STEP_SUMMARY
+          echo "请查看 [工作流日志](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) 了解详情。" >> $GITHUB_STEP_SUMMARY
 
   release:
     name: 创建发布
@@ -725,7 +740,8 @@ jobs:
       github.event_name == 'workflow_dispatch' &&
       github.event.inputs.create_release == 'true'
     steps:
-      - name: 检出仓�?        uses: actions/checkout@v4
+      - name: 检出仓库
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -757,14 +773,15 @@ jobs:
           fi
 
           if [ -z "$NOTES" ] || [ "$NOTES" = "## [Unreleased]" ]; then
-            NOTES="## 更新内容\n\n- 版本更新�?${CURRENT_VERSION}"
+            NOTES="## 更新内容\n\n- 版本更新至 ${CURRENT_VERSION}"
           fi
 
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo -e "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: 检查标签是否存�?        id: check_tag
+      - name: 检查标签是否存在
+        id: check_tag
         run: |
           if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -787,15 +804,15 @@ jobs:
 
       - name: 发布摘要
         run: |
-          echo "## 🎉 发布已创�? >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 发布已创建" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 项目 | �?|" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| **版本** | \`v${{ steps.version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **类型** | ${{ github.ref == 'refs/heads/main' && '正式�? || '预发布版' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **类型** | ${{ github.ref == 'refs/heads/main' && '正式版' || '预发布版' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 发布资源:" >> $GITHUB_STEP_SUMMARY
-          ls -la .output/*.zip >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "未找�?zip 文件" >> $GITHUB_STEP_SUMMARY
+          ls -la .output/*.zip >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "未找到 zip 文件" >> $GITHUB_STEP_SUMMARY
 
   dependabot-notify:
     name: Dependabot通知
@@ -813,13 +830,14 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: 添加待审核标�?        uses: actions/github-script@v7
+      - name: 添加待审核标签
+        uses: actions/github-script@v7
         with:
           script: |
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              labels: ['待审�?]
+              labels: ['待审核']
             })
-            core.info('�?已添加待审核标签，等待人工审核后合并')
+            core.info('✅ 已添加待审核标签，等待人工审核后合并')
