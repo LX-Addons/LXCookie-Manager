@@ -22,7 +22,9 @@ const mockMatchMedia = (overrides: Partial<MediaQueryList> = {}) => {
 };
 
 // Helper function to create mock storage implementation
-const createMockStorage = (overrides: { whitelist?: string[]; blacklist?: string[]; settings?: Record<string, unknown> } = {}) => {
+const createMockStorage = (
+  overrides: { whitelist?: string[]; blacklist?: string[]; settings?: Record<string, unknown> } = {}
+) => {
   return (key: string, defaultValue: unknown) => {
     if (key === "local:whitelist") {
       return [overrides.whitelist ?? [], vi.fn()];
