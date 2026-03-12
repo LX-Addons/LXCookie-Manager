@@ -230,29 +230,6 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: SonarCloud 代码扫描
-        id: sonar
-        uses: SonarSource/sonarqube-scan-action@v7
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=LX-Addons_Cookie_Manager_Pro
-            -Dsonar.organization=lx-addons
-
-      - name: SonarCloud 扫描结果报告
-        if: always()
-        run: |
-          if [ "${{ steps.sonar.outcome }}" = "failure" ]; then
-            echo "### ⚠️ SonarCloud 扫描失败" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "SonarCloud 代码质量扫描未能完成，请检查 SONAR_TOKEN 配置或访问 SonarCloud 查看详情。" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.sonar.outcome }}" = "success" ]; then
-            echo "### ✅ SonarCloud 扫描完成" >> $GITHUB_STEP_SUMMARY
-          fi
-
   security:
     name: 安全扫描
     runs-on: ubuntu-latest
