@@ -3,6 +3,24 @@ import { render, fireEvent, cleanup } from "@testing-library/react";
 import IndexPopup from "@/entrypoints/popup/App";
 import * as storageHook from "@/hooks/useStorage";
 
+// Helper function to mock matchMedia
+const mockMatchMedia = (overrides: Partial<MediaQueryList> = {}) => {
+  Object.defineProperty(globalThis, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      ...overrides,
+    })),
+  });
+};
+
 vi.mock("@/hooks/useStorage", () => ({
   useStorage: vi.fn(),
 }));
@@ -190,19 +208,7 @@ describe("IndexPopup", () => {
       return [defaultValue, vi.fn()];
     });
 
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    });
+    mockMatchMedia();
   });
 
   afterEach(() => {
@@ -432,16 +438,9 @@ describe("IndexPopup", () => {
 
   it("should test system theme change listener", async () => {
     const addEventListenerSpy = vi.fn();
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: true,
-        media: query,
-        onchange: null,
-        addEventListener: addEventListenerSpy,
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
+    mockMatchMedia({
+      matches: true,
+      addEventListener: addEventListenerSpy,
     });
 
     const { findByText, unmount } = render(<IndexPopup />);
@@ -507,7 +506,7 @@ describe("IndexPopup", () => {
 
   it("should render with matchMedia", async () => {
     render(<IndexPopup />);
-    expect(window.matchMedia).toBeDefined();
+    expect(globalThis.matchMedia).toBeDefined();
   });
 
   it("should render all stat items", async () => {
@@ -870,20 +869,10 @@ describe("IndexPopup", () => {
 
   it("should handle system theme change to dark", async () => {
     let themeChangeHandler: ((e: MediaQueryListEvent) => void) | undefined;
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn((_event: string, handler: (e: MediaQueryListEvent) => void) => {
-          themeChangeHandler = handler;
-        }),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
+    mockMatchMedia({
+      addEventListener: vi.fn((_event: string, handler: EventListenerOrEventListenerObject) => {
+        themeChangeHandler = handler as (e: MediaQueryListEvent) => void;
+      }) as unknown as MediaQueryList["addEventListener"],
     });
 
     const { findByText } = render(<IndexPopup />);
