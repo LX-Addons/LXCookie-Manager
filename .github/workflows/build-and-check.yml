@@ -34,7 +34,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' || !contains(fromJSON('["main", "beta", "release"]'), github.ref_name) }}
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
   EXTENSION_SIZE_LIMIT_MB: 10
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
       artifact_retention: ${{ steps.retention.outputs.days }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
 
       - name: 生成缓存 key
         id: cache-key
@@ -69,7 +69,7 @@ jobs:
 
       - name: 清除当前分支旧缓存
         if: ${{ github.event.inputs.clear_caches == 'true' || github.event_name == 'push' }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -139,15 +139,15 @@ jobs:
     needs: [setup]
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
 
       - name: 配置 Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: 缓存 node_modules
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@v5
         id: npm-cache
         with:
           path: |
@@ -189,20 +189,20 @@ jobs:
     needs: [setup]
     strategy:
       matrix:
-        node-version: [18, 20]
+        node-version: [20, 24]
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: 配置 Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: 缓存 node_modules
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@v5
         id: npm-cache
         with:
           path: |
@@ -223,7 +223,7 @@ jobs:
 
       - name: 上传覆盖率到 Codecov
         if: always()
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
           flags: unittests
@@ -232,11 +232,15 @@ jobs:
 
       - name: SonarCloud 代码扫描
         id: sonar
-        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
+        uses: SonarSource/sonarqube-scan-action@v7
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=LX-Addons_Cookie_Manager_Pro
+            -Dsonar.organization=lx-addons
 
       - name: SonarCloud 扫描结果报告
         if: always()
@@ -256,17 +260,17 @@ jobs:
     needs: [setup]
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: 配置 Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: 缓存 node_modules
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@v5
         id: npm-cache
         with:
           path: |
@@ -282,7 +286,7 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: 检查密钥泄露
-        uses: trufflesecurity/trufflehog@7c0734f987ad0bb30ee8da210773b800ee2016d3
+        uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -345,15 +349,15 @@ jobs:
       name: ${{ steps.version.outputs.name }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
 
       - name: 配置 Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: 缓存 node_modules
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@v5
         id: npm-cache
         with:
           path: |
@@ -369,7 +373,7 @@ jobs:
         run: npm ci --prefer-offline
 
       - name: 缓存 WXT 构建缓存
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@v5
         with:
           path: .wxt
           key: ${{ runner.os }}-${{ github.ref_name }}-wxt-${{ hashFiles('**/package-lock.json', 'entrypoints/**/*', 'components/**/*', 'hooks/**/*', 'lib/**/*', 'i18n/**/*', 'utils/**/*', 'types/**/*', 'wxt.config.ts') }}
@@ -486,7 +490,7 @@ jobs:
           echo "✅ 构建产物验证通过"
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: extension-build
           path: .output/chrome-mv3/
@@ -511,15 +515,15 @@ jobs:
     if: always() && needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
 
       - name: 配置 Node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: 缓存 node_modules
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
+        uses: actions/cache@v5
         id: npm-cache
         with:
           path: |
@@ -540,7 +544,7 @@ jobs:
           echo "🔍 工作流运行 ID: ${{ github.run_id }}"
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: extension-build
           path: .output/
@@ -553,7 +557,6 @@ jobs:
           echo "📁 .output/ 目录内容:"
           ls -la .output/ || echo "目录为空或不存在"
 
-          # 检查下载后的目录结构
           if [ -d ".output" ] && [ -f ".output/manifest.json" ]; then
             echo "✅ 找到 manifest.json 在 .output/ 根目录"
             SOURCE_DIR=".output"
@@ -568,7 +571,6 @@ jobs:
             exit 1
           fi
 
-          # E2E 测试期望的目录结构是 build/chrome-mv3-prod
           mkdir -p build/chrome-mv3-prod
           cp -r "$SOURCE_DIR"/* build/chrome-mv3-prod/
 
@@ -583,7 +585,7 @@ jobs:
 
       - name: 上传 Playwright 报告
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: playwright-report/
@@ -597,7 +599,7 @@ jobs:
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
 
       - name: 获取版本信息
         id: info
@@ -615,7 +617,7 @@ jobs:
           fi
 
       - name: 创建 PR 评论
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@v8
         with:
           script: |
             const setupResult = '${{ needs.setup.result }}';
@@ -690,7 +692,7 @@ jobs:
               body += `### 🤖 Dependabot 依赖更新\n\n`;
               if (allSuccess && e2eSuccess) {
                 body += `✅ 所有关键检查已通过，已添加 \`待审核\` 标签。\n\n`;
-                body += `⚠️ **需要人工审核后才能合并到主分支。**\n`;
+                body += `⚠️ **需要人工审核后才能合并到主分支！**\n`;
               } else {
                 body += `⚠️ 部分检查未通过，需要人工审核。\n`;
               }
@@ -738,7 +740,7 @@ jobs:
       github.event.inputs.create_release == 'true'
     steps:
       - name: 检出仓库
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -751,7 +753,7 @@ jobs:
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: extension-build
           path: .output/
@@ -788,7 +790,7 @@ jobs:
 
       - name: 创建发布版本
         if: steps.check_tag.outputs.exists == 'false'
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: 发布 v${{ steps.version.outputs.version }}
@@ -828,7 +830,7 @@ jobs:
       issues: write
     steps:
       - name: 添加待审核标签
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.issues.addLabels({
