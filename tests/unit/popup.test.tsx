@@ -337,7 +337,8 @@ describe("IndexPopup", () => {
 
     const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
     for (const key of keys) {
-      fireEvent.keyDown(tabs, { key });
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      fireEvent.keyDown(tabs!, { key });
     }
   });
 
