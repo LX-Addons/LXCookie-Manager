@@ -69,7 +69,7 @@ jobs:
 
       - name: 清除当前分支旧缓存
         if: ${{ github.event.inputs.clear_caches == 'true' || github.event_name == 'push' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const owner = context.repo.owner;
@@ -232,7 +232,7 @@ jobs:
 
       - name: SonarCloud 代码扫描
         id: sonar
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@v8
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -593,7 +593,7 @@ jobs:
           fi
 
       - name: 创建 PR 评论
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const setupResult = '${{ needs.setup.result }}';
@@ -806,7 +806,7 @@ jobs:
       issues: write
     steps:
       - name: 添加待审核标签
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.issues.addLabels({
