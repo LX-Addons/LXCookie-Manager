@@ -6,6 +6,7 @@ import {
   SETTINGS_KEY,
   DEFAULT_SETTINGS,
   SCHEDULE_INTERVAL_MAP,
+  CLEANUP_ON_STARTUP_KEY,
 } from "@/lib/store";
 import type { Settings } from "@/types";
 import { performCleanup, performCleanupWithFilter } from "@/utils/cleanup";
@@ -44,6 +45,7 @@ const checkScheduledCleanup = async () => {
 };
 
 const getCleanupOptions = (settings: Settings) => ({
+  clearType: settings.clearType,
   clearCache: settings.clearCache,
   clearLocalStorage: settings.clearLocalStorage,
   clearIndexedDB: settings.clearIndexedDB,
@@ -63,7 +65,7 @@ const cleanupDomain = async (domain: string, settings: Settings): Promise<boolea
 };
 
 const cleanupDomainsOnStartup = async (settings: Settings) => {
-  const domainsToClean = await storage.getItem<string[]>("local:cleanupOnStartup");
+  const domainsToClean = await storage.getItem<string[]>(CLEANUP_ON_STARTUP_KEY);
   if (!domainsToClean || domainsToClean.length === 0) return;
 
   const failedDomains: string[] = [];
@@ -75,27 +77,23 @@ const cleanupDomainsOnStartup = async (settings: Settings) => {
     }
   }
 
-  await storage.setItem("local:cleanupOnStartup", failedDomains);
-};
-
-const cleanupTab = async (tab: { url?: string; id?: number }, settings: Settings) => {
-  if (!tab.url) return;
-
-  try {
-    const url = new URL(tab.url);
-    await performCleanup({
-      domain: url.hostname,
-      ...getCleanupOptions(settings),
-    });
-  } catch (e) {
-    console.error(`Failed to cleanup tab ${tab.id}:`, e);
-  }
+  await storage.setItem(CLEANUP_ON_STARTUP_KEY, failedDomains);
 };
 
 const cleanupOpenTabsOnStartup = async (settings: Settings) => {
-  const allTabs = await chrome.tabs.query({});
-  for (const tab of allTabs) {
-    await cleanupTab(tab, settings);
+  const tabsToCleanup = Array.from(tabUrlMap.values());
+  if (tabsToCleanup.length === 0) return;
+
+  for (const url of tabsToCleanup) {
+    try {
+      const parsedUrl = new URL(url);
+      await performCleanup({
+        domain: parsedUrl.hostname,
+        ...getCleanupOptions(settings),
+      });
+    } catch (e) {
+      console.error(`Failed to cleanup tab ${url}:`, e);
+    }
   }
 };
 
@@ -167,9 +165,13 @@ let saveQueue = Promise.resolve();
 
 const saveDomainForCleanup = async (hostname: string) => {
   saveQueue = saveQueue.then(async () => {
-    const domainsToClean = (await storage.getItem<string[]>("local:cleanupOnStartup")) || [];
-    domainsToClean.push(hostname);
-    await storage.setItem("local:cleanupOnStartup", Array.from(new Set(domainsToClean)));
+    try {
+      const domainsToClean = (await storage.getItem<string[]>(CLEANUP_ON_STARTUP_KEY)) || [];
+      domainsToClean.push(hostname);
+      await storage.setItem(CLEANUP_ON_STARTUP_KEY, Array.from(new Set(domainsToClean)));
+    } catch (e) {
+      console.error(`Failed to save domain ${hostname} for cleanup:`, e);
+    }
   });
 
   return saveQueue;
@@ -204,6 +206,21 @@ const handleTabRemoved = async (tabId: number, removeInfo: chrome.tabs.TabRemove
   tabUrlMap.delete(tabId);
 };
 
+const initializeTabUrlMap = async () => {
+  if (!tabUrlMap.size) {
+    try {
+      const allTabs = await chrome.tabs.query({});
+      for (const tab of allTabs) {
+        if (tab.id && tab.url) {
+          tabUrlMap.set(tab.id, tab.url);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to initialize tab URL map:", e);
+    }
+  }
+};
+
 const handleStartup = async () => {
   await chrome.alarms.create("scheduled-cleanup", {
     periodInMinutes: ALARM_INTERVAL_MINUTES,
@@ -211,6 +228,8 @@ const handleStartup = async () => {
 
   const settings = await storage.getItem<Settings>(SETTINGS_KEY);
   if (!settings?.enableAutoCleanup) return;
+
+  await initializeTabUrlMap();
 
   if (settings.cleanupOnBrowserClose) {
     try {

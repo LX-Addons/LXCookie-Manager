@@ -3,6 +3,7 @@ import { render, fireEvent, cleanup } from "@testing-library/react";
 import IndexPopup from "@/entrypoints/popup/App";
 import * as storageHook from "@/hooks/useStorage";
 import { DEFAULT_SETTINGS } from "@/lib/store";
+import { performCleanupWithFilter, cleanupExpiredCookies } from "@/utils/cleanup";
 
 const mockMatchMedia = (overrides: Partial<MediaQueryList> = {}) => {
   Object.defineProperty(globalThis, "matchMedia", {
@@ -329,14 +330,15 @@ describe("IndexPopup", () => {
     await renderPopup();
   });
 
-  const keyboardNavigationKeys = ["ArrowRight", "ArrowLeft", "Home", "End"];
-  keyboardNavigationKeys.forEach((key) => {
-    it(`should test keyboard navigation - ${key}`, async () => {
-      const { container } = await renderPopup();
-      const popup = container.querySelector(".popup-container") || document.body;
-      fireEvent.keyDown(popup, { key });
-      expect(popup).toBeTruthy();
-    });
+  it("should handle keyboard navigation keys without crashing", async () => {
+    const { container } = await renderPopup();
+    const tabs = container.querySelector(".tabs");
+    expect(tabs).toBeTruthy();
+
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    for (const key of keys) {
+      fireEvent.keyDown(tabs!, { key });
+    }
   });
 
   const themeModes = [
@@ -506,8 +508,7 @@ describe("IndexPopup", () => {
   });
 
   it("should handle clearCookies with multiple cleared domains", async () => {
-    const { performCleanupWithFilter } = await import("@/utils/cleanup");
-    (performCleanupWithFilter as Mock).mockResolvedValue({
+    vi.mocked(performCleanupWithFilter).mockResolvedValue({
       count: 10,
       clearedDomains: ["example.com", "test.com", "demo.com"],
     });
@@ -519,8 +520,7 @@ describe("IndexPopup", () => {
   });
 
   it("should handle clearCookies with zero count", async () => {
-    const { performCleanupWithFilter } = await import("@/utils/cleanup");
-    (performCleanupWithFilter as Mock).mockResolvedValue({
+    vi.mocked(performCleanupWithFilter).mockResolvedValue({
       count: 0,
       clearedDomains: [],
     });
@@ -532,8 +532,7 @@ describe("IndexPopup", () => {
   });
 
   it("should handle clearCookies error", async () => {
-    const { performCleanupWithFilter } = await import("@/utils/cleanup");
-    (performCleanupWithFilter as Mock).mockRejectedValue(new Error("Cleanup failed"));
+    vi.mocked(performCleanupWithFilter).mockRejectedValue(new Error("Cleanup failed"));
 
     const { findByText } = await renderPopup();
     const clearAllBtn = await findByText("清除所有Cookie");
@@ -547,8 +546,7 @@ describe("IndexPopup", () => {
   ];
   cleanupExpiredCookiesTests.forEach(({ count, name }) => {
     it(`should handle cleanupExpiredCookies ${name}`, async () => {
-      const { cleanupExpiredCookies: cleanupExpired } = await import("@/utils/cleanup");
-      (cleanupExpired as Mock).mockResolvedValue(count);
+      vi.mocked(cleanupExpiredCookies).mockResolvedValue(count);
 
       setupMockStorage({ settings: { cleanupExpiredCookies: true } });
       await renderPopup();
@@ -556,8 +554,7 @@ describe("IndexPopup", () => {
   });
 
   it("should handle cleanupExpiredCookies error", async () => {
-    const { cleanupExpiredCookies: cleanupExpired } = await import("@/utils/cleanup");
-    (cleanupExpired as Mock).mockRejectedValue(new Error("Cleanup expired failed"));
+    vi.mocked(cleanupExpiredCookies).mockRejectedValue(new Error("Cleanup expired failed"));
 
     setupMockStorage({ settings: { cleanupExpiredCookies: true } });
     await renderPopup();

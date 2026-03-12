@@ -46,8 +46,9 @@ const listeners = {
   onStartup: [] as Array<() => void>,
   onUpdated: [] as Array<(tabId: number, changeInfo: unknown, tab: unknown) => void>,
   onAlarm: [] as Array<(alarm: { name: string }) => void>,
-  onRemoved: [] as Array<(tabId: number) => void>,
-  onWindowRemoved: [] as Array<() => void>,
+  onRemoved: [] as Array<
+    (tabId: number, removeInfo: { isWindowClosing: boolean; windowId?: number }) => void
+  >,
 };
 
 describe("background", () => {
@@ -59,7 +60,6 @@ describe("background", () => {
     listeners.onUpdated = [];
     listeners.onAlarm = [];
     listeners.onRemoved = [];
-    listeners.onWindowRemoved = [];
 
     global.chrome = {
       runtime: {
@@ -93,7 +93,9 @@ describe("background", () => {
           removeListener: vi.fn(),
         },
         onRemoved: {
-          addListener: function (cb: (tabId: number) => void) {
+          addListener: function (
+            cb: (tabId: number, removeInfo: { isWindowClosing: boolean; windowId?: number }) => void
+          ) {
             listeners.onRemoved.push(cb);
           },
           removeListener: vi.fn(),
@@ -107,14 +109,6 @@ describe("background", () => {
             },
           ])
         ),
-      },
-      windows: {
-        onRemoved: {
-          addListener: function (cb: () => void) {
-            listeners.onWindowRemoved.push(cb);
-          },
-          removeListener: vi.fn(),
-        },
       },
     } as unknown as typeof chrome;
 
@@ -773,5 +767,107 @@ describe("background", () => {
     }
 
     expect(performCleanupWithFilter).toHaveBeenCalled();
+  });
+
+  it("should register tabs onRemoved listener", async () => {
+    await import("@/entrypoints/background");
+
+    expect(listeners.onRemoved.length).toBeGreaterThan(0);
+  });
+
+  it("should save domain for cleanup when window is closing", async () => {
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnBrowserClose: true,
+      clearCache: false,
+      clearLocalStorage: false,
+      clearIndexedDB: false,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com/test" }, { id: 1, url: "https://example.com/test" });
+    }
+
+    for (const cb of listeners.onRemoved) {
+      await cb(1, { isWindowClosing: true, windowId: 1 });
+    }
+
+    const domains = mockStorageData.get("local:cleanupOnStartup");
+    expect(domains).toContain("example.com");
+  });
+
+  it("should cleanup closed tab when not window closing", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnTabClose: true,
+      clearCache: false,
+      clearLocalStorage: false,
+      clearIndexedDB: false,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com/test" }, { id: 1, url: "https://example.com/test" });
+    }
+
+    for (const cb of listeners.onRemoved) {
+      await cb(1, { isWindowClosing: false, windowId: 1 });
+    }
+
+    expect(performCleanup).toHaveBeenCalled();
+  });
+
+  it("should not cleanup when enableAutoCleanup is false", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: false,
+      cleanupOnTabClose: true,
+      clearCache: false,
+      clearLocalStorage: false,
+      clearIndexedDB: false,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com/test" }, { id: 1, url: "https://example.com/test" });
+    }
+
+    for (const cb of listeners.onRemoved) {
+      await cb(1, { isWindowClosing: false, windowId: 1 });
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should handle cleanup error in tab removed", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+    (performCleanup as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+      Promise.reject(new Error("Cleanup failed"))
+    );
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnTabClose: true,
+      clearCache: false,
+      clearLocalStorage: false,
+      clearIndexedDB: false,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com/test" }, { id: 1, url: "https://example.com/test" });
+    }
+
+    for (const cb of listeners.onRemoved) {
+      await cb(1, { isWindowClosing: false, windowId: 1 });
+    }
   });
 });

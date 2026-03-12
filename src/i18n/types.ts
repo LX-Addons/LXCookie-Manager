@@ -105,18 +105,23 @@ export interface Translations {
     autoCleanup: string;
     autoCleanupDesc: string;
     enableAutoCleanup: string;
-    cleanupOnTabDiscard: string;
+    cleanupOnTabClose: string;
+    cleanupOnBrowserClose: string;
+    cleanupOnNavigate: string;
     cleanupOnStartup: string;
     cleanupExpiredCookies: string;
     privacyProtection: string;
     privacyProtectionDesc: string;
     showCookieRisk: string;
+    showCookieRiskDesc: string;
     advancedCleanup: string;
     advancedCleanupDesc: string;
     clearLocalStorage: string;
     clearIndexedDB: string;
     clearCache: string;
     settingsSaved: string;
+    language: string;
+    languageDesc: string;
   };
   domainManager: {
     whitelistDomains: string;

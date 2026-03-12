@@ -39,6 +39,20 @@ const deepMerge = <T>(defaultValue: T, storedValue: T): T => {
   return result as T;
 };
 
+const mergeWithDefault = <T>(defaultValue: T, storedValue: T): T => {
+  if (
+    typeof storedValue === "object" &&
+    storedValue !== null &&
+    !Array.isArray(storedValue) &&
+    typeof defaultValue === "object" &&
+    defaultValue !== null &&
+    !Array.isArray(defaultValue)
+  ) {
+    return deepMerge(defaultValue, storedValue);
+  }
+  return storedValue;
+};
+
 /**
  * A React hook for managing WXT extension storage with automatic sync.
  *
@@ -71,13 +85,7 @@ export function useStorage<T>(key: StorageKey, defaultValue: T) {
     const load = async () => {
       const stored = await storage.getItem<T>(key);
       if (stored !== null && stored !== undefined) {
-        const mergedValue =
-          typeof stored === "object" &&
-          !Array.isArray(stored) &&
-          typeof defaultValue === "object" &&
-          !Array.isArray(defaultValue)
-            ? deepMerge(defaultValue, stored)
-            : stored;
+        const mergedValue = mergeWithDefault(defaultValue, stored);
         setValue(mergedValue);
       }
     };
@@ -85,13 +93,7 @@ export function useStorage<T>(key: StorageKey, defaultValue: T) {
 
     const unwatch = storage.watch<T>(key, (newValue) => {
       if (newValue !== null && newValue !== undefined) {
-        const mergedValue =
-          typeof newValue === "object" &&
-          !Array.isArray(newValue) &&
-          typeof defaultValue === "object" &&
-          !Array.isArray(defaultValue)
-            ? deepMerge(defaultValue, newValue)
-            : newValue;
+        const mergedValue = mergeWithDefault(defaultValue, newValue);
         setValue(mergedValue);
       }
     });

@@ -6,6 +6,7 @@ export const WHITELIST_KEY = "local:whitelist" as const;
 export const BLACKLIST_KEY = "local:blacklist" as const;
 export const SETTINGS_KEY = "local:settings" as const;
 export const CLEAR_LOG_KEY = "local:clearLog" as const;
+export const CLEANUP_ON_STARTUP_KEY = "local:cleanupOnStartup" as const;
 
 export const LOG_RETENTION_MAP: Record<string, number> = {
   [LogRetention.ONE_HOUR]: 1 * 60 * 60 * 1000,
