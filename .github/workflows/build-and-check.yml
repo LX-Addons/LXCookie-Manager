@@ -516,7 +516,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: extension-build
-          path: .output/
+          path: .output/chrome-mv3/
 
       - name: 准备测试扩展
         run: |
@@ -526,12 +526,8 @@ jobs:
           echo "📁 .output/ 目录内容:"
           ls -la .output/ || echo "目录为空或不存在"
 
-          if [ -d ".output" ] && [ -f ".output/manifest.json" ]; then
-            echo "✅ 找到 manifest.json 在 .output/ 根目录"
-            SOURCE_DIR=".output"
-          elif [ -d ".output/chrome-mv3" ]; then
+          if [ -d ".output/chrome-mv3" ] && [ -f ".output/chrome-mv3/manifest.json" ]; then
             echo "✅ 找到构建目录: .output/chrome-mv3"
-            SOURCE_DIR=".output/chrome-mv3"
           else
             echo "❌ 未找到构建产物，检查所有目录..."
             find . -name "manifest.json" -type f 2>/dev/null | head -5
@@ -540,18 +536,13 @@ jobs:
             exit 1
           fi
 
-          mkdir -p build/chrome-mv3-prod
-          cp -r "$SOURCE_DIR"/* build/chrome-mv3-prod/
-
-          echo "📁 最终 build/chrome-mv3-prod/ 目录内容:"
-          ls -la build/chrome-mv3-prod/
+          echo "📁 最终 .output/chrome-mv3/ 目录内容:"
+          ls -la .output/chrome-mv3/
 
       - name: 安装 Playwright 浏览器
         run: pnpm exec playwright install --with-deps chromium
 
       - name: 运行 E2E 测试
-        env:
-          E2E_EXTENSION_PATH: ${{ github.workspace }}/build/chrome-mv3-prod
         run: xvfb-run --auto-servernum pnpm run test:e2e
 
       - name: 上传 Playwright 报告
