@@ -11,13 +11,9 @@ class MockStorage {
   }
 }
 
+// Mock WXT storage
 vi.mock("wxt/utils/storage", () => ({
   Storage: MockStorage,
-}));
-
-// Mock defineBackground to immediately execute the callback
-vi.mock("wxt/utils/define-background", () => ({
-  defineBackground: (fn: () => void) => fn(),
 }));
 
 vi.mock("@/utils/cleanup", () => ({

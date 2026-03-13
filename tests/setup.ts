@@ -4,6 +4,12 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 
 expect.extend(matchers);
 
+// Mock WXT defineBackground global function
+globalThis.defineBackground = (fn: () => void) => {
+  fn();
+  return fn;
+};
+
 vi.mock("@/hooks/useTranslation", () => ({
   useTranslation: vi.fn(() => {
     const translations: Record<string, string> = {
