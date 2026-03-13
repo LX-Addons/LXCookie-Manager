@@ -33,9 +33,9 @@ vi.mock("@/utils", () => ({
   }),
   clearCookies: vi.fn(async (options) => {
     const mockCookies = [
-      { name: "test1", domain: ".example.com", path: "/", secure: true },
+      { name: "test1", domain: ".example.com", path: "/", secure: true, expirationDate: Date.now() / 1000 + 3600 },
       { name: "test2", domain: ".test.com", path: "/", secure: false },
-      { name: "test3", domain: ".demo.com", path: "/", secure: true },
+      { name: "test3", domain: ".demo.com", path: "/", secure: true, expirationDate: Date.now() / 1000 + 7200 },
     ];
     let count = 0;
     const clearedDomains = new Set<string>();

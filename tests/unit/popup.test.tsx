@@ -10,7 +10,10 @@ vi.mock("@/hooks/useStorage", () => ({
 }));
 
 vi.mock("@/components/CookieList", () => ({
-  CookieList: (props: { onAddToWhitelist?: (domains: string[]) => void; onAddToBlacklist?: (domains: string[]) => void }) => {
+  CookieList: (props: {
+    onAddToWhitelist?: (domains: string[]) => void;
+    onAddToBlacklist?: (domains: string[]) => void;
+  }) => {
     return (
       <div data-testid="cookie-list">
         <button

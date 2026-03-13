@@ -337,9 +337,7 @@ describe("ClearLog", () => {
         }
         if (key === "local:clearLog") {
           return [
-            [
-              { domain: "example.com", count: 5, action: "clear", time: Date.now() },
-            ],
+            [{ domain: "example.com", count: 5, action: "clear", time: Date.now() }],
             vi.fn(),
           ];
         }

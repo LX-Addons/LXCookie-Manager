@@ -13,6 +13,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css}\"",
+    "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
