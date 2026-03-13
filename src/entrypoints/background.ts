@@ -17,6 +17,9 @@ export default defineBackground(() => {
   // 内存中的 tabUrlMap，用于快速访问
   let tabUrlMap = new Map<number, string>();
 
+  // 串行化写入队列，避免并发覆盖
+  let tabUrlMapSaveQueue = Promise.resolve();
+
   // 从持久化存储加载 tabUrlMap
   const loadTabUrlMap = async (): Promise<Map<number, string>> => {
     try {
@@ -30,14 +33,21 @@ export default defineBackground(() => {
     return new Map();
   };
 
-  // 保存 tabUrlMap 到持久化存储
+  // 保存 tabUrlMap 到持久化存储（串行化写入，避免乱序覆盖）
   const saveTabUrlMap = async (map: Map<number, string>) => {
-    try {
-      const obj = Object.fromEntries(Array.from(map.entries()).map(([k, v]) => [k.toString(), v]));
-      await storage.setItem(TAB_URL_MAP_KEY, obj);
-    } catch (e) {
-      console.error("Failed to save tabUrlMap to storage:", e);
-    }
+    const snapshot = Object.fromEntries(
+      Array.from(map.entries()).map(([k, v]) => [k.toString(), v])
+    );
+
+    tabUrlMapSaveQueue = tabUrlMapSaveQueue.then(async () => {
+      try {
+        await storage.setItem(TAB_URL_MAP_KEY, snapshot);
+      } catch (e) {
+        console.error("Failed to save tabUrlMap to storage:", e);
+      }
+    });
+
+    return tabUrlMapSaveQueue;
   };
 
   // 初始化 tabUrlMap（从存储加载并同步当前标签页）

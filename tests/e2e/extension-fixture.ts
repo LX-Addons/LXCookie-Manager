@@ -44,7 +44,7 @@ export const test = base.extend<{
   extensionId: string;
 }>({
   context: [
-    async ({}, use) => {
+    async (_deps, use) => {
       const checkResult = await checkExtensionExists();
       if (!checkResult.exists) {
         throw new Error(`${checkResult.error}. Please run 'pnpm build' first.`);

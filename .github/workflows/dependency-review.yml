@@ -102,7 +102,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           NODE_MODULES_SIZE=$(du -sh node_modules 2>/dev/null | cut -f1 || echo "unknown")
-          DEPENDENCY_COUNT=$(pnpm ls --depth=0 --json 2>/dev/null | jq 'length' || echo "0")
+          DEPENDENCY_COUNT=$(pnpm ls --depth=0 --json 2>/dev/null | jq '[.[0].dependencies // {}, .[0].devDependencies // {}] | add | keys | length' || echo "0")
 
           echo "- **node_modules 体积**: $NODE_MODULES_SIZE" >> $GITHUB_STEP_SUMMARY
           echo "- **直接依赖数量**: $DEPENDENCY_COUNT" >> $GITHUB_STEP_SUMMARY

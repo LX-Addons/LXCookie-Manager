@@ -4,6 +4,7 @@ import IndexPopup from "@/entrypoints/popup/App";
 import * as storageHook from "@/hooks/useStorage";
 import { DEFAULT_SETTINGS } from "@/lib/store";
 import { performCleanupWithFilter, cleanupExpiredCookies } from "@/utils/cleanup";
+import type { Cookie } from "@/types";
 
 vi.mock("@/hooks/useStorage", () => ({
   useStorage: vi.fn(),
@@ -11,7 +12,7 @@ vi.mock("@/hooks/useStorage", () => ({
 
 vi.mock("@/components/CookieList", () => ({
   CookieList: (props: {
-    cookies?: unknown[];
+    cookies: Cookie[];
     currentDomain?: string;
     onUpdate?: () => void;
     onMessage?: (msg: string, isError?: boolean) => void;
@@ -70,7 +71,15 @@ vi.mock("@/components/DomainManager", () => ({
   ),
 }));
 
-// 用于存储 showConfirm 回调的引用
+// Mock showConfirm 函数，可以在测试中验证调用
+let mockShowConfirmCallback: (() => void) | null = null;
+const mockShowConfirm = vi.fn(
+  (_title: string, _message: string, _variant: "danger" | "warning", onConfirm: () => void) => {
+    mockShowConfirmCallback = onConfirm;
+    onConfirm();
+  }
+);
+
 vi.mock("@/hooks/useConfirmDialog", () => ({
   useConfirmDialog: () => ({
     confirmState: {
@@ -80,10 +89,7 @@ vi.mock("@/hooks/useConfirmDialog", () => ({
       variant: "warning",
       onConfirm: () => {},
     },
-    // showConfirm 被调用时立即执行 onConfirm（模拟用户点击确认）
-    showConfirm: (title: string, message: string, variant: string, onConfirm: () => void) => {
-      onConfirm();
-    },
+    showConfirm: mockShowConfirm,
     closeConfirm: () => {},
     handleConfirm: () => {},
   }),
@@ -234,9 +240,29 @@ const setupChromeMocks = () => {
   } as unknown as typeof chrome;
 };
 
+// Helper function to click clear all button and wait for confirmation
+const clickClearAllAndConfirm = async (container: HTMLElement) => {
+  const clearAllButton = container.querySelector(".button-group button.btn-danger");
+  if (!clearAllButton) {
+    throw new Error("Clear all button not found");
+  }
+  fireEvent.click(clearAllButton);
+
+  // Wait for showConfirm to be called
+  await waitFor(() => {
+    expect(mockShowConfirm).toHaveBeenCalled();
+  });
+
+  // Wait for the callback to be executed (which calls performCleanupWithFilter)
+  await waitFor(() => {
+    expect(mockShowConfirmCallback).toBeTruthy();
+  });
+};
+
 describe("IndexPopup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockShowConfirmCallback = null;
     setupChromeMocks();
     setupMockStorage();
     mockMatchMedia();
@@ -272,22 +298,47 @@ describe("IndexPopup", () => {
     expect(getByTestId("cookie-list")).toBeTruthy();
   });
 
-  it("should handle empty cookies", () => {
+  it("should handle empty cookies", async () => {
     (chrome.cookies.getAll as Mock).mockResolvedValue([]);
-    const { container } = render(<IndexPopup />);
+    const { container, getByTestId } = render(<IndexPopup />);
+
+    // 等待异步操作完成
+    await waitFor(() => {
+      expect(getByTestId("cookie-count").textContent).toBe("0");
+    });
+
+    // 验证 stats 区域渲染且显示为 0
     expect(container.querySelector(".stats")).toBeTruthy();
+    const statValues = container.querySelectorAll(".stat-value");
+    expect(statValues.length).toBeGreaterThan(0);
   });
 
-  it("should handle tab without URL", () => {
+  it("should handle tab without URL", async () => {
     (chrome.tabs.query as Mock).mockResolvedValue([{}]);
-    const { container } = render(<IndexPopup />);
-    expect(container.querySelector("header")).toBeTruthy();
+    const { container, getByTestId } = render(<IndexPopup />);
+
+    // 等待组件初始化完成
+    await waitFor(() => {
+      expect(container.querySelector("header")).toBeTruthy();
+    });
+
+    // 验证 currentDomain 被正确设置为空，显示"无法获取域名"
+    expect(getByTestId("current-domain").textContent).toBe("无域名");
   });
 
-  it("should handle error when getting cookies", () => {
+  it("should handle error when getting cookies", async () => {
     (chrome.cookies.getAll as Mock).mockRejectedValue(new Error("Failed"));
     const { container } = render(<IndexPopup />);
-    expect(container.querySelector(".stats")).toBeTruthy();
+
+    // 等待错误处理完成（showMessage 被调用后会显示消息）
+    await waitFor(() => {
+      const messageElement = container.querySelector(".message");
+      expect(messageElement).toBeTruthy();
+    });
+
+    // 验证错误消息显示
+    const messageElement = container.querySelector(".message");
+    expect(messageElement?.classList.contains("error")).toBe(true);
   });
 
   it("should render all stat items", () => {
@@ -591,13 +642,8 @@ describe("IndexPopup", () => {
       expect(container.querySelector(".button-group")).toBeTruthy();
     });
 
-    // 获取"清除所有"按钮（最后一个按钮，带有 btn-danger 类）
-    const clearAllButton = container.querySelector(".button-group button.btn-danger");
-    expect(clearAllButton).toBeTruthy();
-
-    if (clearAllButton) {
-      fireEvent.click(clearAllButton);
-    }
+    // 点击清除所有按钮并等待确认
+    await clickClearAllAndConfirm(container);
 
     // 验证 performCleanupWithFilter 被调用
     await waitFor(() => {
@@ -626,13 +672,8 @@ describe("IndexPopup", () => {
       expect(container.querySelector(".button-group")).toBeTruthy();
     });
 
-    // 获取"清除所有"按钮
-    const clearAllButton = container.querySelector(".button-group button.btn-danger");
-    expect(clearAllButton).toBeTruthy();
-
-    if (clearAllButton) {
-      fireEvent.click(clearAllButton);
-    }
+    // 点击清除所有按钮并等待确认
+    await clickClearAllAndConfirm(container);
 
     // 验证 performCleanupWithFilter 被调用
     await waitFor(() => {
@@ -651,13 +692,8 @@ describe("IndexPopup", () => {
       expect(container.querySelector(".button-group")).toBeTruthy();
     });
 
-    // 获取"清除所有"按钮
-    const clearAllButton = container.querySelector(".button-group button.btn-danger");
-    expect(clearAllButton).toBeTruthy();
-
-    if (clearAllButton) {
-      fireEvent.click(clearAllButton);
-    }
+    // 点击清除所有按钮并等待确认
+    await clickClearAllAndConfirm(container);
 
     // 验证 performCleanupWithFilter 被调用，且组件正确处理了错误
     await waitFor(() => {
