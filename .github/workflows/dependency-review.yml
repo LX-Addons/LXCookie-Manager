@@ -4,7 +4,7 @@ on:
     branches: ["main"]
     paths:
       - "package.json"
-      - "package-lock.json"
+      - "pnpm-lock.yaml"
 
 permissions:
   contents: read
@@ -25,6 +25,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "22"
+          cache: 'pnpm'
 
       - name: "依赖审查"
         uses: actions/dependency-review-action@v4
@@ -33,7 +34,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "安装依赖"
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: "安全审计"
         id: audit
@@ -42,7 +43,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           AUDIT_EXIT_CODE=0
-          AUDIT_OUTPUT=$(npm audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
+          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
 
           if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             echo "✅ 未发现已知漏洞" >> $GITHUB_STEP_SUMMARY
@@ -64,7 +65,7 @@ jobs:
           echo "## 📜 许可证合规检查" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          npm install -g license-checker-rseidelsohn
+          pnpm add -g license-checker-rseidelsohn
 
           echo "### 📊 许可证摘要" >> $GITHUB_STEP_SUMMARY
           license-checker-rseidelsohn --summary >> $GITHUB_STEP_SUMMARY
@@ -92,7 +93,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           NODE_MODULES_SIZE=$(du -sh node_modules 2>/dev/null | cut -f1 || echo "unknown")
-          DEPENDENCY_COUNT=$(npm ls --depth=0 2>/dev/null | grep -c "^[├└]" || echo "0")
+          DEPENDENCY_COUNT=$(pnpm ls --depth=0 2>/dev/null | grep -c "^[├└]" || echo "0")
 
           echo "- **node_modules 体积**: $NODE_MODULES_SIZE" >> $GITHUB_STEP_SUMMARY
           echo "- **直接依赖数量**: $DEPENDENCY_COUNT" >> $GITHUB_STEP_SUMMARY

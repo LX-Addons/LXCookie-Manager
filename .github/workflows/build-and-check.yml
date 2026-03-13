@@ -52,7 +52,7 @@ jobs:
       - name: 生成缓存 key
         id: cache-key
         run: |
-          CACHE_KEY="${{ runner.os }}-${{ github.ref_name }}-node-${{ hashFiles('**/package-lock.json') }}"
+          CACHE_KEY="${{ runner.os }}-${{ github.ref_name }}-node-${{ hashFiles('**/pnpm-lock.yaml') }}"
           echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
           echo "📁 缓存 Key: $CACHE_KEY"
 
@@ -145,31 +145,32 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: 缓存 node_modules
         uses: actions/cache@v5
-        id: npm-cache
+        id: pnpm-cache
         with:
           path: |
             node_modules
-            ~/.npm
+            ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node-
             ${{ runner.os }}-node-
 
       - name: 安装依赖
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        if: steps.pnpm-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: TypeScript 类型检查
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       - name: ESLint 代码检查
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Prettier 格式检查
-        run: npm run format:check
+        run: pnpm run format:check
 
       - name: 输出检查摘要
         if: always()
@@ -200,26 +201,27 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
 
       - name: 缓存 node_modules
         uses: actions/cache@v5
-        id: npm-cache
+        id: pnpm-cache
         with:
           path: |
             node_modules
-            ~/.npm
-          key: ${{ runner.os }}-${{ github.ref_name }}-node${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+            ~/.pnpm-store
+          key: ${{ runner.os }}-${{ github.ref_name }}-node${{ matrix.node-version }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node${{ matrix.node-version }}-
             ${{ runner.os }}-node${{ matrix.node-version }}-
             ${{ runner.os }}-node-
 
       - name: 安装依赖
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        if: steps.pnpm-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: 运行单元测试并生成覆盖率报告
-        run: npm run test:coverage
+        run: pnpm run test:coverage
 
       - name: 上传覆盖率到 Codecov
         if: always()
@@ -245,22 +247,23 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: 缓存 node_modules
         uses: actions/cache@v5
-        id: npm-cache
+        id: pnpm-cache
         with:
           path: |
             node_modules
-            ~/.npm
+            ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node-
             ${{ runner.os }}-node-
 
       - name: 安装依赖
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        if: steps.pnpm-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: 检查密钥泄露
         uses: trufflesecurity/trufflehog@d722a7e50645c42123e31fe97761a88ade988db8
@@ -274,7 +277,7 @@ jobs:
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
-          AUDIT_OUTPUT=$(npm audit --audit-level=moderate 2>&1) || true
+          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1) || true
 
           echo "<details><summary>点击查看完整审计报告</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -332,28 +335,29 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: 缓存 node_modules
         uses: actions/cache@v5
-        id: npm-cache
+        id: pnpm-cache
         with:
           path: |
             node_modules
-            ~/.npm
+            ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node-
             ${{ runner.os }}-node-
 
       - name: 安装依赖
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        if: steps.pnpm-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: 缓存 WXT 构建缓存
         uses: actions/cache@v5
         with:
           path: .wxt
-          key: ${{ runner.os }}-${{ github.ref_name }}-wxt-${{ hashFiles('**/package-lock.json', 'entrypoints/**/*', 'components/**/*', 'hooks/**/*', 'lib/**/*', 'i18n/**/*', 'utils/**/*', 'types/**/*', 'wxt.config.ts') }}
+          key: ${{ runner.os }}-${{ github.ref_name }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'entrypoints/**/*', 'components/**/*', 'hooks/**/*', 'lib/**/*', 'i18n/**/*', 'utils/**/*', 'types/**/*', 'wxt.config.ts') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-wxt-
             ${{ runner.os }}-wxt-
@@ -362,7 +366,7 @@ jobs:
         run: |
           set -e
           echo "🔨 开始构建..."
-          npm run build 2>&1
+          pnpm run build 2>&1
           echo "✅ 构建命令完成"
 
           echo "📁 构建后检查 .output/ 目录:"
@@ -437,7 +441,7 @@ jobs:
           echo "📁 打包前 .output/ 目录内容:"
           ls -la .output/
 
-          npm run zip
+          pnpm run zip
 
           echo "📁 打包后 .output/ 目录内容:"
           ls -la .output/
@@ -474,22 +478,23 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
 
       - name: 缓存 node_modules
         uses: actions/cache@v5
-        id: npm-cache
+        id: pnpm-cache
         with:
           path: |
             node_modules
-            ~/.npm
+            ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node-
             ${{ runner.os }}-node-
 
       - name: 安装依赖
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        run: npm ci --prefer-offline
+        if: steps.pnpm-cache.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: 列出可用 Artifacts
         run: |
@@ -531,10 +536,10 @@ jobs:
           ls -la build/chrome-mv3-prod/
 
       - name: 安装 Playwright 浏览器
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: 运行 E2E 测试
-        run: xvfb-run --auto-servernum npm run test:e2e
+        run: xvfb-run --auto-servernum pnpm run test:e2e
 
       - name: 上传 Playwright 报告
         if: always()
@@ -719,9 +724,9 @@ jobs:
           CURRENT_VERSION="${{ steps.version.outputs.version }}"
 
           if [ -z "$PREVIOUS_TAG" ]; then
-            NOTES=$(npx git-cliff --strip header 2>/dev/null || echo "初始发布 v${CURRENT_VERSION}")
+            NOTES=$(pnpm exec git-cliff --strip header 2>/dev/null || echo "初始发布 v${CURRENT_VERSION}")
           else
-            NOTES=$(npx git-cliff "${PREVIOUS_TAG}..HEAD" --strip header 2>/dev/null || echo "发布 v${CURRENT_VERSION}")
+            NOTES=$(pnpm exec git-cliff "${PREVIOUS_TAG}..HEAD" --strip header 2>/dev/null || echo "发布 v${CURRENT_VERSION}")
           fi
 
           if [ -z "$NOTES" ] || [ "$NOTES" = "## [Unreleased]" ]; then
