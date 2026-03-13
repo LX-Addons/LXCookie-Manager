@@ -28,9 +28,13 @@ export function useTranslation() {
     return () => unwatch();
   }, []);
 
-  const t = useCallback((path: string, params?: Record<string, string | number>): string => {
-    return translate(path, params);
-  }, []);
+  const t = useCallback(
+    (path: string, params?: Record<string, string | number>): string => {
+      return translate(path, params);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale]
+  );
 
   const setTranslationLocale = useCallback((locale: Locale) => {
     storage.getItem<Settings>(SETTINGS_KEY).then((current) => {
