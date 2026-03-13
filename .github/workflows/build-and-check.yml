@@ -462,41 +462,60 @@ jobs:
       - name: 打包扩展
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          echo "=========================================="
+          echo "📦 开始打包扩展"
+          echo "=========================================="
           echo "📁 打包前 .output/ 目录内容:"
           ls -la .output/
 
+          echo ""
           echo "🔨 运行 pnpm run zip..."
+          set +e
           pnpm run zip 2>&1
           ZIP_EXIT_CODE=$?
+          set -e
+          echo "pnpm run zip 退出码：$ZIP_EXIT_CODE"
           
-          echo "📁 打包后 .output/ 目录内容:"
+          echo ""
+          echo "📁 打包后 .output/ 目录内容 (递归):"
           ls -laR .output/ || true
           
+          echo ""
           echo "🔍 查找生成的 zip 文件 (整个项目):"
           find . -name "*.zip" -type f 2>/dev/null | head -20
           
           ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
           echo "📊 在 .output/ 中找到 $ZIP_COUNT 个 zip 文件"
           if [ "$ZIP_COUNT" -eq 0 ]; then
-            echo "⚠️ 警告: 未找到生成的 zip 文件，尝试手动创建..."
+            echo "⚠️ 警告：未找到生成的 zip 文件，尝试手动创建..."
             if [ -d ".output/chrome-mv3" ]; then
               cd .output/chrome-mv3
-              zip -r "../cookie-manager-pro-${VERSION}-mv3.zip" .
+              ZIP_FILE="../cookie-manager-pro-${VERSION}-mv3.zip"
+              echo "📦 创建 zip 文件：$ZIP_FILE"
+              zip -r "$ZIP_FILE" .
               cd ../..
               echo "✅ 手动创建 zip 完成"
+              ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
+              echo "📊 手动创建后找到 $ZIP_COUNT 个 zip 文件"
             else
               echo "❌ 构建目录 .output/chrome-mv3 不存在"
               exit 1
             fi
           fi
           
+          echo ""
           echo "🔍 最终 zip 文件列表:"
           find .output -name "*.zip" -type f -exec ls -la {} \;
           
-          if [ $ZIP_EXIT_CODE -ne 0 ] && [ "$ZIP_COUNT" -eq 0 ]; then
-            echo "❌ zip 命令失败且手动创建也失败"
+          echo ""
+          # 验证 zip 文件是否存在
+          FINAL_ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
+          if [ "$FINAL_ZIP_COUNT" -eq 0 ]; then
+            echo "❌ 最终验证失败：仍然没有找到 zip 文件"
             exit 1
           fi
+          
+          echo "✅ zip 文件验证成功，找到 $FINAL_ZIP_COUNT 个文件"
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v6
@@ -510,7 +529,10 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: extension-zip
-          path: .output/**/*.zip
+          path: |
+            **/*.zip
+            !node_modules/**/*.zip
+            !.git/**/*.zip
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
           if-no-files-found: error
 
@@ -834,7 +856,10 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: 发布 v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.notes }}
-          files: .output/**/*.zip
+          files: |
+            **/*.zip
+            !node_modules/**/*.zip
+            !.git/**/*.zip
           draft: false
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           generate_release_notes: false
