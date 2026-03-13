@@ -76,8 +76,9 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const branchPrefix = '${{ github.ref_name }}'.replace(/[^a-zA-Z0-9-]/g, '-');
+            const nodeVersion = '${{ env.NODE_VERSION }}';
             const prefixes = [
-              '${{ runner.os }}-' + branchPrefix + '-node-',
+              '${{ runner.os }}-' + branchPrefix + '-node' + nodeVersion + '-',
               '${{ runner.os }}-' + branchPrefix + '-wxt-'
             ];
             let cachesCleared = 0;
@@ -162,7 +163,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -221,7 +221,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node${{ matrix.node-version }}-
             ${{ runner.os }}-node${{ matrix.node-version }}-
-            ${{ runner.os }}-node-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -269,7 +268,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -366,7 +364,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -460,20 +457,20 @@ jobs:
           ls -la .output/
 
           echo "🔨 运行 pnpm run zip..."
-          pnpm run zip 2>&1
-          ZIP_EXIT_CODE=$?
-          echo "📦 zip 命令退出码: $ZIP_EXIT_CODE"
+          if ! pnpm run zip 2>&1; then
+            echo "❌ zip 命令失败"
+            echo "📁 打包后 .output/ 目录内容:"
+            ls -la .output/ || true
+            echo "🔍 查找生成的 zip 文件:"
+            find .output -name "*.zip" -type f 2>/dev/null || echo "未找到 zip 文件"
+            exit 1
+          fi
 
           echo "📁 打包后 .output/ 目录内容:"
           ls -la .output/
 
           echo "🔍 查找生成的 zip 文件:"
           find .output -name "*.zip" -type f 2>/dev/null || echo "未找到 zip 文件"
-
-          if [ $ZIP_EXIT_CODE -ne 0 ]; then
-            echo "❌ zip 命令失败"
-            exit 1
-          fi
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v6
@@ -491,7 +488,7 @@ jobs:
             .output/*.zip
             .output/**/*.zip
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: 输出构建摘要
         run: |
@@ -533,7 +530,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -767,7 +763,7 @@ jobs:
           echo "📁 下载的构建产物内容:"
           ls -la .output/
 
-          if [ ! -f .output/*.zip ]; then
+          if ! compgen -G ".output/*.zip" > /dev/null; then
             echo "❌ 未找到 zip 文件"
             exit 1
           fi

@@ -10,13 +10,30 @@ const __dirname = path.dirname(__filename);
 
 const extensionPath = path.join(__dirname, "..", "..", ".output", "chrome-mv3");
 
-async function checkExtensionExists(): Promise<boolean> {
+async function checkExtensionExists(): Promise<{ exists: boolean; error?: string }> {
   try {
     await fs.promises.access(extensionPath);
-    return true;
   } catch {
-    return false;
+    return { exists: false, error: `Extension directory not found at ${extensionPath}` };
   }
+
+  const manifestPath = path.join(extensionPath, "manifest.json");
+  try {
+    await fs.promises.access(manifestPath);
+  } catch {
+    return { exists: false, error: `manifest.json not found at ${manifestPath}. Build may be incomplete.` };
+  }
+
+  try {
+    const stats = await fs.promises.stat(extensionPath);
+    if (!stats.isDirectory()) {
+      return { exists: false, error: `${extensionPath} is not a directory` };
+    }
+  } catch {
+    return { exists: false, error: `Failed to stat ${extensionPath}` };
+  }
+
+  return { exists: true };
 }
 
 export const test = base.extend<{
@@ -24,10 +41,10 @@ export const test = base.extend<{
   extensionId: string;
 }>({
   context: [
-    async (_deps, use) => {
-      const extensionExists = await checkExtensionExists();
-      if (!extensionExists) {
-        throw new Error(`Extension not found at ${extensionPath}. Please run 'pnpm build' first.`);
+    async ({}, use) => {
+      const checkResult = await checkExtensionExists();
+      if (!checkResult.exists) {
+        throw new Error(`${checkResult.error}. Please run 'pnpm build' first.`);
       }
 
       const userDataDir = path.join(

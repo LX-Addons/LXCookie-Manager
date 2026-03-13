@@ -9,10 +9,10 @@ export function useTranslation() {
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    let isMounted = true;
 
     storage.getItem<Settings>(SETTINGS_KEY).then((val) => {
+      if (!isMounted) return;
       const localeToUse = val?.locale || detectBrowserLocale();
       setLocaleState(localeToUse);
       setLocale(localeToUse);
@@ -25,7 +25,10 @@ export function useTranslation() {
       }
     });
 
-    return () => unwatch();
+    return () => {
+      isMounted = false;
+      unwatch();
+    };
   }, []);
 
   const t = useCallback(

@@ -71,6 +71,9 @@ vi.mock("@/components/DomainManager", () => ({
   ),
 }));
 
+// 用于存储 showConfirm 回调的引用
+let showConfirmCallback: ((options: { title: string; onConfirm: () => void }) => void) | null = null;
+
 vi.mock("@/components/ConfirmDialogWrapper", () => ({
   ConfirmDialogWrapper: ({
     children,
@@ -79,10 +82,10 @@ vi.mock("@/components/ConfirmDialogWrapper", () => ({
       showConfirm: (options: { title: string; onConfirm: () => void }) => void
     ) => React.ReactNode;
   }) => {
-    const showConfirm = vi.fn(({ onConfirm }: { title: string; onConfirm: () => void }) => {
+    showConfirmCallback = ({ onConfirm }: { title: string; onConfirm: () => void }) => {
       onConfirm();
-    });
-    return <>{children(showConfirm)}</>;
+    };
+    return <>{children(showConfirmCallback)}</>;
   },
 }));
 
@@ -581,14 +584,33 @@ describe("IndexPopup", () => {
       clearedDomains: ["example.com", "test.com"],
     });
 
-    // 直接验证 performCleanupWithFilter 的 mock 返回值
-    const result = await performCleanupWithFilter(() => true, {
-      clearType: CookieClearType.ALL,
+    const { container } = render(<IndexPopup />);
+
+    // 等待组件渲染完成
+    await waitFor(() => {
+      expect(container.querySelector(".button-group")).toBeTruthy();
     });
 
-    expect(result.count).toBe(10);
-    expect(result.clearedDomains).toContain("example.com");
-    expect(result.clearedDomains).toContain("test.com");
+    // 获取"清除所有"按钮（最后一个按钮，带有 btn-danger 类）
+    const clearAllButton = container.querySelector(".button-group button.btn-danger");
+    expect(clearAllButton).toBeTruthy();
+
+    if (clearAllButton) {
+      fireEvent.click(clearAllButton);
+    }
+
+    // 验证 performCleanupWithFilter 被调用
+    await waitFor(() => {
+      expect(performCleanupWithFilter).toHaveBeenCalled();
+    });
+
+    // 验证函数被正确调用（使用 expect.any(Function) 来匹配过滤函数）
+    expect(performCleanupWithFilter).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        clearType: expect.any(String),
+      })
+    );
   });
 
   it("should handle clearCookies with zero count", async () => {
@@ -597,23 +619,52 @@ describe("IndexPopup", () => {
       clearedDomains: [],
     });
 
-    // 直接验证 performCleanupWithFilter 的 mock 返回值
-    const result = await performCleanupWithFilter(() => true, {
-      clearType: CookieClearType.ALL,
+    const { container } = render(<IndexPopup />);
+
+    // 等待组件渲染完成
+    await waitFor(() => {
+      expect(container.querySelector(".button-group")).toBeTruthy();
     });
 
-    expect(result.count).toBe(0);
+    // 获取"清除所有"按钮
+    const clearAllButton = container.querySelector(".button-group button.btn-danger");
+    expect(clearAllButton).toBeTruthy();
+
+    if (clearAllButton) {
+      fireEvent.click(clearAllButton);
+    }
+
+    // 验证 performCleanupWithFilter 被调用
+    await waitFor(() => {
+      expect(performCleanupWithFilter).toHaveBeenCalled();
+    });
   });
 
   it("should handle clearCookies error", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(performCleanupWithFilter).mockRejectedValue(new Error("Cleanup failed"));
 
-    // 直接验证 performCleanupWithFilter 会抛出错误
-    await expect(
-      performCleanupWithFilter(() => true, {
-        clearType: CookieClearType.ALL,
-      })
-    ).rejects.toThrow("Cleanup failed");
+    const { container } = render(<IndexPopup />);
+
+    // 等待组件渲染完成
+    await waitFor(() => {
+      expect(container.querySelector(".button-group")).toBeTruthy();
+    });
+
+    // 获取"清除所有"按钮
+    const clearAllButton = container.querySelector(".button-group button.btn-danger");
+    expect(clearAllButton).toBeTruthy();
+
+    if (clearAllButton) {
+      fireEvent.click(clearAllButton);
+    }
+
+    // 验证 performCleanupWithFilter 被调用，且组件正确处理了错误
+    await waitFor(() => {
+      expect(performCleanupWithFilter).toHaveBeenCalled();
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 
   it("should handle cleanupExpiredCookies with count", async () => {

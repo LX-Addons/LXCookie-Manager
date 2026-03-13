@@ -22,7 +22,7 @@ export default defineBackground(() => {
     try {
       const stored = await storage.getItem<Record<string, string>>(TAB_URL_MAP_KEY);
       if (stored) {
-        return new Map(Object.entries(stored).map(([k, v]) => [parseInt(k, 10), v]));
+        return new Map(Object.entries(stored).map(([k, v]) => [Number.parseInt(k, 10), v]));
       }
     } catch (e) {
       console.error("Failed to load tabUrlMap from storage:", e);
@@ -33,10 +33,9 @@ export default defineBackground(() => {
   // 保存 tabUrlMap 到持久化存储
   const saveTabUrlMap = async (map: Map<number, string>) => {
     try {
-      const obj: Record<string, string> = {};
-      map.forEach((value, key) => {
-        obj[key.toString()] = value;
-      });
+      const obj = Object.fromEntries(
+        Array.from(map.entries()).map(([k, v]) => [k.toString(), v])
+      );
       await storage.setItem(TAB_URL_MAP_KEY, obj);
     } catch (e) {
       console.error("Failed to save tabUrlMap to storage:", e);
