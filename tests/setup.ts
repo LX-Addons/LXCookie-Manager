@@ -4,7 +4,8 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 
 expect.extend(matchers);
 
-// Mock WXT defineBackground global function
+// Mock WXT defineBackground global function (WXT already declares the type)
+// @ts-expect-error - WXT provides the type definition
 globalThis.defineBackground = (fn: () => void) => {
   fn();
   return fn;

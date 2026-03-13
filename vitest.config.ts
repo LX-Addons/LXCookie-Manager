@@ -14,19 +14,11 @@ export default defineConfig({
       reporter: ["text", "json", "html", "lcov"],
       reportsDirectory: "./coverage",
     },
-    deps: {
-      // 内联 WXT 模块以支持测试
-      inline: ["wxt"],
-    },
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
       "~": path.resolve(__dirname, "src"),
     },
-  },
-  // 定义全局变量以支持 WXT
-  define: {
-    "defineBackground": "globalThis.defineBackground",
   },
 });
