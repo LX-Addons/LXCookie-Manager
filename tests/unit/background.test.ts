@@ -861,4 +861,130 @@ describe("background", () => {
       await cb(1, { isWindowClosing: false, windowId: 1 });
     }
   });
+
+  it("should handle tab removed without URL in tabUrlMap", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnTabClose: true,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onRemoved) {
+      await cb(999, { isWindowClosing: false, windowId: 1 });
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should handle tab removed with invalid URL", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnTabClose: true,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "invalid-url" }, { id: 1, url: "invalid-url" });
+    }
+
+    for (const cb of listeners.onRemoved) {
+      await cb(1, { isWindowClosing: false, windowId: 1 });
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should handle tab navigate without previous URL", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnNavigate: true,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com/new" }, { id: 1, url: "https://example.com/new" });
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should handle tab navigate within same hostname", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnNavigate: true,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(
+        1,
+        { url: "https://example.com/page1" },
+        { id: 1, url: "https://example.com/page1" }
+      );
+    }
+
+    for (const cb of listeners.onUpdated) {
+      await cb(
+        1,
+        { url: "https://example.com/page2" },
+        { id: 1, url: "https://example.com/page2" }
+      );
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should handle tab navigate with invalid previous URL", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnNavigate: true,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "invalid-url" }, { id: 1, url: "invalid-url" });
+    }
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com" }, { id: 1, url: "https://example.com" });
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should handle tab navigate with invalid current URL", async () => {
+    const { performCleanup } = await import("@/utils/cleanup");
+
+    mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
+      cleanupOnNavigate: true,
+    });
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "https://example.com" }, { id: 1, url: "https://example.com" });
+    }
+
+    for (const cb of listeners.onUpdated) {
+      await cb(1, { url: "invalid-url" }, { id: 1, url: "invalid-url" });
+    }
+
+    expect(performCleanup).not.toHaveBeenCalled();
+  });
 });

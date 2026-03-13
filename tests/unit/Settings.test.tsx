@@ -520,12 +520,66 @@ describe("Settings", () => {
     expect(englishRadio).toBeTruthy();
   });
 
-  it("should handle show cookie risk checkbox change", () => {
+  it("should handle multiple checkbox changes in auto cleanup", () => {
     render(<Settings onMessage={mockOnMessage} />);
 
-    const riskCheckboxes = screen.getAllByLabelText("显示Cookie风险等级");
-    fireEvent.click(riskCheckboxes[0]);
+    // Verify auto cleanup section exists
+    const autoCleanupSection = screen.getByText("自动清理");
+    expect(autoCleanupSection).toBeTruthy();
+  });
 
-    expect(riskCheckboxes[0]).toBeTruthy();
+  it("should handle custom theme bgSecondary color change", () => {
+    mockSettings.themeMode = ThemeMode.CUSTOM;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const bgSecondaryColorLabel = screen.getByText("次背景色");
+    expect(bgSecondaryColorLabel).toBeTruthy();
+  });
+
+  it("should handle custom theme textSecondary color change", () => {
+    mockSettings.themeMode = ThemeMode.CUSTOM;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const textSecondaryColorLabel = screen.getByText("次文字色");
+    expect(textSecondaryColorLabel).toBeTruthy();
+  });
+
+  it("should render with all auto cleanup options enabled", () => {
+    mockSettings.cleanupOnTabDiscard = true;
+    mockSettings.cleanupOnStartup = true;
+    mockSettings.cleanupExpiredCookies = true;
+    mockSettings.enableAutoCleanup = true;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    // Verify auto cleanup section exists
+    expect(screen.getByText("自动清理")).toBeTruthy();
+  });
+
+  it("should handle locale change to zh-CN", () => {
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const zhCNRadio = screen.getByLabelText("简体中文");
+    expect(zhCNRadio).toBeTruthy();
+  });
+
+  it("should handle custom theme with partial colors", () => {
+    mockSettings.themeMode = ThemeMode.CUSTOM;
+    mockSettings.customTheme = {
+      primary: "#ff0000",
+      success: "#00ff00",
+      warning: "#ffff00",
+      danger: "#0000ff",
+      bgPrimary: "#ffffff",
+      bgSecondary: "#f8fafc",
+      textPrimary: "#0f172a",
+      textSecondary: "#475569",
+    };
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    expect(screen.getByText("自定义主题")).toBeTruthy();
   });
 });

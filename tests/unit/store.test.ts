@@ -4,6 +4,8 @@ import {
   BLACKLIST_KEY,
   SETTINGS_KEY,
   CLEAR_LOG_KEY,
+  CLEANUP_ON_STARTUP_KEY,
+  TAB_URL_MAP_KEY,
   LOG_RETENTION_MAP,
   SCHEDULE_INTERVAL_MAP,
   DEFAULT_CUSTOM_THEME,
@@ -182,6 +184,30 @@ describe("store", () => {
 
     it("should have correct locale", () => {
       expect(DEFAULT_SETTINGS.locale).toBe("zh-CN");
+    });
+
+    it("should have correct cleanupOnTabClose", () => {
+      expect(DEFAULT_SETTINGS.cleanupOnTabClose).toBe(false);
+    });
+
+    it("should have correct cleanupOnBrowserClose", () => {
+      expect(DEFAULT_SETTINGS.cleanupOnBrowserClose).toBe(false);
+    });
+
+    it("should have correct cleanupOnNavigate", () => {
+      expect(DEFAULT_SETTINGS.cleanupOnNavigate).toBe(false);
+    });
+  });
+
+  describe("CLEANUP_ON_STARTUP_KEY", () => {
+    it("should be 'local:cleanupOnStartup'", () => {
+      expect(CLEANUP_ON_STARTUP_KEY).toBe("local:cleanupOnStartup");
+    });
+  });
+
+  describe("TAB_URL_MAP_KEY", () => {
+    it("should be 'local:tabUrlMap'", () => {
+      expect(TAB_URL_MAP_KEY).toBe("local:tabUrlMap");
     });
   });
 });

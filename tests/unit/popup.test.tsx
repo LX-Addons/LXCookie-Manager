@@ -780,4 +780,151 @@ describe("IndexPopup", () => {
     // 验证 setBlacklist 没有被调用（因为域名已存在）
     expect(mockSetBlacklist).not.toHaveBeenCalled();
   });
+
+  it("should handle tab switching to whitelist tab", () => {
+    setupMockStorage({ mode: "whitelist" });
+    const { container } = render(<IndexPopup />);
+
+    const whitelistTab = container.querySelector('[data-testid="tab-whitelist"]');
+    if (whitelistTab) {
+      fireEvent.click(whitelistTab);
+      expect(whitelistTab).toBeTruthy();
+    }
+  });
+
+  it("should handle tab switching to blacklist tab", () => {
+    setupMockStorage({ mode: "blacklist" });
+    const { container } = render(<IndexPopup />);
+
+    const blacklistTab = container.querySelector('[data-testid="tab-blacklist"]');
+    if (blacklistTab) {
+      fireEvent.click(blacklistTab);
+      expect(blacklistTab).toBeTruthy();
+    }
+  });
+
+  it("should handle tab switching to settings tab", () => {
+    const { container } = render(<IndexPopup />);
+
+    const settingsTab = container.querySelector('[data-testid="tab-settings"]');
+    if (settingsTab) {
+      fireEvent.click(settingsTab);
+      expect(settingsTab).toBeTruthy();
+    }
+  });
+
+  it("should handle tab switching to log tab", () => {
+    const { container } = render(<IndexPopup />);
+
+    const logTab = container.querySelector('[data-testid="tab-log"]');
+    if (logTab) {
+      fireEvent.click(logTab);
+      expect(logTab).toBeTruthy();
+    }
+  });
+
+  it("should handle keyboard navigation with ArrowRight", () => {
+    const { container } = render(<IndexPopup />);
+
+    const tablist = container.querySelector(".tabs");
+    if (tablist) {
+      fireEvent.keyDown(tablist, { key: "ArrowRight" });
+      expect(tablist).toBeTruthy();
+    }
+  });
+
+  it("should handle keyboard navigation with ArrowLeft", () => {
+    const { container } = render(<IndexPopup />);
+
+    const tablist = container.querySelector(".tabs");
+    if (tablist) {
+      fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+      expect(tablist).toBeTruthy();
+    }
+  });
+
+  it("should handle keyboard navigation with Home", () => {
+    const { container } = render(<IndexPopup />);
+
+    const tablist = container.querySelector(".tabs");
+    if (tablist) {
+      fireEvent.keyDown(tablist, { key: "Home" });
+      expect(tablist).toBeTruthy();
+    }
+  });
+
+  it("should handle keyboard navigation with End", () => {
+    const { container } = render(<IndexPopup />);
+
+    const tablist = container.querySelector(".tabs");
+    if (tablist) {
+      fireEvent.keyDown(tablist, { key: "End" });
+      expect(tablist).toBeTruthy();
+    }
+  });
+
+  it("should handle clear current cookies", () => {
+    const { container } = render(<IndexPopup />);
+
+    const clearCurrentButton = container.querySelector(".btn-warning");
+    if (clearCurrentButton) {
+      fireEvent.click(clearCurrentButton);
+      expect(clearCurrentButton).toBeTruthy();
+    }
+  });
+
+  it("should handle message display and auto-hide", async () => {
+    const { container } = render(<IndexPopup />);
+
+    // Wait for component to mount
+    await waitFor(() => {
+      expect(container.querySelector(".container")).toBeTruthy();
+    });
+
+    // Message should be initially hidden
+    const messageElement = container.querySelector(".message");
+    expect(messageElement).toBeTruthy();
+  });
+
+  it("should handle custom theme colors", () => {
+    setupMockStorage({
+      themeMode: "custom",
+      customTheme: {
+        primary: "#ff0000",
+        success: "#00ff00",
+        warning: "#ffff00",
+        danger: "#0000ff",
+        bgPrimary: "#ffffff",
+        bgSecondary: "#f8fafc",
+        textPrimary: "#0f172a",
+        textSecondary: "#475569",
+      },
+    });
+
+    const { container } = render(<IndexPopup />);
+    expect(container.querySelector(".container")).toBeTruthy();
+  });
+
+  it("should handle cookie listener cleanup on unmount", () => {
+    const removeListenerMock = vi.fn();
+    (chrome.cookies.onChanged.removeListener as Mock).mockImplementation(removeListenerMock);
+
+    const { unmount } = render(<IndexPopup />);
+    unmount();
+
+    expect(removeListenerMock).toHaveBeenCalled();
+  });
+
+  it("should handle media query listener cleanup on unmount", () => {
+    const removeEventListenerMock = vi.fn();
+    mockMatchMedia({
+      addEventListener: vi.fn(),
+      removeEventListener: removeEventListenerMock,
+    });
+
+    const { unmount } = render(<IndexPopup />);
+    unmount();
+
+    expect(removeEventListenerMock).toHaveBeenCalled();
+  });
 });

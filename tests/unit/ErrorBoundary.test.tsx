@@ -117,4 +117,82 @@ describe("ErrorBoundary", () => {
 
     expect(screen.getByText("Normal content")).toBeTruthy();
   });
+
+  it("should render error boundary with emoji icon", () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>
+    );
+
+    const heading = screen.getByRole("heading", { level: 2 });
+    expect(heading).toContainHTML("⚠️");
+  });
+
+  it("should handle error without stack trace", () => {
+    const ThrowSimpleError = () => {
+      throw new Error("Simple error");
+    };
+
+    render(
+      <ErrorBoundary>
+        <ThrowSimpleError />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText("Simple error")).toBeTruthy();
+  });
+
+  it("should handle multiple consecutive errors", () => {
+    const AlwaysError = () => {
+      throw new Error("Always errors");
+    };
+
+    const { rerender } = render(
+      <ErrorBoundary>
+        <AlwaysError />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText("出错了")).toBeTruthy();
+
+    const retryButton = screen.getByText("重试");
+    fireEvent.click(retryButton);
+
+    rerender(
+      <ErrorBoundary>
+        <AlwaysError />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText("出错了")).toBeTruthy();
+  });
+
+  it("should handle error in nested children", () => {
+    const NestedError = () => {
+      throw new Error("Nested error");
+    };
+
+    render(
+      <ErrorBoundary>
+        <div>
+          <NestedError />
+        </div>
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText("出错了")).toBeTruthy();
+    expect(screen.getByText("Nested error")).toBeTruthy();
+  });
+
+  it("should have correct CSS class", () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>
+    );
+
+    const errorBoundary = screen.getByRole("alert");
+    expect(errorBoundary.classList.contains("error-boundary")).toBeTruthy();
+  });
 });
