@@ -4,7 +4,7 @@
   "version": "1.1.4",
   "description": "高级Cookie管理，支持白名单/黑名单功能和选择性Cookie清除",
   "type": "module",
-  "packageManager": "npm@10.0.0",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
@@ -28,6 +28,7 @@
     "wxt": "^0.20.18"
   },
   "devDependencies": {
+    "pnpm": "9.15.0",
     "@playwright/test": "1.58.2",
     "@testing-library/dom": "10.0.0",
     "@testing-library/jest-dom": "6.9.1",

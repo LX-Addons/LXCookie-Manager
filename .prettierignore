@@ -34,3 +34,7 @@ tmp/
 .trae/documents
 .trae/rules
 NON_CORE_FILES.md
+.qodo
+.wxt
+.output
+debug.log

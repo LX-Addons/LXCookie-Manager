@@ -60,3 +60,15 @@ yarn.lock
 .trae/documents
 .trae/rules
 NON_CORE_FILES.md
+.pnpm-store
+
+# Other IDEs
+.qodo
+
+# Logs
+*.log
+debug.log
+
+# Auto-generated directories
+.wxt
+.output
