@@ -470,12 +470,13 @@ jobs:
           ZIP_EXIT_CODE=$?
           
           echo "📁 打包后 .output/ 目录内容:"
-          ls -la .output/ || true
+          ls -laR .output/ || true
           
-          echo "🔍 查找生成的 zip 文件:"
-          find .output -name "*.zip" -type f 2>/dev/null || echo "未找到 zip 文件"
+          echo "🔍 查找生成的 zip 文件 (整个项目):"
+          find . -name "*.zip" -type f 2>/dev/null | head -20
           
           ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
+          echo "📊 在 .output/ 中找到 $ZIP_COUNT 个 zip 文件"
           if [ "$ZIP_COUNT" -eq 0 ]; then
             echo "⚠️ 警告: 未找到生成的 zip 文件，尝试手动创建..."
             if [ -d ".output/chrome-mv3" ]; then
