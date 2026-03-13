@@ -59,7 +59,7 @@ test.describe("Cookie Operations", () => {
 
     const statLabels = popup.locator(".stat-label");
     await expect(statLabels.nth(0)).toContainText(/(总数|Total)/);
-    await expect(statLabels.nth(1)).toContainText(/(当前网站 | Current)/);
+    await expect(statLabels.nth(1)).toContainText(/(当前网站|Current)/);
     await expect(statLabels.nth(2)).toContainText(/(会话|Session)/);
     await expect(statLabels.nth(3)).toContainText(/(持久|Persistent)/);
     await expect(statLabels.nth(4)).toContainText(/(第三方|Third-party)/);
@@ -126,7 +126,7 @@ test.describe("Domain Management", () => {
 
     await expect(popup.locator('input[placeholder*="google.com"]')).toBeVisible();
     await expect(popup.getByRole("button", { name: /^添加$|^Add$/ })).toBeVisible();
-    await expect(popup.getByRole("button", { name: /(添加当前网站 |Add Current)/ })).toBeVisible();
+    await expect(popup.getByRole("button", { name: /(添加当前网站|Add current website)/ })).toBeVisible();
 
     await popup.close();
   });
@@ -190,10 +190,10 @@ test.describe("Settings", () => {
     const settingsTab = popup.getByRole("tab", { name: /设置|Settings/ });
     await settingsTab.click();
 
-    await expect(popup.getByLabel(/跟随浏览器|Auto/)).toBeVisible();
-    await expect(popup.getByLabel(/亮色|Light/)).toBeVisible();
-    await expect(popup.getByLabel(/暗色|Dark/)).toBeVisible();
-    await expect(popup.getByLabel(/自定义|Custom/)).toBeVisible();
+    await expect(popup.getByRole("radio", { name: /跟随浏览器|Follow Browser/ })).toBeVisible();
+    await expect(popup.getByRole("radio", { name: /亮色|Light/ })).toBeVisible();
+    await expect(popup.getByRole("radio", { name: /暗色|Dark/ })).toBeVisible();
+    await expect(popup.getByRole("radio", { name: /自定义|Custom/ })).toBeVisible();
 
     await popup.close();
   });
