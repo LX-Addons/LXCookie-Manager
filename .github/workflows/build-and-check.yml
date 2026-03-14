@@ -861,6 +861,8 @@ jobs:
                 per_page: 100,
               });
               
+              core.info('📋 获取到的标签列表: ' + tagsList.map(t => t.name).join(', '));
+              
               const tagNames = tagsList.map(tag => tag.name).sort((a, b) => {
                 const aParts = a.replace('v', '').split('.').map(Number);
                 const bParts = b.replace('v', '').split('.').map(Number);
@@ -871,12 +873,18 @@ jobs:
                 return 0;
               });
               
-              const currentIndex = tagNames.indexOf(currentTag);
-              if (currentIndex > 0) {
-                previousTag = tagNames[currentIndex - 1];
+              core.info('📋 排序后的标签列表: ' + tagNames.join(', '));
+              core.info('📋 当前版本标签: ' + currentTag);
+              
+              const existingTags = tagNames.filter(tag => tag !== currentTag);
+              core.info('📋 排除当前版本后的标签列表: ' + existingTags.join(', '));
+              
+              if (existingTags.length > 0) {
+                previousTag = existingTags[existingTags.length - 1];
+                core.info('📋 上一个版本标签: ' + previousTag);
               }
             } catch (error) {
-              console.log('⚠️ 获取标签列表失败:', error.message);
+              core.error('⚠️ 获取标签列表失败: ' + error.message);
             }
             
             if (previousTag) {
@@ -929,12 +937,16 @@ jobs:
             let changelogContent = '';
             try {
               if (previousTag) {
+                core.info('📋 正在比较 ' + previousTag + ' 和 ' + context.sha.substring(0, 7));
+                
                 const { data: commits } = await github.rest.repos.compareCommits({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   base: previousTag,
                   head: context.sha,
                 });
+                
+                core.info('📋 获取到的提交数量: ' + (commits.commits ? commits.commits.length : 0));
                 
                 if (commits && commits.commits && commits.commits.length > 0) {
                   const commitList = commits.commits.map(commit => {
@@ -944,10 +956,14 @@ jobs:
                     return `- ${message} ([${sha}](${commit.html_url})) by @${author}`;
                   });
                   changelogContent = commitList.join('\n');
+                  core.info('📋 生成的更新内容长度: ' + changelogContent.length);
                 }
+              } else {
+                core.warning('⚠️ 没有找到上一个版本标签');
               }
               
               if (!changelogContent) {
+                core.info('📋 使用 generateReleaseNotes 作为备选方案');
                 const { data: notes } = await github.rest.repos.generateReleaseNotes({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -958,7 +974,8 @@ jobs:
                 changelogContent = notes.body || '';
               }
             } catch (error) {
-              console.log('⚠️ 获取提交历史失败，使用默认内容:', error.message);
+              core.error('⚠️ 获取提交历史失败: ' + error.message);
+              core.error('⚠️ 错误堆栈: ' + error.stack);
               changelogContent = '';
             }
             
