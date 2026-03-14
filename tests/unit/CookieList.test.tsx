@@ -3,23 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { useState, ReactNode } from "react";
 import { CookieList, CookieListContent } from "@/components/CookieList";
-
-/**
- * 安全地检查按钮文本是否包含特定域名
- * 使用正则表达式确保精确匹配，避免子串匹配带来的安全问题
- * @param textContent - 按钮的文本内容
- * @param domain - 要匹配的域名
- * @returns 是否匹配
- */
-const hasDomainInText = (textContent: string | null | undefined, domain: string): boolean => {
-  if (!textContent) return false;
-  // 使用正则表达式匹配域名，确保域名是独立的词或出现在特定位置
-  // 匹配模式：域名后面可以跟空格、括号或字符串结束
-  // 先转义所有正则表达式特殊字符，然后再构建正则
-  const escapedDomain = domain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const domainPattern = new RegExp(`\\b${escapedDomain}\\b`);
-  return domainPattern.test(textContent);
-};
+import { hasDomainInText } from "../utils/mocks";
 
 const mockCookies = [
   {

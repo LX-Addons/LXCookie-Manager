@@ -277,7 +277,7 @@ describe("ClearLog", () => {
 
   it("should clear expired logs and show message", async () => {
     const useStorage = storageHook.useStorage;
-    const oldTimestamp = Date.now() - 8 * 24 * 60 * 60 * 1000; // 8 天前
+    const oldTimestamp = Date.now() - 8 * 24 * 60 * 60 * 1000;
     const mockSetLogs = vi.fn((fn) => {
       const result = fn([
         {
