@@ -777,8 +777,10 @@ jobs:
     name: 创建发布
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [setup, build, security]
+    needs: [setup, lint, test, build, security]
     if: |
+      needs.lint.result == 'success' &&
+      needs.test.result == 'success' &&
       needs.build.result == 'success' &&
       needs.security.result == 'success' &&
       github.event_name == 'workflow_dispatch' &&
@@ -825,90 +827,116 @@ jobs:
           fi
           echo "✅ 找到 zip 文件"
 
-      - name: 生成发布信息头
-        id: release_header
-        run: |
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          CURRENT_VERSION="${{ steps.version.outputs.version }}"
-          CURRENT_DATE=$(date +"%Y年%m月%d日")
-          
-          if [ -z "$PREVIOUS_TAG" ]; then
-            HEADER="# 🎉 Cookie Manager Pro v${CURRENT_VERSION}
+      - name: 生成完整发布内容
+        id: final_notes
+        uses: actions/github-script@v8
+        env:
+          CURRENT_VERSION: ${{ steps.version.outputs.version }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            
+            const currentVersion = process.env.CURRENT_VERSION;
+            const githubRef = process.env.GITHUB_REF;
+            const githubServerUrl = process.env.GITHUB_SERVER_URL;
+            const githubRepository = process.env.GITHUB_REPOSITORY;
+            
+            const currentDate = new Date().toLocaleDateString('zh-CN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            let previousTag = '';
+            let commitSince = 0;
+            
+            try {
+              previousTag = execSync('git describe --tags --abbrev=0 2>/dev/null || echo ""', { encoding: 'utf-8' }).trim();
+            } catch (error) {
+              previousTag = '';
+            }
+            
+            if (previousTag) {
+              try {
+                commitSince = parseInt(execSync(`git rev-list --count "${previousTag}..HEAD" 2>/dev/null || echo "0"`, { encoding: 'utf-8' }).trim());
+              } catch (error) {
+                commitSince = 0;
+              }
+            }
+            
+            let header = '';
+            
+            if (!previousTag) {
+              header = `# 🎉 Cookie Manager Pro v${currentVersion}
 
 ## 📦 发布信息
 
 | 项目 | 详情 |
 | :--- | :--- |
-| **版本号** | \`${CURRENT_VERSION}\` |
-| **发布日期** | ${CURRENT_DATE} |
+| **版本号** | \`${currentVersion}\` |
+| **发布日期** | ${currentDate} |
 | **发布类型** | 🚀 初始发布 |
 
 ---
 
 ## 📋 更新内容
 
-"
-          else
-            COMMIT_SINCE=$(git rev-list --count "${PREVIOUS_TAG}..HEAD" 2>/dev/null || echo "0")
-            HEADER="# 🚀 Cookie Manager Pro v${CURRENT_VERSION}
+`;
+            } else {
+              const releaseType = githubRef === 'refs/heads/main' ? '📌 正式版' : '🔧 预发布版';
+              const compareUrl = `${githubServerUrl}/${githubRepository}/compare/${previousTag}...v${currentVersion}`;
+              
+              header = `# 🚀 Cookie Manager Pro v${currentVersion}
 
 ## 📦 发布信息
 
 | 项目 | 详情 |
 | :--- | :--- |
-| **版本号** | \`${CURRENT_VERSION}\` |
-| **发布日期** | ${CURRENT_DATE} |
-| **发布类型** | ${{ github.ref == 'refs/heads/main' && '📌 正式版' || '🔧 预发布版' }} |
-| **更新提交数** | ${COMMIT_SINCE} |
-| **对比版本** | [\`${PREVIOUS_TAG}\`](${{ github.server_url }}/${{ github.repository }}/compare/${PREVIOUS_TAG}...v${CURRENT_VERSION}) |
+| **版本号** | \`${currentVersion}\` |
+| **发布日期** | ${currentDate} |
+| **发布类型** | ${releaseType} |
+| **更新提交数** | ${commitSince} |
+| **对比版本** | [\`${previousTag}\`](${compareUrl}) |
 
 ---
 
 ## 📋 更新内容
 
-"
-          fi
-          
-          echo "header<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$HEADER" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: 生成 GitHub 自动发布说明
-        id: github_notes
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { data: notes } = await github.rest.repos.generateReleaseNotes({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: 'v${{ steps.version.outputs.version }}',
-            });
-            return notes.body;
-
-      - name: 合并发布内容
-        id: final_notes
-        run: |
-          CURRENT_VERSION="${{ steps.version.outputs.version }}"
-          CURRENT_DATE=$(date +"%Y年%m月%d日")
-          
-          HEADER="${{ steps.release_header.outputs.header }}"
-          GITHUB_NOTES="${{ steps.github_notes.outputs.result }}"
-          
-          FINAL_NOTES="$HEADER"
-          
-          if [ -n "$GITHUB_NOTES" ] && [ "$GITHUB_NOTES" != "null" ]; then
-            FINAL_NOTES="$FINAL_NOTES$GITHUB_NOTES"
-          else
-            FINAL_NOTES="$FINAL_NOTES- 🔄 版本更新至 ${CURRENT_VERSION}"
-          fi
-          
-          FINAL_NOTES="$FINAL_NOTES
+`;
+            }
+            
+            let githubNotes = '';
+            try {
+              const { data: notes } = await github.rest.repos.generateReleaseNotes({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: `v${currentVersion}`,
+                target_commitish: context.sha,
+              });
+              githubNotes = notes.body || '';
+            } catch (error) {
+              console.log('⚠️ GitHub API 调用失败，使用默认内容:', error.message);
+              githubNotes = '';
+            }
+            
+            let finalNotes = header;
+            
+            if (githubNotes && githubNotes !== 'null') {
+              finalNotes += githubNotes;
+            } else {
+              finalNotes += `- 🔄 版本更新至 ${currentVersion}`;
+            }
+            
+            finalNotes += `
 
 ---
 
 ## 💡 使用说明
 
-- 下载附件中的 \`cookie-manager-pro-${CURRENT_VERSION}-mv3.zip\` 文件
+- 下载附件中的 \`cookie-manager-pro-${currentVersion}-mv3.zip\` 文件
 - 在 Chrome/Edge 浏览器中打开 \`chrome://extensions/\`（或 \`edge://extensions/\`）
 - 开启"开发者模式"
 - 将下载的 zip 文件拖放至扩展页面进行安装
@@ -917,14 +945,12 @@ jobs:
 
 ## 📞 问题反馈
 
-如有问题或建议，欢迎在 [Issues](${{ github.server_url }}/${{ github.repository }}/issues) 中反馈！
+如有问题或建议，欢迎在 [Issues](${githubServerUrl}/${githubRepository}/issues) 中反馈！
 
 ---
-📅 Generated by GitHub Actions on ${CURRENT_DATE}"
-
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$FINAL_NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+📅 Generated by GitHub Actions on ${currentDate}`;
+            
+            return finalNotes;
 
       - name: 检查标签是否存在
         id: check_tag
@@ -941,7 +967,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: 发布 v${{ steps.version.outputs.version }}
-          body: ${{ steps.final_notes.outputs.notes }}
+          body: ${{ steps.final_notes.outputs.result }}
           files: .output/cookie-manager-pro-${{ steps.version.outputs.version }}-mv3.zip
           draft: false
           prerelease: ${{ github.ref != 'refs/heads/main' }}
