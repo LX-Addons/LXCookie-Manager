@@ -938,11 +938,27 @@ jobs:
                       .replace(/\|/g, '\\|');
                   };
                   
+                  const seenMessages = new Set();
+                  
                   commits.commits.forEach(commit => {
                     const message = commit.commit.message.split('\n')[0];
                     const sha = commit.sha.substring(0, 7);
                     
                     const match = message.match(/^(feat|fix|refactor|perf|docs|style|test|build|ci|chore)(\([^)]+\))?(!)?:\s*(.+)$/i);
+                    
+                    const rawDesc = match ? match[4] : message;
+                    const typeKey = match ? match[1].toLowerCase() : 'other';
+                    const scopeKey = match && match[2]
+                      ? match[2].replace(/[()]/g, '').toLowerCase()
+                      : '';
+                    const normalizedDesc = rawDesc.toLowerCase().trim().replace(/\s+/g, ' ');
+                    const dedupeKey = `${typeKey}:${scopeKey}:${normalizedDesc}`;
+                    
+                    if (seenMessages.has(dedupeKey)) {
+                      core.info('📋 跳过重复提交: ' + message.substring(0, 50));
+                      return;
+                    }
+                    seenMessages.add(dedupeKey);
                     
                     let category = categories['📦 其他'];
                     if (match) {
