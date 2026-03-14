@@ -838,7 +838,6 @@ jobs:
         with:
           script: |
             const { execSync } = require('child_process');
-            const core = require('@actions/core');
             
             const currentVersion = process.env.CURRENT_VERSION;
             const githubRef = process.env.GITHUB_REF;
