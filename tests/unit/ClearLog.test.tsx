@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { useState, ReactNode } from "react";
 import { ClearLog } from "@/components/ClearLog";
 import * as storageHook from "@/hooks/useStorage";
+import {
+  createTranslationMock,
+  createConfirmDialogWrapperMockWithCustomConfirmText,
+  createUseStorageMock,
+} from "../utils/mocks";
 
 vi.mock("@/hooks/useTranslation", () => ({
   useTranslation: () => ({
@@ -45,95 +49,36 @@ vi.mock("@/hooks/useTranslation", () => ({
     },
   }),
 }));
-
-vi.mock("../../components/ConfirmDialogWrapper", () => ({
-  ConfirmDialogWrapper: ({
-    children,
-  }: {
-    children: (
-      showConfirm: (
-        title: string,
-        message: string,
-        variant: string,
-        onConfirm: () => void
-      ) => ReactNode
-    ) => ReactNode;
-  }) => {
-    const MockWrapper = () => {
-      const [isOpen, setIsOpen] = useState(false);
-      const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
-
-      const showConfirm = (
-        _title: string,
-        _message: string,
-        _variant: string,
-        onConfirm: () => void
-      ): ReactNode => {
-        setConfirmCallback(() => onConfirm);
-        setIsOpen(true);
-        return null;
-      };
-
-      return (
-        <>
-          {children(showConfirm)}
-          {isOpen && (
-            <div className="confirm-dialog">
-              <p>确定要清除所有日志记录吗？</p>
-              <button
-                onClick={() => {
-                  confirmCallback?.();
-                  setIsOpen(false);
-                }}
-              >
-                确定
-              </button>
-              <button onClick={() => setIsOpen(false)}>取消</button>
-            </div>
-          )}
-        </>
-      );
-    };
-    return <MockWrapper />;
-  },
-}));
-
+vi.mock("../../components/ConfirmDialogWrapper", () =>
+  createConfirmDialogWrapperMockWithCustomConfirmText("确定要清除所有日志记录吗？")
+);
 vi.mock("@/hooks/useStorage", () => ({
   useStorage: vi.fn(),
 }));
 
 describe("ClearLog", () => {
   const mockOnMessage = vi.fn();
+  const { useStorageMock, resetStorage, setStorageValue } = createUseStorageMock();
 
   beforeEach(() => {
     vi.clearAllMocks();
-
+    resetStorage();
     const useStorage = storageHook.useStorage;
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
-      (key: string, defaultValue: unknown) => {
-        if (key === "local:settings") {
-          return [
-            {
-              mode: "whitelist",
-              themeMode: "light",
-              clearType: "all",
-              clearCache: false,
-              clearLocalStorage: false,
-              clearIndexedDB: false,
-              cleanupOnStartup: false,
-              cleanupExpiredCookies: false,
-              logRetention: "7d",
-              locale: "zh-CN",
-            },
-            vi.fn(),
-          ];
-        }
-        if (key === "local:clearLog") {
-          return [[], vi.fn()];
-        }
-        return [defaultValue, vi.fn()];
-      }
-    );
+    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(useStorageMock);
+
+    setStorageValue("local:settings", {
+      mode: "whitelist",
+      themeMode: "light",
+      clearType: "all",
+      clearCache: false,
+      clearLocalStorage: false,
+      clearIndexedDB: false,
+      cleanupOnStartup: false,
+      cleanupExpiredCookies: false,
+      logRetention: "7d",
+      locale: "zh-CN",
+    });
+    setStorageValue("local:clearLog", []);
   });
 
   it("should render empty state when no logs", () => {
@@ -199,32 +144,18 @@ describe("ClearLog", () => {
   });
 
   it("should show message when log retention is forever", async () => {
-    const useStorage = storageHook.useStorage;
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
-      (key: string, defaultValue: unknown) => {
-        if (key === "local:settings") {
-          return [
-            {
-              mode: "whitelist",
-              themeMode: "light",
-              clearType: "all",
-              clearCache: false,
-              clearLocalStorage: false,
-              clearIndexedDB: false,
-              cleanupOnStartup: false,
-              cleanupExpiredCookies: false,
-              logRetention: "forever",
-              locale: "zh-CN",
-            },
-            vi.fn(),
-          ];
-        }
-        if (key === "local:clearLog") {
-          return [[], vi.fn()];
-        }
-        return [defaultValue, vi.fn()];
-      }
-    );
+    setStorageValue("local:settings", {
+      mode: "whitelist",
+      themeMode: "light",
+      clearType: "all",
+      clearCache: false,
+      clearLocalStorage: false,
+      clearIndexedDB: false,
+      cleanupOnStartup: false,
+      cleanupExpiredCookies: false,
+      logRetention: "forever",
+      locale: "zh-CN",
+    });
 
     render(<ClearLog onMessage={mockOnMessage} />);
 
@@ -235,37 +166,34 @@ describe("ClearLog", () => {
   });
 
   it("should show message when no expired logs found", async () => {
-    const useStorage = storageHook.useStorage;
     const mockSetLogs = vi.fn((fn) => {
       const result = fn([]);
       return result;
     });
-
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
-      (key: string, defaultValue: unknown) => {
-        if (key === "local:settings") {
-          return [
-            {
-              mode: "whitelist",
-              themeMode: "light",
-              clearType: "all",
-              clearCache: false,
-              clearLocalStorage: false,
-              clearIndexedDB: false,
-              cleanupOnStartup: false,
-              cleanupExpiredCookies: false,
-              logRetention: "7d",
-              locale: "zh-CN",
-            },
-            vi.fn(),
-          ];
-        }
-        if (key === "local:clearLog") {
-          return [[], mockSetLogs];
-        }
-        return [defaultValue, vi.fn()];
+    const useStorage = storageHook.useStorage;
+    (useStorage as ReturnType<typeof vi.fn>).mockImplementation((key: string, defaultValue: unknown) => {
+      if (key === "local:settings") {
+        return [
+          {
+            mode: "whitelist",
+            themeMode: "light",
+            clearType: "all",
+            clearCache: false,
+            clearLocalStorage: false,
+            clearIndexedDB: false,
+            cleanupOnStartup: false,
+            cleanupExpiredCookies: false,
+            logRetention: "7d",
+            locale: "zh-CN",
+          },
+          vi.fn(),
+        ];
       }
-    );
+      if (key === "local:clearLog") {
+        return [[], mockSetLogs];
+      }
+      return [defaultValue, vi.fn()];
+    });
 
     render(<ClearLog onMessage={mockOnMessage} />);
 
@@ -276,7 +204,6 @@ describe("ClearLog", () => {
   });
 
   it("should clear expired logs and show message", async () => {
-    const useStorage = storageHook.useStorage;
     const oldTimestamp = Date.now() - 8 * 24 * 60 * 60 * 1000;
     const mockSetLogs = vi.fn((fn) => {
       const result = fn([
@@ -291,44 +218,42 @@ describe("ClearLog", () => {
       ]);
       return result;
     });
-
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
-      (key: string, defaultValue: unknown) => {
-        if (key === "local:settings") {
-          return [
-            {
-              mode: "whitelist",
-              themeMode: "light",
-              clearType: "all",
-              clearCache: false,
-              clearLocalStorage: false,
-              clearIndexedDB: false,
-              cleanupOnStartup: false,
-              cleanupExpiredCookies: false,
-              logRetention: "7d",
-              locale: "zh-CN",
-            },
-            vi.fn(),
-          ];
-        }
-        if (key === "local:clearLog") {
-          return [
-            [
-              {
-                id: "test-log-1",
-                domain: "example.com",
-                count: 5,
-                action: "clear",
-                cookieType: "all",
-                timestamp: oldTimestamp,
-              },
-            ],
-            mockSetLogs,
-          ];
-        }
-        return [defaultValue, vi.fn()];
+    const useStorage = storageHook.useStorage;
+    (useStorage as ReturnType<typeof vi.fn>).mockImplementation((key: string, defaultValue: unknown) => {
+      if (key === "local:settings") {
+        return [
+          {
+            mode: "whitelist",
+            themeMode: "light",
+            clearType: "all",
+            clearCache: false,
+            clearLocalStorage: false,
+            clearIndexedDB: false,
+            cleanupOnStartup: false,
+            cleanupExpiredCookies: false,
+            logRetention: "7d",
+            locale: "zh-CN",
+          },
+          vi.fn(),
+        ];
       }
-    );
+      if (key === "local:clearLog") {
+        return [
+          [
+            {
+              id: "test-log-1",
+              domain: "example.com",
+              count: 5,
+              action: "clear",
+              cookieType: "all",
+              timestamp: oldTimestamp,
+            },
+          ],
+          mockSetLogs,
+        ];
+      }
+      return [defaultValue, vi.fn()];
+    });
 
     render(<ClearLog onMessage={mockOnMessage} />);
 
@@ -339,44 +264,16 @@ describe("ClearLog", () => {
   });
 
   it("should render log list with items", () => {
-    const useStorage = storageHook.useStorage;
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
-      (key: string, defaultValue: unknown) => {
-        if (key === "local:settings") {
-          return [
-            {
-              mode: "whitelist",
-              themeMode: "light",
-              clearType: "all",
-              clearCache: false,
-              clearLocalStorage: false,
-              clearIndexedDB: false,
-              cleanupOnStartup: false,
-              cleanupExpiredCookies: false,
-              logRetention: "7d",
-              locale: "zh-CN",
-            },
-            vi.fn(),
-          ];
-        }
-        if (key === "local:clearLog") {
-          return [
-            [
-              {
-                id: "test-log-1",
-                domain: "example.com",
-                count: 5,
-                action: "clear",
-                cookieType: "all",
-                timestamp: Date.now(),
-              },
-            ],
-            vi.fn(),
-          ];
-        }
-        return [defaultValue, vi.fn()];
-      }
-    );
+    setStorageValue("local:clearLog", [
+      {
+        id: "test-log-1",
+        domain: "example.com",
+        count: 5,
+        action: "clear",
+        cookieType: "all",
+        timestamp: Date.now(),
+      },
+    ]);
 
     render(<ClearLog onMessage={mockOnMessage} />);
 
