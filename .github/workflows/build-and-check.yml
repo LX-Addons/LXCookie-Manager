@@ -908,12 +908,18 @@ jobs:
             
             let githubNotes = '';
             try {
-              const { data: notes } = await github.rest.repos.generateReleaseNotes({
+              const apiParams = {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: 'v' + currentVersion,
                 target_commitish: context.sha,
-              });
+              };
+              
+              if (previousTag) {
+                apiParams.previous_tag_name = previousTag;
+              }
+              
+              const { data: notes } = await github.rest.repos.generateReleaseNotes(apiParams);
               githubNotes = notes.body || '';
             } catch (error) {
               console.log('⚠️ GitHub API 调用失败，使用默认内容:', error.message);
