@@ -1,49 +1,54 @@
 import { describe, it, expect } from "vitest";
 import { hasDomainInText, createTranslationMock } from "../utils/mocks";
 
+const TEST_DOMAIN = "example.com";
+
+const formatDomainText = (domain: string, prefix: string = "🌐 ", suffix: string = " (2)") =>
+  `${prefix}${domain}${suffix}`;
+
 describe("mocks", () => {
   describe("hasDomainInText", () => {
     it("should return false for null textContent", () => {
-      expect(hasDomainInText(null, "example.com")).toBe(false);
+      expect(hasDomainInText(null, TEST_DOMAIN)).toBe(false);
     });
 
     it("should return false for undefined textContent", () => {
-      expect(hasDomainInText(undefined, "example.com")).toBe(false);
+      expect(hasDomainInText(undefined, TEST_DOMAIN)).toBe(false);
     });
 
     it("should return false for empty string textContent", () => {
-      expect(hasDomainInText("", "example.com")).toBe(false);
+      expect(hasDomainInText("", TEST_DOMAIN)).toBe(false);
     });
 
     it("should return true when domain is found in text", () => {
-      expect(hasDomainInText("🌐 example.com (2)", "example.com")).toBe(true);
+      expect(hasDomainInText(formatDomainText(TEST_DOMAIN), TEST_DOMAIN)).toBe(true);
     });
 
     it("should return false when domain is not found in text", () => {
-      expect(hasDomainInText("🌐 test.com (2)", "example.com")).toBe(false);
+      expect(hasDomainInText(formatDomainText("test.com"), TEST_DOMAIN)).toBe(false);
     });
 
     it("should handle domain with special regex characters", () => {
-      expect(hasDomainInText("🌐 test.com (2)", "test.com")).toBe(true);
-      expect(hasDomainInText("🌐 example.com (2)", "example.com")).toBe(true);
+      expect(hasDomainInText(formatDomainText("test.com"), "test.com")).toBe(true);
+      expect(hasDomainInText(formatDomainText(TEST_DOMAIN), TEST_DOMAIN)).toBe(true);
     });
 
     it("should not match suffix domains", () => {
-      expect(hasDomainInText("🌐 example.com.cn (2)", "example.com")).toBe(false);
+      expect(hasDomainInText(formatDomainText(`${TEST_DOMAIN}.cn`), TEST_DOMAIN)).toBe(false);
     });
 
     it("should match subdomains", () => {
-      expect(hasDomainInText("🌐 sub.example.com (2)", "example.com")).toBe(true);
+      expect(hasDomainInText(formatDomainText(`sub.${TEST_DOMAIN}`), TEST_DOMAIN)).toBe(true);
     });
 
     it("should not match partial domain names", () => {
-      expect(hasDomainInText("🌐 evil.com (2)", "example.com")).toBe(false);
-      expect(hasDomainInText("🌐 example.org (2)", "example.com")).toBe(false);
+      expect(hasDomainInText(formatDomainText("evil.com"), TEST_DOMAIN)).toBe(false);
+      expect(hasDomainInText(formatDomainText("example.org"), TEST_DOMAIN)).toBe(false);
     });
 
     it("should be case insensitive", () => {
-      expect(hasDomainInText("🌐 EXAMPLE.COM (2)", "example.com")).toBe(true);
-      expect(hasDomainInText("🌐 example.com (2)", "EXAMPLE.COM")).toBe(true);
+      expect(hasDomainInText(formatDomainText("EXAMPLE.COM"), TEST_DOMAIN)).toBe(true);
+      expect(hasDomainInText(formatDomainText(TEST_DOMAIN), "EXAMPLE.COM")).toBe(true);
     });
   });
 
