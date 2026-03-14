@@ -890,8 +890,7 @@ jobs:
                 }
                 
                 if (!previousTag) {
-                  core.warning('⚠️ 未找到可达的基线标签，使用最新的标签');
-                  previousTag = existingTags[existingTags.length - 1];
+                  core.warning('⚠️ 未找到可达的基线标签，将使用 generateReleaseNotes 作为备选方案');
                 }
               }
             } catch (error) {
