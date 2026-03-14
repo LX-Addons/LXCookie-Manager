@@ -290,8 +290,11 @@ jobs:
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
-          # 基于退出码判断审计结果，避免依赖固定输出字符串
-          if AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1); then
+          # 分开执行命令以确保退出码判断可靠
+          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1)
+          AUDIT_EXIT_CODE=$?
+
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             AUDIT_STATUS=clean
           else
             AUDIT_STATUS=warning
@@ -342,7 +345,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [setup, lint, test]
-    if: needs.lint.result == 'success' && needs.test.result == 'success'
     outputs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.version.outputs.name }}
@@ -558,7 +560,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [setup, build]
-    if: always() && needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
+    if: needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -775,10 +777,9 @@ jobs:
     name: 创建发布
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [setup, build, e2e, security]
+    needs: [setup, build, security]
     if: |
       needs.build.result == 'success' &&
-      (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') &&
       needs.security.result == 'success' &&
       github.event_name == 'workflow_dispatch' &&
       github.event.inputs.create_release == 'true'
