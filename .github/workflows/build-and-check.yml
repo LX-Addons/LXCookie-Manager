@@ -290,8 +290,11 @@ jobs:
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
-          # 基于退出码判断审计结果，避免依赖固定输出字符串
-          if AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1); then
+          # 分开执行命令以确保退出码判断可靠
+          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1)
+          AUDIT_EXIT_CODE=$?
+
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             AUDIT_STATUS=clean
           else
             AUDIT_STATUS=warning
@@ -342,7 +345,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [setup, lint, test]
-    if: needs.lint.result == 'success' && needs.test.result == 'success'
     outputs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.version.outputs.name }}
@@ -558,7 +560,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [setup, build]
-    if: always() && needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
+    if: needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -775,10 +777,11 @@ jobs:
     name: 创建发布
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [setup, build, e2e, security]
+    needs: [setup, lint, test, build, security]
     if: |
+      needs.lint.result == 'success' &&
+      needs.test.result == 'success' &&
       needs.build.result == 'success' &&
-      (needs.e2e.result == 'success' || needs.e2e.result == 'skipped') &&
       needs.security.result == 'success' &&
       github.event_name == 'workflow_dispatch' &&
       github.event.inputs.create_release == 'true'
@@ -824,28 +827,125 @@ jobs:
           fi
           echo "✅ 找到 zip 文件"
 
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-
-      - name: 生成更新日志
-        id: changelog
-        run: |
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          CURRENT_VERSION="${{ steps.version.outputs.version }}"
-
-          if [ -z "$PREVIOUS_TAG" ]; then
-            NOTES=$(pnpm exec git-cliff --strip header 2>/dev/null || echo "初始发布 v${CURRENT_VERSION}")
-          else
-            NOTES=$(pnpm exec git-cliff "${PREVIOUS_TAG}..HEAD" --strip header 2>/dev/null || echo "发布 v${CURRENT_VERSION}")
-          fi
-
-          if [ -z "$NOTES" ] || [ "$NOTES" = "## [Unreleased]" ]; then
-            NOTES="## 更新内容\n\n- 版本更新至 ${CURRENT_VERSION}"
-          fi
-
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      - name: 生成完整发布内容
+        id: final_notes
+        uses: actions/github-script@v8
+        env:
+          CURRENT_VERSION: ${{ steps.version.outputs.version }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          script: >
+            const { execSync } = require('child_process');
+            
+            const currentVersion = process.env.CURRENT_VERSION;
+            const githubRef = process.env.GITHUB_REF;
+            const githubServerUrl = process.env.GITHUB_SERVER_URL;
+            const githubRepository = process.env.GITHUB_REPOSITORY;
+            
+            const currentDate = new Date().toLocaleDateString('zh-CN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            let previousTag = '';
+            let commitSince = 0;
+            
+            try {
+              previousTag = execSync('git describe --tags --abbrev=0 2>/dev/null || echo ""', { encoding: 'utf-8' }).trim();
+            } catch (error) {
+              previousTag = '';
+            }
+            
+            if (previousTag) {
+              try {
+                commitSince = parseInt(execSync(`git rev-list --count "${previousTag}..HEAD" 2>/dev/null || echo "0"`, { encoding: 'utf-8' }).trim());
+              } catch (error) {
+                commitSince = 0;
+              }
+            }
+            
+            const lines = [];
+            
+            if (!previousTag) {
+              lines.push('# 🎉 Cookie Manager Pro v' + currentVersion);
+              lines.push('');
+              lines.push('## 📦 发布信息');
+              lines.push('');
+              lines.push('| 项目 | 详情 |');
+              lines.push('| :--- | :--- |');
+              lines.push('| **版本号** | `' + currentVersion + '` |');
+              lines.push('| **发布日期** | ' + currentDate + ' |');
+              lines.push('| **发布类型** | 🚀 初始发布 |');
+              lines.push('');
+              lines.push('---');
+              lines.push('');
+              lines.push('## 📋 更新内容');
+              lines.push('');
+            } else {
+              const releaseType = githubRef === 'refs/heads/main' ? '📌 正式版' : '🔧 预发布版';
+              const compareUrl = githubServerUrl + '/' + githubRepository + '/compare/' + previousTag + '...v' + currentVersion;
+              
+              lines.push('# 🚀 Cookie Manager Pro v' + currentVersion);
+              lines.push('');
+              lines.push('## 📦 发布信息');
+              lines.push('');
+              lines.push('| 项目 | 详情 |');
+              lines.push('| :--- | :--- |');
+              lines.push('| **版本号** | `' + currentVersion + '` |');
+              lines.push('| **发布日期** | ' + currentDate + ' |');
+              lines.push('| **发布类型** | ' + releaseType + ' |');
+              lines.push('| **更新提交数** | ' + commitSince + ' |');
+              lines.push('| **对比版本** | [`' + previousTag + '`](' + compareUrl + ') |');
+              lines.push('');
+              lines.push('---');
+              lines.push('');
+              lines.push('## 📋 更新内容');
+              lines.push('');
+            }
+            
+            let githubNotes = '';
+            try {
+              const { data: notes } = await github.rest.repos.generateReleaseNotes({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: 'v' + currentVersion,
+                target_commitish: context.sha,
+              });
+              githubNotes = notes.body || '';
+            } catch (error) {
+              console.log('⚠️ GitHub API 调用失败，使用默认内容:', error.message);
+              githubNotes = '';
+            }
+            
+            if (githubNotes && githubNotes !== 'null') {
+              lines.push(githubNotes);
+            } else {
+              lines.push('- 🔄 版本更新至 ' + currentVersion);
+            }
+            
+            lines.push('');
+            lines.push('---');
+            lines.push('');
+            lines.push('## 💡 使用说明');
+            lines.push('');
+            lines.push('- 下载附件中的 `cookie-manager-pro-' + currentVersion + '-mv3.zip` 文件');
+            lines.push('- 在 Chrome/Edge 浏览器中打开 `chrome://extensions/`（或 `edge://extensions/`）');
+            lines.push('- 开启"开发者模式"');
+            lines.push('- 将下载的 zip 文件拖放至扩展页面进行安装');
+            lines.push('');
+            lines.push('---');
+            lines.push('');
+            lines.push('## 📞 问题反馈');
+            lines.push('');
+            lines.push('如有问题或建议，欢迎在 [Issues](' + githubServerUrl + '/' + githubRepository + '/issues) 中反馈！');
+            lines.push('');
+            lines.push('---');
+            lines.push('📅 Generated by GitHub Actions on ' + currentDate);
+            
+            return lines.join('\n');
 
       - name: 检查标签是否存在
         id: check_tag
@@ -862,7 +962,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: 发布 v${{ steps.version.outputs.version }}
-          body: ${{ steps.changelog.outputs.notes }}
+          body: ${{ steps.final_notes.outputs.result }}
           files: .output/cookie-manager-pro-${{ steps.version.outputs.version }}-mv3.zip
           draft: false
           prerelease: ${{ github.ref != 'refs/heads/main' }}
