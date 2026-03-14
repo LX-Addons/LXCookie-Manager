@@ -4,7 +4,6 @@ import "@testing-library/jest-dom/vitest";
 import { ClearLog } from "@/components/ClearLog";
 import * as storageHook from "@/hooks/useStorage";
 import {
-  createTranslationMock,
   createConfirmDialogWrapperMockWithCustomConfirmText,
   createUseStorageMock,
 } from "../utils/mocks";
@@ -171,29 +170,31 @@ describe("ClearLog", () => {
       return result;
     });
     const useStorage = storageHook.useStorage;
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation((key: string, defaultValue: unknown) => {
-      if (key === "local:settings") {
-        return [
-          {
-            mode: "whitelist",
-            themeMode: "light",
-            clearType: "all",
-            clearCache: false,
-            clearLocalStorage: false,
-            clearIndexedDB: false,
-            cleanupOnStartup: false,
-            cleanupExpiredCookies: false,
-            logRetention: "7d",
-            locale: "zh-CN",
-          },
-          vi.fn(),
-        ];
+    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
+      (key: string, defaultValue: unknown) => {
+        if (key === "local:settings") {
+          return [
+            {
+              mode: "whitelist",
+              themeMode: "light",
+              clearType: "all",
+              clearCache: false,
+              clearLocalStorage: false,
+              clearIndexedDB: false,
+              cleanupOnStartup: false,
+              cleanupExpiredCookies: false,
+              logRetention: "7d",
+              locale: "zh-CN",
+            },
+            vi.fn(),
+          ];
+        }
+        if (key === "local:clearLog") {
+          return [[], mockSetLogs];
+        }
+        return [defaultValue, vi.fn()];
       }
-      if (key === "local:clearLog") {
-        return [[], mockSetLogs];
-      }
-      return [defaultValue, vi.fn()];
-    });
+    );
 
     render(<ClearLog onMessage={mockOnMessage} />);
 
@@ -219,41 +220,43 @@ describe("ClearLog", () => {
       return result;
     });
     const useStorage = storageHook.useStorage;
-    (useStorage as ReturnType<typeof vi.fn>).mockImplementation((key: string, defaultValue: unknown) => {
-      if (key === "local:settings") {
-        return [
-          {
-            mode: "whitelist",
-            themeMode: "light",
-            clearType: "all",
-            clearCache: false,
-            clearLocalStorage: false,
-            clearIndexedDB: false,
-            cleanupOnStartup: false,
-            cleanupExpiredCookies: false,
-            logRetention: "7d",
-            locale: "zh-CN",
-          },
-          vi.fn(),
-        ];
-      }
-      if (key === "local:clearLog") {
-        return [
-          [
+    (useStorage as ReturnType<typeof vi.fn>).mockImplementation(
+      (key: string, defaultValue: unknown) => {
+        if (key === "local:settings") {
+          return [
             {
-              id: "test-log-1",
-              domain: "example.com",
-              count: 5,
-              action: "clear",
-              cookieType: "all",
-              timestamp: oldTimestamp,
+              mode: "whitelist",
+              themeMode: "light",
+              clearType: "all",
+              clearCache: false,
+              clearLocalStorage: false,
+              clearIndexedDB: false,
+              cleanupOnStartup: false,
+              cleanupExpiredCookies: false,
+              logRetention: "7d",
+              locale: "zh-CN",
             },
-          ],
-          mockSetLogs,
-        ];
+            vi.fn(),
+          ];
+        }
+        if (key === "local:clearLog") {
+          return [
+            [
+              {
+                id: "test-log-1",
+                domain: "example.com",
+                count: 5,
+                action: "clear",
+                cookieType: "all",
+                timestamp: oldTimestamp,
+              },
+            ],
+            mockSetLogs,
+          ];
+        }
+        return [defaultValue, vi.fn()];
       }
-      return [defaultValue, vi.fn()];
-    });
+    );
 
     render(<ClearLog onMessage={mockOnMessage} />);
 
