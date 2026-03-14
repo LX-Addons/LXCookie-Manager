@@ -907,28 +907,44 @@ jobs:
               lines.push('');
             }
             
-            let githubNotes = '';
+            let changelogContent = '';
             try {
-              const apiParams = {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag_name: 'v' + currentVersion,
-                target_commitish: context.sha,
-              };
-              
               if (previousTag) {
-                apiParams.previous_tag_name = previousTag;
+                const { data: commits } = await github.rest.repos.compareCommits({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  base: previousTag,
+                  head: 'v' + currentVersion,
+                });
+                
+                if (commits && commits.commits && commits.commits.length > 0) {
+                  const commitList = commits.commits.map(commit => {
+                    const message = commit.commit.message.split('\n')[0];
+                    const sha = commit.sha.substring(0, 7);
+                    const author = commit.commit.author.name;
+                    return `- ${message} ([${sha}](${commit.html_url})) by @${author}`;
+                  });
+                  changelogContent = commitList.join('\n');
+                }
               }
               
-              const { data: notes } = await github.rest.repos.generateReleaseNotes(apiParams);
-              githubNotes = notes.body || '';
+              if (!changelogContent) {
+                const { data: notes } = await github.rest.repos.generateReleaseNotes({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_name: 'v' + currentVersion,
+                  target_commitish: context.sha,
+                  previous_tag_name: previousTag || undefined,
+                });
+                changelogContent = notes.body || '';
+              }
             } catch (error) {
-              console.log('⚠️ GitHub API 调用失败，使用默认内容:', error.message);
-              githubNotes = '';
+              console.log('⚠️ 获取提交历史失败，使用默认内容:', error.message);
+              changelogContent = '';
             }
             
-            if (githubNotes && githubNotes !== 'null') {
-              lines.push(githubNotes);
+            if (changelogContent && changelogContent !== 'null') {
+              lines.push(changelogContent);
             } else {
               lines.push('- 🔄 版本更新至 ' + currentVersion);
             }
