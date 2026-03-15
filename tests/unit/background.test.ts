@@ -10,6 +10,7 @@ vi.mock("@/utils/cleanup", () => ({
   performCleanupWithFilter: vi.fn(() =>
     Promise.resolve({ count: 10, clearedDomains: ["test.com", "example.com"] })
   ),
+  cleanupExpiredCookies: vi.fn(() => Promise.resolve(0)),
 }));
 
 vi.mock("@/lib/store", async (importOriginal) => {
@@ -44,6 +45,7 @@ const listeners = {
 
 describe("background", () => {
   beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
     mockStorageData.clear();
     listeners.onInstalled = [];
@@ -216,6 +218,7 @@ describe("background", () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
     mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
       scheduleInterval: "hourly",
       lastScheduledCleanup: Date.now() - 2 * 60 * 60 * 1000,
       clearCache: false,
@@ -327,6 +330,7 @@ describe("background", () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
     mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
       scheduleInterval: "daily",
       lastScheduledCleanup: Date.now() - 25 * 60 * 60 * 1000,
       clearCache: true,
@@ -577,6 +581,7 @@ describe("background", () => {
     );
 
     mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
       scheduleInterval: "hourly",
       lastScheduledCleanup: 0,
       clearCache: false,
@@ -723,11 +728,24 @@ describe("background", () => {
     await import("@/utils/cleanup");
 
     mockStorageData.set("local:settings", {
+      clearType: "all",
+      logRetention: "sevenDays",
+      themeMode: "auto",
+      mode: "whitelist",
+      enableAutoCleanup: true,
       scheduleInterval: "hourly",
       lastScheduledCleanup: 0,
       clearCache: false,
       clearLocalStorage: false,
       clearIndexedDB: false,
+      cleanupOnTabDiscard: false,
+      cleanupOnStartup: false,
+      cleanupExpiredCookies: false,
+      cleanupOnTabClose: false,
+      cleanupOnBrowserClose: false,
+      cleanupOnNavigate: false,
+      showCookieRisk: false,
+      locale: "zh-CN",
     });
 
     await import("@/entrypoints/background");
@@ -744,6 +762,7 @@ describe("background", () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
     mockStorageData.set("local:settings", {
+      enableAutoCleanup: true,
       scheduleInterval: "hourly",
       lastScheduledCleanup: 0,
       clearCache: false,

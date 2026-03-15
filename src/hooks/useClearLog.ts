@@ -18,12 +18,13 @@ export function useClearLog() {
       details?: string
     ) => {
       logIdCounterRef.current += 1;
+      const timestamp = Date.now();
       const newLog: ClearLogEntry = {
-        id: `${Date.now()}-${logIdCounterRef.current}`,
+        id: `${timestamp}-${logIdCounterRef.current}`,
         domain,
         cookieType,
         count,
-        timestamp: Date.now(),
+        timestamp,
         action,
         details,
       };

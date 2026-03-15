@@ -32,9 +32,21 @@ env:
   PNPM_VERSION: "10.32.1"
   EXTENSION_SIZE_LIMIT_MB: 10
 
-permissions:
-  contents: read
-  packages: read
+# 可复用的 shell 函数：查找并验证唯一的 zip 文件
+# 使用方式: eval "$GET_ZIP_PATH" 然后调用 get_zip_path
+GET_ZIP_PATH: |
+  get_zip_path() {
+    local output_var="${1:-zip_path}"
+    mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
+    if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
+      echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
+      printf '%s\n' "${ZIP_FILES[@]}"
+      return 1
+    fi
+    local ZIP_PATH="${ZIP_FILES[0]}"
+    echo "${output_var}=$ZIP_PATH" >> "$GITHUB_OUTPUT"
+    echo "✅ zip 文件路径: $ZIP_PATH"
+  }
 
 jobs:
   setup:
@@ -149,6 +161,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [setup]
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -221,6 +236,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [setup]
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -245,7 +263,7 @@ jobs:
           path: |
             node_modules
             ~/.pnpm-store
-          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
             ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
@@ -365,6 +383,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [setup, lint, test]
+    permissions:
+      contents: read
+      packages: read
     outputs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.version.outputs.name }}
@@ -527,16 +548,8 @@ jobs:
       - name: 获取 zip 文件路径
         id: zip-info
         run: |
-          mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
-          if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
-            echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
-            printf '%s\n' "${ZIP_FILES[@]}"
-            exit 1
-          fi
-          ZIP_PATH="${ZIP_FILES[0]}"
-
-          echo "zip_path=$ZIP_PATH" >> $GITHUB_OUTPUT
-          echo "✅ zip 文件路径: $ZIP_PATH"
+          eval "$GET_ZIP_PATH"
+          get_zip_path "zip_path"
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v6
@@ -549,7 +562,7 @@ jobs:
       - name: 验证 zip 文件存在后上传
         run: |
           echo "🔍 验证 zip 文件是否存在..."
-          ls -la .output/*.zip
+          ls -la "${{ steps.zip-info.outputs.zip_path }}"
           if [ ! -f "${{ steps.zip-info.outputs.zip_path }}" ]; then
             echo "❌ zip 文件不存在: ${{ steps.zip-info.outputs.zip_path }}"
             exit 1
@@ -579,6 +592,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [setup, build]
+    permissions:
+      contents: read
+      packages: read
     if: needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
@@ -860,14 +876,8 @@ jobs:
       - name: 获取发布 zip 文件路径
         id: release-zip
         run: |
-          mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
-          if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
-            echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
-            printf '%s\n' "${ZIP_FILES[@]}"
-            exit 1
-          fi
-          ZIP_PATH="${ZIP_FILES[0]}"
-          echo "zip_path=$ZIP_PATH" >> $GITHUB_OUTPUT
+          eval "$GET_ZIP_PATH"
+          get_zip_path "zip_path"
 
       - name: 生成完整发布内容
         id: final_notes

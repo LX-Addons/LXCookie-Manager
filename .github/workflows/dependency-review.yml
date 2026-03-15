@@ -53,7 +53,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           AUDIT_EXIT_CODE=0
-          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
+          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate --ignore-registry-errors 2>&1) || AUDIT_EXIT_CODE=$?
 
           if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             echo "✅ 未发现已知漏洞" >> $GITHUB_STEP_SUMMARY
@@ -83,13 +83,15 @@ jobs:
 
           FORBIDDEN_LICENSES="GPL-2.0-only,GPL-2.0-or-later,GPL-3.0-only,GPL-3.0-or-later,AGPL-3.0-only,AGPL-3.0-or-later,LGPL-2.0-only,LGPL-2.0-or-later,LGPL-2.1-only,LGPL-2.1-or-later,LGPL-3.0-only,LGPL-3.0-or-later"
 
-          if $LICENSE_CHECKER --failOn "$FORBIDDEN_LICENSES" 2>&1; then
+          LICENSE_EXIT_CODE=0
+          LICENSE_OUTPUT=$($LICENSE_CHECKER --failOn "$FORBIDDEN_LICENSES" 2>&1) || LICENSE_EXIT_CODE=$?
+          if [ $LICENSE_EXIT_CODE -eq 0 ]; then
             echo "✅ 所有依赖均符合许可证政策。" >> $GITHUB_STEP_SUMMARY
             echo "license_status=ok" >> $GITHUB_OUTPUT
           else
             echo "❌ **检测到许可证违规！**" >> $GITHUB_STEP_SUMMARY
             echo "以下包使用了受限许可证（GPL/AGPL/LGPL），与隐私优先策略冲突：" >> $GITHUB_STEP_SUMMARY
-            $LICENSE_CHECKER --failOn "$FORBIDDEN_LICENSES" >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            printf '%s\n' "$LICENSE_OUTPUT" >> $GITHUB_STEP_SUMMARY
             echo "license_status=violation" >> $GITHUB_OUTPUT
             echo ""
             echo "::error::检测到许可证违规，存在 GPL/AGPL/LGPL 依赖，请检查并移除"

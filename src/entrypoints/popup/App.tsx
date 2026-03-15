@@ -202,8 +202,8 @@ function IndexPopup() {
 
   const quickAddToWhitelist = useCallback(() => {
     if (currentDomain) {
-      const isAlreadyInList = isInList(currentDomain, whitelist);
-      if (!isAlreadyInList) {
+      const isNotInList = !isInList(currentDomain, whitelist);
+      if (isNotInList) {
         setWhitelist([...whitelist, currentDomain]);
         showMessage(t("popup.addedToWhitelist", { domain: currentDomain }));
       } else {
@@ -214,8 +214,8 @@ function IndexPopup() {
 
   const quickAddToBlacklist = useCallback(() => {
     if (currentDomain) {
-      const isAlreadyInList = isInList(currentDomain, blacklist);
-      if (!isAlreadyInList) {
+      const isNotInList = !isInList(currentDomain, blacklist);
+      if (isNotInList) {
         setBlacklist([...blacklist, currentDomain]);
         showMessage(t("popup.addedToBlacklist", { domain: currentDomain }));
       } else {
@@ -279,29 +279,29 @@ function IndexPopup() {
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
+  const applyCustomTheme = useCallback((customTheme: SettingsType["customTheme"]) => {
+    if (!customTheme) return;
+    const root = document.documentElement;
+    const themeVars: Record<string, string | undefined> = {
+      "--primary-500": customTheme.primary,
+      "--success-500": customTheme.success,
+      "--warning-500": customTheme.warning,
+      "--danger-500": customTheme.danger,
+      "--bg-primary": customTheme.bgPrimary,
+      "--bg-secondary": customTheme.bgSecondary,
+      "--text-primary": customTheme.textPrimary,
+      "--text-secondary": customTheme.textSecondary,
+    };
+    Object.entries(themeVars).forEach(([prop, value]) => {
+      if (value) root.style.setProperty(prop, value);
+    });
+  }, []);
+
   useEffect(() => {
-    if (settings.themeMode === ThemeMode.CUSTOM && settings.customTheme) {
-      const root = document.documentElement;
-      const {
-        primary,
-        success,
-        warning,
-        danger,
-        bgPrimary,
-        bgSecondary,
-        textPrimary,
-        textSecondary,
-      } = settings.customTheme;
-      if (primary) root.style.setProperty("--primary-500", primary);
-      if (success) root.style.setProperty("--success-500", success);
-      if (warning) root.style.setProperty("--warning-500", warning);
-      if (danger) root.style.setProperty("--danger-500", danger);
-      if (bgPrimary) root.style.setProperty("--bg-primary", bgPrimary);
-      if (bgSecondary) root.style.setProperty("--bg-secondary", bgSecondary);
-      if (textPrimary) root.style.setProperty("--text-primary", textPrimary);
-      if (textSecondary) root.style.setProperty("--text-secondary", textSecondary);
+    if (settings.themeMode === ThemeMode.CUSTOM) {
+      applyCustomTheme(settings.customTheme);
     }
-  }, [settings.themeMode, settings.customTheme]);
+  }, [settings.themeMode, settings.customTheme, applyCustomTheme]);
 
   useEffect(() => {
     async function init() {

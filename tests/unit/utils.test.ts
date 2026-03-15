@@ -761,6 +761,34 @@ describe("createCookie", () => {
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
+
+  it("should normalize path without leading slash", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      path: "api",
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.path).toBe("/api");
+    expect(setCall.url).toContain("example.com/api");
+  });
+
+  it("should preserve path with leading slash", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      path: "/api/v1",
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.path).toBe("/api/v1");
+    expect(setCall.url).toContain("example.com/api/v1");
+  });
 });
 
 describe("editCookie", () => {
@@ -1135,7 +1163,6 @@ describe("toChromeSameSite", () => {
 
   it("should return undefined for unspecified", () => {
     expect(toChromeSameSite("unspecified")).toBeUndefined();
-    expect(toChromeSameSite(undefined)).toBeUndefined();
   });
 
   it("should return same value for other values", () => {

@@ -30,80 +30,96 @@ vi.mock("@/hooks/useStorage", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useTranslation", () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const translations: Record<string, string> = {
-        "settings.workMode": "工作模式",
-        "settings.workModeDesc": "控制 Cookie 清理的应用范围，根据您的需求选择合适的保护策略",
-        "settings.whitelistMode": "白名单模式：仅白名单内网站不执行清理",
-        "settings.blacklistMode": "黑名单模式：仅黑名单内网站执行清理",
-        "settings.cookieClearType": "Cookie清除类型",
-        "settings.cookieClearTypeDesc":
-          "选择要清除的 Cookie 类型，会话 Cookie 在关闭浏览器后会自动失效",
-        "settings.clearSessionOnly": "仅清除会话Cookie",
-        "settings.clearPersistentOnly": "仅清除持久Cookie",
-        "settings.clearAll": "清除所有Cookie",
-        "settings.scheduledCleanup": "定时清理",
-        "settings.scheduledCleanupDesc": "设置自动清理的时间间隔，确保您的隐私得到持续保护",
-        "settings.disabled": "禁用",
-        "settings.hourly": "每小时",
-        "settings.daily": "每天",
-        "settings.weekly": "每周",
-        "settings.advancedCleanup": "高级清理",
-        "settings.advancedCleanupDesc": "除了 Cookie 外，还可以清理其他可能存储您数据的浏览器存储",
-        "settings.clearCache": "清除缓存",
-        "settings.clearCacheDesc": "在清理 Cookie 时同时清除浏览器缓存数据",
-        "settings.clearLocalStorage": "清除LocalStorage",
-        "settings.clearLocalStorageDesc": "在清理 Cookie 时同时清除本地存储数据",
-        "settings.clearIndexedDB": "清除IndexedDB",
-        "settings.clearIndexedDBDesc": "在清理 Cookie 时同时清除 IndexedDB 数据库",
-        "settings.autoCleanup": "自动清理",
-        "settings.autoCleanupDesc": "配置不同场景下的自动清理行为，减少手动操作的繁琐",
-        "settings.cleanupOnStartup": "启动时清理",
-        "settings.cleanupOnStartupDesc": "浏览器启动时自动执行一次 Cookie 清理",
-        "settings.cleanupExpiredCookies": "清理过期Cookie",
-        "settings.cleanupExpiredCookiesDesc": "自动识别并清理已过期的 Cookie",
-        "settings.cleanupOnTabDiscard": "标签页关闭时清理",
-        "settings.privacyProtection": "隐私保护",
-        "settings.privacyProtectionDesc": "增强您的在线隐私保护，识别并警示潜在的追踪行为",
-        "settings.logRetention": "日志保留时间",
-        "settings.logRetentionDesc": "设置清理日志的保留时间，超过此时间的日志将被自动删除",
-        "settings.oneHour": "1小时",
-        "settings.sixHours": "6小时",
-        "settings.twelveHours": "12小时",
-        "settings.oneDay": "1天",
-        "settings.threeDays": "3天",
-        "settings.sevenDays": "7天",
-        "settings.tenDays": "10天",
-        "settings.thirtyDays": "30天",
-        "settings.forever": "永久",
-        "settings.enableAutoCleanup": "启用自动清理",
-        "settings.themeMode": "主题模式",
-        "settings.themeModeDesc": "选择您喜欢的界面主题风格",
-        "settings.followBrowser": "跟随系统",
-        "settings.light": "浅色主题",
-        "settings.dark": "深色主题",
-        "settings.custom": "自定义主题",
-        "settings.customThemeDesc": "自定义扩展的主题颜色",
-        "settings.primaryColor": "主色调",
-        "settings.successColor": "成功色",
-        "settings.warningColor": "警告色",
-        "settings.dangerColor": "危险色",
-        "settings.bgPrimaryColor": "主背景色",
-        "settings.bgSecondaryColor": "次背景色",
-        "settings.textPrimaryColor": "主文字色",
-        "settings.textSecondaryColor": "次文字色",
-        "settings.resetTheme": "重置主题",
-        "settings.language": "语言",
-        "settings.languageDesc": "选择扩展界面的显示语言",
-        "settings.showCookieRisk": "显示Cookie风险等级",
-        "settings.showCookieRiskDesc": "在Cookie列表中显示每个Cookie的风险等级评估",
-      };
-      return translations[key] || key;
-    },
-  }),
-}));
+vi.mock("@/hooks/useTranslation", () => {
+  const translations: Record<string, string> = {
+    "common.cancel": "取消",
+    "common.save": "保存",
+    "common.saving": "保存中…",
+    "common.delete": "删除",
+    "common.yes": "是",
+    "common.no": "否",
+    "common.confirm": "确定",
+    "common.count": "数量: {count}",
+    "actions.clear": "清除",
+    "settings.workMode": "工作模式",
+    "settings.workModeDesc": "控制 Cookie 清理的应用范围，根据您的需求选择合适的保护策略",
+    "settings.whitelistMode": "白名单模式：仅白名单内网站不执行清理",
+    "settings.blacklistMode": "黑名单模式：仅黑名单内网站执行清理",
+    "settings.cookieClearType": "Cookie清除类型",
+    "settings.cookieClearTypeDesc":
+      "选择要清除的 Cookie 类型，会话 Cookie 在关闭浏览器后会自动失效",
+    "settings.clearSessionOnly": "仅清除会话Cookie",
+    "settings.clearPersistentOnly": "仅清除持久Cookie",
+    "settings.clearAll": "清除所有Cookie",
+    "settings.scheduledCleanup": "定时清理",
+    "settings.scheduledCleanupDesc": "设置自动清理的时间间隔，确保您的隐私得到持续保护",
+    "settings.disabled": "禁用",
+    "settings.hourly": "每小时",
+    "settings.daily": "每天",
+    "settings.weekly": "每周",
+    "settings.advancedCleanup": "高级清理",
+    "settings.advancedCleanupDesc": "除了 Cookie 外，还可以清理其他可能存储您数据的浏览器存储",
+    "settings.clearCache": "清除缓存",
+    "settings.clearCacheDesc": "在清理 Cookie 时同时清除浏览器缓存数据",
+    "settings.clearLocalStorage": "清除LocalStorage",
+    "settings.clearLocalStorageDesc": "在清理 Cookie 时同时清除本地存储数据",
+    "settings.clearIndexedDB": "清除IndexedDB",
+    "settings.clearIndexedDBDesc": "在清理 Cookie 时同时清除 IndexedDB 数据库",
+    "settings.autoCleanup": "自动清理",
+    "settings.autoCleanupDesc": "配置不同场景下的自动清理行为，减少手动操作的繁琐",
+    "settings.cleanupOnStartup": "启动时清理",
+    "settings.cleanupOnStartupDesc": "浏览器启动时自动执行一次 Cookie 清理",
+    "settings.cleanupExpiredCookies": "清理过期Cookie",
+    "settings.cleanupExpiredCookiesDesc": "自动识别并清理已过期的 Cookie",
+    "settings.cleanupOnTabDiscard": "启用已丢弃/未加载标签的清理",
+    "settings.privacyProtection": "隐私保护",
+    "settings.privacyProtectionDesc": "增强您的在线隐私保护，识别并警示潜在的追踪行为",
+    "settings.logRetention": "日志保留时间",
+    "settings.logRetentionDesc": "设置清理日志的保留时间，超过此时间的日志将被自动删除",
+    "settings.oneHour": "1小时",
+    "settings.sixHours": "6小时",
+    "settings.twelveHours": "12小时",
+    "settings.oneDay": "1天",
+    "settings.threeDays": "3天",
+    "settings.sevenDays": "7天",
+    "settings.tenDays": "10天",
+    "settings.thirtyDays": "30天",
+    "settings.forever": "永久",
+    "settings.enableAutoCleanup": "启用自动清理",
+    "settings.themeMode": "主题模式",
+    "settings.themeModeDesc": "选择您喜欢的界面主题风格",
+    "settings.followBrowser": "跟随系统",
+    "settings.light": "浅色主题",
+    "settings.dark": "深色主题",
+    "settings.custom": "自定义主题",
+    "settings.customThemeDesc": "自定义扩展的主题颜色",
+    "settings.primaryColor": "主色调",
+    "settings.successColor": "成功色",
+    "settings.warningColor": "警告色",
+    "settings.dangerColor": "危险色",
+    "settings.bgPrimaryColor": "主背景色",
+    "settings.bgSecondaryColor": "次背景色",
+    "settings.textPrimaryColor": "主文字色",
+    "settings.textSecondaryColor": "次文字色",
+    "settings.resetTheme": "重置主题",
+    "settings.language": "语言",
+    "settings.languageDesc": "选择扩展界面的显示语言",
+    "settings.showCookieRisk": "显示Cookie风险等级",
+    "settings.showCookieRiskDesc": "在Cookie列表中显示每个Cookie的风险等级评估",
+  };
+  return {
+    useTranslation: () => ({
+      t: (key: string, params?: Record<string, string | number>) => {
+        const text = key in translations ? translations[key] : key;
+        if (!params) return text;
+        return text.replaceAll(/\{(\w+)\}/g, (_, token: string) => {
+          const value = params[token];
+          return value?.toString() || `{${token}}`;
+        });
+      },
+    }),
+  };
+});
 
 describe("Settings", () => {
   const mockOnMessage = vi.fn();
@@ -586,13 +602,14 @@ describe("Settings", () => {
     expect(screen.getByText("自定义主题")).toBeTruthy();
   });
 
-  it("should render log retention option with forever", () => {
+  it("should render with log retention forever selected", () => {
     mockSettings.logRetention = LogRetention.FOREVER;
 
     render(<Settings onMessage={mockOnMessage} />);
 
-    const select = screen.getByRole("combobox");
-    expect(select).toBeTruthy();
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    expect(select.value).toBe(LogRetention.FOREVER);
+    expect(screen.getByRole("option", { name: "永久" })).toBeTruthy();
   });
 
   it("should handle log retention change to forever", () => {
@@ -604,15 +621,6 @@ describe("Settings", () => {
     expect(mockSettings.logRetention).toBe(LogRetention.FOREVER);
   });
 
-  it("should render with log retention forever", () => {
-    mockSettings.logRetention = LogRetention.FOREVER;
-
-    render(<Settings onMessage={mockOnMessage} />);
-
-    const select = screen.getByRole("combobox") as HTMLSelectElement;
-    expect(select).toBeTruthy();
-  });
-
   it("should disable cleanup child options when auto cleanup is disabled", () => {
     mockSettings.enableAutoCleanup = false;
     mockSettings.cleanupOnStartup = true;
@@ -621,19 +629,9 @@ describe("Settings", () => {
 
     render(<Settings onMessage={mockOnMessage} />);
 
-    const checkboxes = screen.getAllByRole("checkbox");
-    const cleanupOnStartupCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest("label");
-      return label?.textContent?.includes("启动时清理");
-    });
-    const cleanupExpiredCookiesCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest("label");
-      return label?.textContent?.includes("清理过期Cookie");
-    });
-    const cleanupOnTabDiscardCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest("label");
-      return label?.textContent?.includes("标签页关闭时清理");
-    });
+    const cleanupOnStartupCheckbox = screen.getByLabelText("启动时清理");
+    const cleanupExpiredCookiesCheckbox = screen.getByLabelText("清理过期Cookie");
+    const cleanupOnTabDiscardCheckbox = screen.getByLabelText("启用已丢弃/未加载标签的清理");
 
     expect(cleanupOnStartupCheckbox).toBeTruthy();
     expect(cleanupOnStartupCheckbox).toBeDisabled();
@@ -655,19 +653,9 @@ describe("Settings", () => {
 
     render(<Settings onMessage={mockOnMessage} />);
 
-    const checkboxes = screen.getAllByRole("checkbox");
-    const cleanupOnStartupCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest("label");
-      return label?.textContent?.includes("启动时清理");
-    });
-    const cleanupExpiredCookiesCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest("label");
-      return label?.textContent?.includes("清理过期Cookie");
-    });
-    const cleanupOnTabDiscardCheckbox = checkboxes.find((cb) => {
-      const label = cb.closest("label");
-      return label?.textContent?.includes("标签页关闭时清理");
-    });
+    const cleanupOnStartupCheckbox = screen.getByLabelText("启动时清理");
+    const cleanupExpiredCookiesCheckbox = screen.getByLabelText("清理过期Cookie");
+    const cleanupOnTabDiscardCheckbox = screen.getByLabelText("启用已丢弃/未加载标签的清理");
 
     expect(cleanupOnStartupCheckbox).toBeTruthy();
     expect(cleanupOnStartupCheckbox).not.toBeDisabled();

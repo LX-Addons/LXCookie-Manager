@@ -59,49 +59,54 @@ export default defineBackground(() => {
     await saveTabUrlMap(tabUrlMap);
   };
 
+  const shouldPerformCleanup = (settings: Settings, now: number): boolean => {
+    if (settings.scheduleInterval === ScheduleInterval.DISABLED) return false;
+    const lastCleanup = settings.lastScheduledCleanup || 0;
+    const interval = SCHEDULE_INTERVAL_MAP[settings.scheduleInterval];
+    return now - lastCleanup >= interval;
+  };
+
+  const handleExpiredCookiesCleanup = async (settings: Settings, now: number) => {
+    if (!settings.cleanupExpiredCookies) return;
+    if (!shouldPerformCleanup(settings, now)) return;
+
+    try {
+      const count = await cleanupExpiredCookies();
+      if (count > 0) {
+        console.log(`Cleaned up ${count} expired cookies on scheduled cleanup`);
+      }
+    } catch (e) {
+      console.error("Failed to cleanup expired cookies on scheduled cleanup:", e);
+    }
+  };
+
+  const updateLastScheduledCleanup = async (timestamp: number) => {
+    const latestSettings = await storage.getItem<Settings>(SETTINGS_KEY);
+    if (latestSettings) {
+      await storage.setItem(SETTINGS_KEY, {
+        ...latestSettings,
+        lastScheduledCleanup: timestamp,
+      });
+    }
+  };
+
   const checkScheduledCleanup = async () => {
     try {
       const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-      if (!settings) return;
+      if (!settings?.enableAutoCleanup) return;
 
-      let shouldUpdateSettings = false;
       const now = Date.now();
-      const updatedSettings = { ...settings };
+      let lastScheduledCleanup: number | undefined;
 
-      if (settings.scheduleInterval !== ScheduleInterval.DISABLED) {
-        const lastCleanup = settings.lastScheduledCleanup || 0;
-        const interval = SCHEDULE_INTERVAL_MAP[settings.scheduleInterval];
-
-        if (now - lastCleanup >= interval) {
-          await performCleanupWithFilter(() => true, getCleanupOptions(settings));
-
-          updatedSettings.lastScheduledCleanup = now;
-          shouldUpdateSettings = true;
-        }
+      if (shouldPerformCleanup(settings, now)) {
+        await performCleanupWithFilter(() => true, getCleanupOptions(settings));
+        lastScheduledCleanup = now;
       }
 
-      if (
-        settings.enableAutoCleanup &&
-        settings.scheduleInterval !== ScheduleInterval.DISABLED &&
-        settings.cleanupExpiredCookies
-      ) {
-        const lastCleanup = settings.lastScheduledCleanup || 0;
-        const interval = SCHEDULE_INTERVAL_MAP[settings.scheduleInterval];
+      await handleExpiredCookiesCleanup(settings, now);
 
-        if (now - lastCleanup >= interval) {
-          try {
-            const count = await cleanupExpiredCookies();
-            if (count > 0) {
-              console.log(`Cleaned up ${count} expired cookies on scheduled cleanup`);
-            }
-          } catch (e) {
-            console.error("Failed to cleanup expired cookies on scheduled cleanup:", e);
-          }
-        }
-      }
-
-      if (shouldUpdateSettings) {
-        await storage.setItem(SETTINGS_KEY, updatedSettings);
+      if (lastScheduledCleanup !== undefined) {
+        await updateLastScheduledCleanup(lastScheduledCleanup);
       }
     } catch (e) {
       console.error("Failed to perform scheduled cleanup:", e);
@@ -302,6 +307,39 @@ export default defineBackground(() => {
     }
   };
 
+  const runAutoCleanupTasks = async (settings: Settings) => {
+    if (!settings.enableAutoCleanup) return;
+
+    if (settings.cleanupOnBrowserClose) {
+      try {
+        await cleanupDomainsOnStartup(settings);
+      } catch (e) {
+        console.error("Failed to cleanup on browser close startup:", e);
+      }
+    }
+
+    if (settings.cleanupOnStartup) {
+      try {
+        await cleanupOpenTabsOnStartup(settings);
+      } catch (e) {
+        console.error("Failed to cleanup on startup:", e);
+      }
+    }
+  };
+
+  const runExpiredCookiesCleanup = async (settings: Settings) => {
+    if (!settings.enableAutoCleanup || !settings.cleanupExpiredCookies) return;
+
+    try {
+      const count = await cleanupExpiredCookies();
+      if (count > 0) {
+        console.log(`Cleaned up ${count} expired cookies on startup`);
+      }
+    } catch (e) {
+      console.error("Failed to cleanup expired cookies on startup:", e);
+    }
+  };
+
   const handleStartup = async () => {
     await chrome.alarms.create("scheduled-cleanup", {
       periodInMinutes: ALARM_INTERVAL_MINUTES,
@@ -311,35 +349,8 @@ export default defineBackground(() => {
     if (!settings) return;
 
     await initializeTabUrlMap();
-
-    if (settings.enableAutoCleanup) {
-      if (settings.cleanupOnBrowserClose) {
-        try {
-          await cleanupDomainsOnStartup(settings);
-        } catch (e) {
-          console.error("Failed to cleanup on browser close startup:", e);
-        }
-      }
-
-      if (settings.cleanupOnStartup) {
-        try {
-          await cleanupOpenTabsOnStartup(settings);
-        } catch (e) {
-          console.error("Failed to cleanup on startup:", e);
-        }
-      }
-    }
-
-    if (settings.enableAutoCleanup && settings.cleanupExpiredCookies) {
-      try {
-        const count = await cleanupExpiredCookies();
-        if (count > 0) {
-          console.log(`Cleaned up ${count} expired cookies on startup`);
-        }
-      } catch (e) {
-        console.error("Failed to cleanup expired cookies on startup:", e);
-      }
-    }
+    await runAutoCleanupTasks(settings);
+    await runExpiredCookiesCleanup(settings);
   };
 
   const initializeStorage = async () => {

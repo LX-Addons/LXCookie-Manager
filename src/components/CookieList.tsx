@@ -1,4 +1,4 @@
-import { useState, memo, useMemo } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import type { Cookie } from "@/types";
 import { COOKIE_VALUE_MASK } from "@/lib/constants";
 import {
@@ -63,6 +63,15 @@ export const CookieListContent = memo(
         selectedCookies.has(getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId))
       );
     }, [cookies, selectedCookies]);
+
+    useEffect(() => {
+      const validKeys = new Set(
+        cookies.map((cookie) =>
+          getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId)
+        )
+      );
+      setSelectedCookies((prev) => new Set([...prev].filter((key) => validKeys.has(key))));
+    }, [cookies]);
 
     const groupedCookies = useMemo(() => {
       const grouped = new Map<string, Cookie[]>();

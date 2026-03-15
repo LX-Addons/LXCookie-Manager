@@ -23,7 +23,7 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
   const addDomain = useCallback(
     (domain: string) => {
       const trimmed = domain.trim();
-      const validation = validateDomain(domain, t);
+      const validation = validateDomain(trimmed, t);
       if (!validation.valid) {
         onMessage(validation.message || t("domainManager.invalidDomain"));
         return;

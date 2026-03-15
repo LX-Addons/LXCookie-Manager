@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasDomainInText, createTranslationMock } from "../utils/mocks";
+import { hasDomainInText, createTranslationMock, createUseStorageMock } from "../utils/mocks";
 
 const TEST_DOMAIN = "example.com";
 
@@ -111,6 +111,60 @@ describe("mocks", () => {
     it("should handle empty string translation", () => {
       const t = getT({ "test.key": "" });
       expect(t("test.key")).toBe("");
+    });
+  });
+
+  describe("createUseStorageMock", () => {
+    it("should return mock functions", () => {
+      const mock = createUseStorageMock();
+      expect(mock.useStorageMock).toBeDefined();
+      expect(mock.mockSetValue).toBeDefined();
+      expect(mock.resetStorage).toBeDefined();
+      expect(mock.setStorageValue).toBeDefined();
+    });
+
+    it("should initialize with default value when key not in storage", () => {
+      const { useStorageMock } = createUseStorageMock();
+      const [value] = useStorageMock("test-key", "default-value");
+      expect(value).toBe("default-value");
+    });
+
+    it("should return existing value when key in storage", () => {
+      const { useStorageMock, setStorageValue } = createUseStorageMock();
+      setStorageValue("test-key", "existing-value");
+      const [value] = useStorageMock("test-key", "default-value");
+      expect(value).toBe("existing-value");
+    });
+
+    it("should update value when setter is called with new value", () => {
+      const { useStorageMock, mockSetValue } = createUseStorageMock();
+      const [, setValue] = useStorageMock("test-key", "default-value");
+
+      (setValue as (value: unknown) => void)("new-value");
+      expect(mockSetValue).toHaveBeenCalledWith("new-value");
+    });
+
+    it("should update value when setter is called with function", () => {
+      const { useStorageMock, mockSetValue } = createUseStorageMock();
+      const [, setValue] = useStorageMock("test-key", 0);
+
+      (setValue as (value: unknown) => void)((prev: number) => (prev as number) + 1);
+      expect(mockSetValue).toHaveBeenCalled();
+    });
+
+    it("should reset storage when resetStorage is called", () => {
+      const { useStorageMock, setStorageValue, resetStorage } = createUseStorageMock();
+      setStorageValue("test-key", "value");
+      resetStorage();
+      const [value] = useStorageMock("test-key", "default-value");
+      expect(value).toBe("default-value");
+    });
+
+    it("should set storage value directly with setStorageValue", () => {
+      const { useStorageMock, setStorageValue } = createUseStorageMock();
+      setStorageValue("test-key", "direct-value");
+      const [value] = useStorageMock("test-key", "default-value");
+      expect(value).toBe("direct-value");
     });
   });
 });

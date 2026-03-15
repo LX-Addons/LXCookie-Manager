@@ -50,12 +50,7 @@ export const getCookieTypeName = (type: string, t?: (key: string) => string): st
 };
 
 export const buildOrigins = (domains: Set<string>): string[] => {
-  const origins: string[] = [];
-  domains.forEach((d) => {
-    origins.push(`https://${d}`);
-    origins.push(`http://${d}`);
-  });
-  return origins;
+  return [...domains].flatMap((d) => [`https://${d}`, `http://${d}`]);
 };
 
 export const buildDomainString = (
@@ -263,14 +258,15 @@ const buildCookieSetDetails = (
   }
 
   const cleanedDomain = cookie.domain.replace(/^\./, "");
-  const url = `http${secure ? "s" : ""}://${cleanedDomain}${cookie.path}`;
+  const normalizedPath = cookie.path?.startsWith("/") ? cookie.path : `/${cookie.path ?? ""}`;
+  const url = `http${secure ? "s" : ""}://${cleanedDomain}${normalizedPath}`;
 
   const setDetails: chrome.cookies.SetDetails = {
     url,
     name: cookie.name,
     value: cookie.value,
     domain: cookie.domain,
-    path: cookie.path,
+    path: normalizedPath,
     secure,
     httpOnly: cookie.httpOnly ?? false,
   };

@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { useState, ReactNode } from "react";
 import { ClearLog } from "@/components/ClearLog";
 import * as storageHook from "@/hooks/useStorage";
-import {
-  createConfirmDialogWrapperMockWithCustomConfirmText,
-  createUseStorageMock,
-} from "../utils/mocks";
+import { createUseStorageMock } from "../utils/mocks";
 
 vi.mock("@/hooks/useTranslation", () => ({
   useTranslation: () => ({
@@ -48,9 +46,54 @@ vi.mock("@/hooks/useTranslation", () => ({
     },
   }),
 }));
-vi.mock("../../components/ConfirmDialogWrapper", () =>
-  createConfirmDialogWrapperMockWithCustomConfirmText("确定要清除所有日志记录吗？")
-);
+vi.mock("../../components/ConfirmDialogWrapper", () => {
+  return {
+    ConfirmDialogWrapper: ({
+      children,
+    }: {
+      children: (
+        showConfirm: (title: string, message: string, variant: string, onConfirm: () => void) => any
+      ) => any;
+    }) => {
+      const MockWrapper = () => {
+        const [isOpen, setIsOpen] = useState(false);
+        const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
+
+        const showConfirm = (
+          _title: string,
+          _message: string,
+          _variant: string,
+          onConfirm: () => void
+        ) => {
+          setConfirmCallback(() => onConfirm);
+          setIsOpen(true);
+          return null;
+        };
+
+        return (
+          <>
+            {children(showConfirm)}
+            {isOpen && (
+              <div className="confirm-dialog">
+                <p>确定要清除所有日志记录吗？</p>
+                <button
+                  onClick={() => {
+                    confirmCallback?.();
+                    setIsOpen(false);
+                  }}
+                >
+                  确定
+                </button>
+                <button onClick={() => setIsOpen(false)}>取消</button>
+              </div>
+            )}
+          </>
+        );
+      };
+      return <MockWrapper />;
+    },
+  };
+});
 vi.mock("@/hooks/useStorage", () => ({
   useStorage: vi.fn(),
 }));

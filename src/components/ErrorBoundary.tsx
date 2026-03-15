@@ -15,9 +15,9 @@ function ErrorBoundaryContent({
   error,
   onRetry,
 }: {
-  hasError: boolean;
-  error: Error | null;
-  onRetry: () => void;
+  readonly hasError: boolean;
+  readonly error: Error | null;
+  readonly onRetry: () => void;
 }) {
   const { t } = useTranslation();
 
