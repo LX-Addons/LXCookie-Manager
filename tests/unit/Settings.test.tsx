@@ -64,6 +64,7 @@ vi.mock("@/hooks/useTranslation", () => ({
         "settings.cleanupOnStartupDesc": "浏览器启动时自动执行一次 Cookie 清理",
         "settings.cleanupExpiredCookies": "清理过期Cookie",
         "settings.cleanupExpiredCookiesDesc": "自动识别并清理已过期的 Cookie",
+        "settings.cleanupOnTabDiscard": "标签页关闭时清理",
         "settings.privacyProtection": "隐私保护",
         "settings.privacyProtectionDesc": "增强您的在线隐私保护，识别并警示潜在的追踪行为",
         "settings.logRetention": "日志保留时间",
@@ -76,6 +77,8 @@ vi.mock("@/hooks/useTranslation", () => ({
         "settings.sevenDays": "7天",
         "settings.tenDays": "10天",
         "settings.thirtyDays": "30天",
+        "settings.forever": "永久",
+        "settings.enableAutoCleanup": "启用自动清理",
         "settings.themeMode": "主题模式",
         "settings.themeModeDesc": "选择您喜欢的界面主题风格",
         "settings.followBrowser": "跟随系统",
@@ -581,5 +584,111 @@ describe("Settings", () => {
     render(<Settings onMessage={mockOnMessage} />);
 
     expect(screen.getByText("自定义主题")).toBeTruthy();
+  });
+
+  it("should render log retention option with forever", () => {
+    mockSettings.logRetention = LogRetention.FOREVER;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const select = screen.getByRole("combobox");
+    expect(select).toBeTruthy();
+  });
+
+  it("should handle log retention change to forever", () => {
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const select = screen.getByRole("combobox");
+    fireEvent.change(select, { target: { value: LogRetention.FOREVER } });
+
+    expect(mockSettings.logRetention).toBe(LogRetention.FOREVER);
+  });
+
+  it("should render with log retention forever", () => {
+    mockSettings.logRetention = LogRetention.FOREVER;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    expect(select).toBeTruthy();
+  });
+
+  it("should disable cleanup child options when auto cleanup is disabled", () => {
+    mockSettings.enableAutoCleanup = false;
+    mockSettings.cleanupOnStartup = true;
+    mockSettings.cleanupExpiredCookies = true;
+    mockSettings.cleanupOnTabDiscard = true;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const checkboxes = screen.getAllByRole("checkbox");
+    const cleanupOnStartupCheckbox = checkboxes.find((cb) => {
+      const label = cb.closest("label");
+      return label?.textContent?.includes("启动时清理");
+    });
+    const cleanupExpiredCookiesCheckbox = checkboxes.find((cb) => {
+      const label = cb.closest("label");
+      return label?.textContent?.includes("清理过期Cookie");
+    });
+    const cleanupOnTabDiscardCheckbox = checkboxes.find((cb) => {
+      const label = cb.closest("label");
+      return label?.textContent?.includes("标签页关闭时清理");
+    });
+
+    expect(cleanupOnStartupCheckbox).toBeTruthy();
+    expect(cleanupOnStartupCheckbox).toBeDisabled();
+    expect(cleanupOnStartupCheckbox).toBeChecked();
+
+    expect(cleanupExpiredCookiesCheckbox).toBeTruthy();
+    expect(cleanupExpiredCookiesCheckbox).not.toBeDisabled();
+
+    expect(cleanupOnTabDiscardCheckbox).toBeTruthy();
+    expect(cleanupOnTabDiscardCheckbox).toBeDisabled();
+    expect(cleanupOnTabDiscardCheckbox).toBeChecked();
+  });
+
+  it("should enable cleanup child options when auto cleanup is enabled", () => {
+    mockSettings.enableAutoCleanup = true;
+    mockSettings.cleanupOnStartup = false;
+    mockSettings.cleanupExpiredCookies = false;
+    mockSettings.cleanupOnTabDiscard = false;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    const checkboxes = screen.getAllByRole("checkbox");
+    const cleanupOnStartupCheckbox = checkboxes.find((cb) => {
+      const label = cb.closest("label");
+      return label?.textContent?.includes("启动时清理");
+    });
+    const cleanupExpiredCookiesCheckbox = checkboxes.find((cb) => {
+      const label = cb.closest("label");
+      return label?.textContent?.includes("清理过期Cookie");
+    });
+    const cleanupOnTabDiscardCheckbox = checkboxes.find((cb) => {
+      const label = cb.closest("label");
+      return label?.textContent?.includes("标签页关闭时清理");
+    });
+
+    expect(cleanupOnStartupCheckbox).toBeTruthy();
+    expect(cleanupOnStartupCheckbox).not.toBeDisabled();
+    expect(cleanupOnStartupCheckbox).not.toBeChecked();
+
+    expect(cleanupExpiredCookiesCheckbox).toBeTruthy();
+    expect(cleanupExpiredCookiesCheckbox).not.toBeDisabled();
+
+    expect(cleanupOnTabDiscardCheckbox).toBeTruthy();
+    expect(cleanupOnTabDiscardCheckbox).not.toBeDisabled();
+    expect(cleanupOnTabDiscardCheckbox).not.toBeChecked();
+  });
+
+  it("should preserve child option values when auto cleanup is disabled", () => {
+    mockSettings.enableAutoCleanup = true;
+    mockSettings.cleanupOnStartup = true;
+    mockSettings.cleanupExpiredCookies = true;
+
+    render(<Settings onMessage={mockOnMessage} />);
+
+    expect(mockSettings.cleanupOnStartup).toBe(true);
+    expect(mockSettings.cleanupExpiredCookies).toBe(true);
   });
 });

@@ -24,61 +24,65 @@ const normalizeDomain = (domain: string): string => {
   return domain.replace(/^\./, "").toLowerCase();
 };
 
-vi.mock("@/utils", () => ({
-  isInList: vi.fn((domain: string, list: string[]) => {
-    const normalizedDomain = normalizeDomain(domain);
-    return list.some((item: string) => {
-      const normalizedItem = normalizeDomain(item);
+vi.mock("@/utils", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    isInList: vi.fn((domain: string, list: string[]) => {
+      const normalizedDomain = normalizeDomain(domain);
+      return list.some((item: string) => {
+        const normalizedItem = normalizeDomain(item);
+        return (
+          normalizedDomain === normalizedItem ||
+          normalizedDomain.endsWith("." + normalizedItem) ||
+          normalizedItem.endsWith("." + normalizedDomain)
+        );
+      });
+    }),
+    isDomainMatch: vi.fn((cookieDomain: string, targetDomain: string) => {
+      const normalizedCookie = normalizeDomain(cookieDomain);
+      const normalizedTarget = normalizeDomain(targetDomain);
       return (
-        normalizedDomain === normalizedItem ||
-        normalizedDomain.endsWith("." + normalizedItem) ||
-        normalizedItem.endsWith("." + normalizedDomain)
+        normalizedCookie === normalizedTarget ||
+        normalizedTarget.endsWith("." + normalizedCookie) ||
+        normalizedCookie.endsWith("." + normalizedTarget)
       );
-    });
-  }),
-  isDomainMatch: vi.fn((cookieDomain: string, targetDomain: string) => {
-    const normalizedCookie = normalizeDomain(cookieDomain);
-    const normalizedTarget = normalizeDomain(targetDomain);
-    return (
-      normalizedCookie === normalizedTarget ||
-      normalizedTarget.endsWith("." + normalizedCookie) ||
-      normalizedCookie.endsWith("." + normalizedTarget)
-    );
-  }),
-  clearCookies: vi.fn(async (options) => {
-    const mockCookies = [
-      {
-        name: "test1",
-        domain: ".example.com",
-        path: "/",
-        secure: true,
-        expirationDate: Date.now() / 1000 + 3600,
-      },
-      { name: "test2", domain: ".test.com", path: "/", secure: false },
-      {
-        name: "test3",
-        domain: ".demo.com",
-        path: "/",
-        secure: true,
-        expirationDate: Date.now() / 1000 + 7200,
-      },
-    ];
-    let count = 0;
-    const clearedDomains = new Set<string>();
+    }),
+    clearCookies: vi.fn(async (options) => {
+      const mockCookies = [
+        {
+          name: "test1",
+          domain: ".example.com",
+          path: "/",
+          secure: true,
+          expirationDate: Date.now() / 1000 + 3600,
+        },
+        { name: "test2", domain: ".test.com", path: "/", secure: false },
+        {
+          name: "test3",
+          domain: ".demo.com",
+          path: "/",
+          secure: true,
+          expirationDate: Date.now() / 1000 + 7200,
+        },
+      ];
+      let count = 0;
+      const clearedDomains = new Set<string>();
 
-    for (const cookie of mockCookies) {
-      const cleanedDomain = cookie.domain.replace(/^\./, "");
-      if (options?.filterFn && !options.filterFn(cleanedDomain)) continue;
-      if (options?.clearType === CookieClearType.SESSION && cookie.expirationDate) continue;
-      if (options?.clearType === CookieClearType.PERSISTENT && !cookie.expirationDate) continue;
-      count++;
-      clearedDomains.add(cleanedDomain);
-    }
+      for (const cookie of mockCookies) {
+        const cleanedDomain = cookie.domain.replace(/^\./, "");
+        if (options?.filterFn && !options.filterFn(cleanedDomain)) continue;
+        if (options?.clearType === CookieClearType.SESSION && cookie.expirationDate) continue;
+        if (options?.clearType === CookieClearType.PERSISTENT && !cookie.expirationDate) continue;
+        count++;
+        clearedDomains.add(cleanedDomain);
+      }
 
-    return { count, clearedDomains };
-  }),
-  clearBrowserData: vi.fn(async () => {}),
-}));
+      return { count, clearedDomains };
+    }),
+    clearBrowserData: vi.fn(async () => {}),
+  };
+});
 
 describe("cleanup", () => {
   beforeEach(() => {
@@ -597,6 +601,362 @@ describe("cleanup", () => {
         url: "http://example.com/path",
         name: "expired",
       });
+    });
+
+    it("should include storeId when removing expired cookies", async () => {
+      const pastTime = Date.now() / 1000 - 3600;
+      const mockCookies = [
+        {
+          name: "expired",
+          domain: ".example.com",
+          path: "/",
+          secure: true,
+          expirationDate: pastTime,
+          storeId: "1",
+        },
+      ];
+
+      globalThis.chrome = {
+        cookies: {
+          getAll: vi.fn().mockResolvedValue(mockCookies),
+          remove: vi.fn().mockResolvedValue({}),
+        },
+      } as unknown as typeof chrome;
+
+      await cleanupExpiredCookies();
+
+      expect(chrome.cookies.remove).toHaveBeenCalledWith({
+        url: "https://example.com/",
+        name: "expired",
+        storeId: "1",
+      });
+    });
+  });
+
+  describe("editCookie safety tests", () => {
+    it("should not remove original cookie when sameSite and secure combination is invalid", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "0",
+      };
+
+      const removeSpy = vi.fn();
+      const setSpy = vi.fn().mockRejectedValue(new Error("Invalid SameSite"));
+
+      globalThis.chrome = {
+        cookies: {
+          remove: removeSpy,
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        sameSite: "no_restriction",
+      });
+
+      expect(result).toBe(false);
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it("should handle invalid sameSite none without secure correctly", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "0",
+      };
+
+      const removeSpy = vi.fn();
+
+      globalThis.chrome = {
+        cookies: {
+          remove: removeSpy,
+          set: vi.fn(),
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        sameSite: "no_restriction",
+        secure: false,
+      });
+
+      expect(result).toBe(false);
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it("should successfully edit cookie with valid parameters", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "0",
+      };
+
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          remove: vi.fn(),
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        value: "newValue",
+      });
+
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalled();
+    });
+
+    it("should not call chrome.cookies.remove during normal edit", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "0",
+      };
+
+      const removeSpy = vi.fn();
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          remove: removeSpy,
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        value: "newValue",
+      });
+
+      expect(result).toBe(true);
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(setSpy).toHaveBeenCalled();
+    });
+
+    it("should preserve storeId when editing cookie", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "custom-store-id",
+      };
+
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          remove: vi.fn(),
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        value: "newValue",
+      });
+
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          storeId: "custom-store-id",
+        })
+      );
+    });
+
+    it("should map sameSite none to no_restriction on set", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "0",
+      };
+
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          remove: vi.fn(),
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        sameSite: "none" as unknown as chrome.cookies.SameSiteStatus,
+      });
+
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sameSite: "no_restriction",
+        })
+      );
+    });
+
+    it("should omit expirationDate when clearing to session cookie", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "test",
+        value: "value123",
+        domain: ".example.com",
+        path: "/test",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "0",
+        expirationDate: Date.now() / 1000 + 3600,
+      };
+
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          remove: vi.fn(),
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        expirationDate: undefined,
+      });
+
+      expect(result).toBe(true);
+      const setCall = setSpy.mock.calls[0][0];
+      expect(setCall.expirationDate).toBeUndefined();
+    });
+
+    it("should ignore name/domain/path/storeId updates and use original values", async () => {
+      const { editCookie } = await import("@/utils");
+
+      const originalCookie = {
+        name: "original-name",
+        value: "original-value",
+        domain: ".original-domain.com",
+        path: "/original-path",
+        secure: false,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        hostOnly: false,
+        session: false,
+        storeId: "original-store-id",
+      };
+
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          remove: vi.fn(),
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await editCookie(originalCookie, {
+        name: "new-name",
+        domain: "new-domain.com",
+        path: "/new-path",
+        storeId: "new-store-id",
+        value: "new-value",
+      });
+
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "original-name",
+          domain: ".original-domain.com",
+          path: "/original-path",
+          storeId: "original-store-id",
+          value: "new-value",
+        })
+      );
+    });
+  });
+
+  describe("createCookie value strategy", () => {
+    it("should allow empty string as cookie value", async () => {
+      const { createCookie } = await import("@/utils");
+
+      const setSpy = vi.fn().mockResolvedValue({});
+
+      globalThis.chrome = {
+        cookies: {
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+
+      const result = await createCookie({
+        name: "test",
+        value: "",
+        domain: "example.com",
+      });
+
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalled();
+    });
+
+    it("should reject null or undefined cookie value", async () => {
+      const { createCookie } = await import("@/utils");
+
+      const result1 = await createCookie({
+        name: "test",
+        value: undefined,
+        domain: "example.com",
+      });
+
+      expect(result1).toBe(false);
     });
   });
 });

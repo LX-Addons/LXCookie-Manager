@@ -121,24 +121,39 @@ export const Settings = ({ onMessage }: Props) => {
         <CheckboxGroup
           options={[
             {
+              value: "enableAutoCleanup",
+              label: t("settings.enableAutoCleanup"),
+              checked: settings.enableAutoCleanup,
+            },
+            {
               value: "cleanupOnTabClose",
               label: t("settings.cleanupOnTabClose"),
               checked: settings.cleanupOnTabClose,
+              disabled: !settings.enableAutoCleanup,
             },
             {
               value: "cleanupOnBrowserClose",
               label: t("settings.cleanupOnBrowserClose"),
               checked: settings.cleanupOnBrowserClose,
+              disabled: !settings.enableAutoCleanup,
             },
             {
               value: "cleanupOnNavigate",
               label: t("settings.cleanupOnNavigate"),
               checked: settings.cleanupOnNavigate,
+              disabled: !settings.enableAutoCleanup,
             },
             {
               value: "cleanupOnStartup",
               label: t("settings.cleanupOnStartup"),
               checked: settings.cleanupOnStartup,
+              disabled: !settings.enableAutoCleanup,
+            },
+            {
+              value: "cleanupOnTabDiscard",
+              label: t("settings.cleanupOnTabDiscard"),
+              checked: settings.cleanupOnTabDiscard,
+              disabled: !settings.enableAutoCleanup,
             },
             {
               value: "cleanupExpiredCookies",
@@ -149,10 +164,12 @@ export const Settings = ({ onMessage }: Props) => {
           onChange={(values) => {
             setSettings((prev) => ({
               ...prev,
+              enableAutoCleanup: values.includes("enableAutoCleanup"),
               cleanupOnTabClose: values.includes("cleanupOnTabClose"),
               cleanupOnBrowserClose: values.includes("cleanupOnBrowserClose"),
               cleanupOnNavigate: values.includes("cleanupOnNavigate"),
               cleanupOnStartup: values.includes("cleanupOnStartup"),
+              cleanupOnTabDiscard: values.includes("cleanupOnTabDiscard"),
               cleanupExpiredCookies: values.includes("cleanupExpiredCookies"),
             }));
           }}
@@ -175,6 +192,7 @@ export const Settings = ({ onMessage }: Props) => {
             { value: LogRetention.SEVEN_DAYS, label: t("settings.sevenDays") },
             { value: LogRetention.TEN_DAYS, label: t("settings.tenDays") },
             { value: LogRetention.THIRTY_DAYS, label: t("settings.thirtyDays") },
+            { value: LogRetention.FOREVER, label: t("settings.forever") },
           ]}
         />
       </div>

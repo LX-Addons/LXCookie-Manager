@@ -5,6 +5,7 @@ export interface Translations {
     add: string;
     delete: string;
     save: string;
+    saving: string;
     edit: string;
     clear: string;
     clearAll: string;
@@ -212,6 +213,8 @@ export interface Translations {
     none: string;
     secureOnly: string;
     httpOnlyOnly: string;
+    createSuccess: string;
+    createFailed: string;
   };
   errorBoundary: {
     error: string;

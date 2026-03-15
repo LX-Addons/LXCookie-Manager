@@ -38,6 +38,7 @@ const mockCookies = [
 
 const mockClearSingleCookie = vi.fn(() => Promise.resolve(true));
 const mockEditCookie = vi.fn(() => Promise.resolve(true));
+const mockCreateCookie = vi.fn(() => Promise.resolve(true));
 
 vi.mock("@/utils", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/utils")>();
@@ -48,18 +49,22 @@ vi.mock("@/utils", async (importOriginal) => {
     getRiskLevelText: vi.fn(() => "低风险"),
     clearSingleCookie: () => mockClearSingleCookie(),
     editCookie: () => mockEditCookie(),
+    createCookie: () => mockCreateCookie(),
     normalizeDomain: vi.fn((domain: string) => domain.replace(/^\./, "").toLowerCase()),
     maskCookieValue: vi.fn((_value: string) => "••••••••"),
-    getCookieKey: vi.fn((name: string, domain: string) => `${name}-${domain}`),
+    getCookieKey: vi.fn((name: string, domain: string, path?: string, storeId?: string) => {
+      const parts = [name, domain];
+      if (path) parts.push(path);
+      if (storeId) parts.push(storeId);
+      return parts.join("|");
+    }),
     isSensitiveCookie: vi.fn(() => false),
     isInList: vi.fn((domain: string, list: string[]) => {
       const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
       return list.some((item) => {
         const normalizedItem = item.replace(/^\./, "").toLowerCase();
         return (
-          normalizedDomain === normalizedItem ||
-          normalizedDomain.endsWith("." + normalizedItem) ||
-          normalizedItem.endsWith("." + normalizedDomain)
+          normalizedDomain === normalizedItem || normalizedDomain.endsWith("." + normalizedItem)
         );
       });
     }),
@@ -95,9 +100,9 @@ vi.mock("@/hooks/useTranslation", () => ({
         "cookieList.deletedSelected": "已删除 {count} 个 Cookie",
         "cookieList.deleteSelectedConfirm": "确定要删除选中的 Cookie 吗？",
         "cookieList.deleteSelectedSensitive": "删除敏感 Cookie",
-        "cookieList.deleteSelectedMessage": "确定要删除选中的 {count} 个 Cookie 吗？",
+        "cookieList.deleteSelectedMessage": "确定要删除选中的 {selectedCount} 个 Cookie 吗？",
         "cookieList.deleteSelectedSensitiveMessage":
-          "选中的 Cookie 包含敏感 Cookie，确定要删除吗？",
+          "选中的 Cookie 包含敏感 Cookie，确定要删除吗？{sensitiveCount}, {selectedCount}",
         "cookieList.functionUnavailable": "功能不可用",
         "cookieList.addedDomainsToWhitelist": "已添加 {count} 个域名到白名单",
         "cookieList.domainsAlreadyInWhitelist": "域名已在白名单中",
@@ -110,6 +115,9 @@ vi.mock("@/hooks/useTranslation", () => ({
         "risk.low": "低风险",
         "risk.medium": "中风险",
         "risk.high": "高风险",
+        "cookieEditor.createSuccess": "Cookie 已创建",
+        "cookieEditor.createFailed": "创建 Cookie 失败",
+        "cookieEditor.createCookie": "创建 Cookie",
       };
       let text = translations[key] || key;
       if (params) {
@@ -132,7 +140,7 @@ vi.mock("@/components/CookieEditor", () => ({
     isOpen: boolean;
     cookie: { name: string; value: string; domain: string } | null;
     onClose: () => void;
-    onSave: (cookie: { name: string; value: string; domain: string }) => void;
+    onSave: (cookie: { name: string; value: string; domain: string }) => Promise<boolean>;
   }) => {
     if (!isOpen) return null;
     return (
@@ -142,7 +150,9 @@ vi.mock("@/components/CookieEditor", () => ({
           关闭
         </button>
         <button
-          onClick={() => onSave({ name: "updated", value: "new", domain: "example.com" })}
+          onClick={async () =>
+            await onSave({ name: "updated", value: "new", domain: "example.com" })
+          }
           data-testid="save-editor"
         >
           保存
@@ -256,6 +266,21 @@ describe("CookieList", () => {
     render(<CookieList cookies={[]} currentDomain="example.com" />);
 
     expect(screen.getByText("当前网站暂无 Cookie")).toBeTruthy();
+  });
+
+  it("should show create cookie button in empty state", () => {
+    render(<CookieList cookies={[]} currentDomain="example.com" />);
+
+    expect(screen.getByRole("button", { name: /创建 Cookie/ })).toBeTruthy();
+  });
+
+  it("should open cookie editor when create button is clicked in empty state", () => {
+    render(<CookieList cookies={[]} currentDomain="example.com" />);
+
+    const createButton = screen.getByRole("button", { name: /创建 Cookie/ });
+    fireEvent.click(createButton);
+
+    expect(screen.getByTestId("cookie-editor")).toBeTruthy();
   });
 
   it("should render cookie list header with count", () => {
@@ -1030,5 +1055,227 @@ describe("CookieListContent", () => {
 
     // Should only add test.com (not example.com which is already in blacklist)
     expect(mockOnAddToBlacklist).toHaveBeenCalledWith(["test.com"]);
+  });
+});
+
+describe("CookieList additional regression tests", () => {
+  const mockOnUpdate = vi.fn();
+  const mockOnMessage = vi.fn();
+
+  beforeEach(() => {
+    mockOnUpdate.mockClear();
+    mockOnMessage.mockClear();
+    mockClearSingleCookie.mockClear();
+    mockEditCookie.mockClear();
+    mockCreateCookie.mockClear();
+  });
+
+  it("should handle cookies with same name and domain but different paths separately", async () => {
+    const cookiesWithSameName = [
+      {
+        name: "session",
+        value: "val1",
+        domain: "example.com",
+        path: "/",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+      },
+      {
+        name: "session",
+        value: "val2",
+        domain: "example.com",
+        path: "/api",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+      },
+    ];
+
+    render(
+      <CookieListContentWithConfirm
+        cookies={cookiesWithSameName}
+        currentDomain="example.com"
+        onUpdate={mockOnUpdate}
+        onMessage={mockOnMessage}
+      />
+    );
+
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const domainButtons = screen.getAllByRole("button");
+    const exampleDomainBtn = domainButtons.find((btn) =>
+      hasDomainInText(btn.textContent, "example.com")
+    );
+    if (exampleDomainBtn) {
+      fireEvent.click(exampleDomainBtn);
+    }
+
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes.length).toBeGreaterThan(2);
+  });
+
+  it("should recognize full cookie key for sensitive statistics in handleDeleteSelected", async () => {
+    const { isSensitiveCookie } = await import("@/utils");
+    (isSensitiveCookie as any).mockImplementation((cookie: any) => cookie.name === "sensitive");
+
+    const sensitiveCookies = [
+      {
+        name: "sensitive",
+        value: "val",
+        domain: "example.com",
+        path: "/",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+      },
+      {
+        name: "normal",
+        value: "val",
+        domain: "example.com",
+        path: "/api",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+      },
+    ];
+
+    mockClearSingleCookie.mockResolvedValue(true);
+
+    render(
+      <CookieListContentWithConfirm
+        cookies={sensitiveCookies}
+        currentDomain="example.com"
+        onUpdate={mockOnUpdate}
+        onMessage={mockOnMessage}
+      />
+    );
+
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const domainButtons = screen.getAllByRole("button");
+    const exampleDomainBtn = domainButtons.find((btn) =>
+      hasDomainInText(btn.textContent, "example.com")
+    );
+    if (exampleDomainBtn) {
+      fireEvent.click(exampleDomainBtn);
+    }
+
+    const selectAllCheckbox = screen.getByRole("checkbox", { name: /全选/ });
+    fireEvent.click(selectAllCheckbox);
+
+    const deleteSelectedBtn = screen.getByText("删除选中");
+    fireEvent.click(deleteSelectedBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("confirm-dialog")).toBeTruthy();
+    });
+  });
+
+  it("should use cookieEditor.createFailed in catch branch when creating cookie", async () => {
+    mockCreateCookie.mockRejectedValueOnce(new Error("Failed"));
+
+    render(
+      <CookieList
+        cookies={mockCookies}
+        currentDomain="example.com"
+        onUpdate={mockOnUpdate}
+        onMessage={mockOnMessage}
+      />
+    );
+
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const createButton = screen.getByText(/创建 Cookie|新建 Cookie/);
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cookie-editor")).toBeTruthy();
+    });
+
+    const saveButton = screen.getByTestId("save-editor");
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(mockOnMessage).toHaveBeenCalled();
+    });
+  });
+
+  it("should display mapped sameSite values instead of raw API values", () => {
+    const cookiesWithNoRestriction = [
+      {
+        ...mockCookies[0],
+        sameSite: "no_restriction" as const,
+      },
+    ];
+
+    render(<CookieList cookies={cookiesWithNoRestriction} currentDomain="example.com" />);
+
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const domainButtons = screen.getAllByRole("button");
+    const exampleDomainBtn = domainButtons.find((btn) =>
+      hasDomainInText(btn.textContent, "example.com")
+    );
+    if (exampleDomainBtn) {
+      fireEvent.click(exampleDomainBtn);
+    }
+
+    expect(screen.queryByText("no_restriction")).toBeNull();
+  });
+
+  it("should select and delete cookies with same name and domain but different paths separately", async () => {
+    const cookiesWithSameName = [
+      {
+        name: "session",
+        value: "val1",
+        domain: "example.com",
+        path: "/",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        storeId: "0",
+      },
+      {
+        name: "session",
+        value: "val2",
+        domain: "example.com",
+        path: "/api",
+        secure: true,
+        httpOnly: false,
+        sameSite: "lax" as const,
+        storeId: "0",
+      },
+    ];
+
+    render(
+      <CookieListContentWithConfirm
+        cookies={cookiesWithSameName}
+        currentDomain="example.com"
+        onUpdate={mockOnUpdate}
+        onMessage={mockOnMessage}
+      />
+    );
+
+    const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
+    fireEvent.click(headerButton);
+
+    const domainButtons = screen.getAllByRole("button");
+    const exampleDomainBtn = domainButtons.find((btn) =>
+      hasDomainInText(btn.textContent, "example.com")
+    );
+    if (exampleDomainBtn) {
+      fireEvent.click(exampleDomainBtn);
+    }
+
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes.length).toBeGreaterThan(2);
+
+    fireEvent.click(checkboxes[1]);
+    expect(screen.getByText(/已选择/)).toBeTruthy();
   });
 });

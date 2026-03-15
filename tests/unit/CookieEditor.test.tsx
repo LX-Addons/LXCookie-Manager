@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CookieEditor } from "@/components/CookieEditor";
 
 vi.mock("@/hooks/useTranslation", () => ({
@@ -23,6 +23,7 @@ vi.mock("@/hooks/useTranslation", () => ({
         "cookieEditor.httpOnlyOnly": "仅 HttpOnly",
         "common.cancel": "取消",
         "common.save": "保存",
+        "common.saving": "保存中…",
       };
       let text = translations[key] || key;
       if (params) {
@@ -82,8 +83,8 @@ describe("CookieEditor", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("should call onSave and onClose when save button is clicked", () => {
-    const onSave = vi.fn();
+  it("should call onSave and onClose when save button is clicked", async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
     const onClose = vi.fn();
     render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={onClose} onSave={onSave} />);
 
@@ -92,8 +93,10 @@ describe("CookieEditor", () => {
       fireEvent.submit(form);
     }
 
-    expect(onSave).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 
   it("should update name field when input changes", () => {
@@ -211,5 +214,163 @@ describe("CookieEditor", () => {
     rerender(<CookieEditor isOpen={true} cookie={mockCookie} onClose={vi.fn()} onSave={vi.fn()} />);
 
     expect(screen.getByText("编辑 Cookie")).toBeTruthy();
+  });
+
+  it("should not close editor when save fails", async () => {
+    const onSave = vi.fn().mockResolvedValue(false);
+    const onClose = vi.fn();
+    render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={onClose} onSave={onSave} />);
+
+    const form = document.querySelector("form");
+    if (form) {
+      fireEvent.submit(form);
+    }
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("should show none for sameSite value no_restriction in edit mode", () => {
+    const cookieWithNoRestriction = {
+      ...mockCookie,
+      sameSite: "no_restriction" as const,
+    };
+
+    render(
+      <CookieEditor
+        isOpen={true}
+        cookie={cookieWithNoRestriction}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    expect(select.value).toBe("none");
+  });
+
+  it("should have name/domain/path inputs disabled in edit mode", () => {
+    render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={vi.fn()} onSave={vi.fn()} />);
+
+    const inputs = screen.getAllByRole("textbox");
+    const nameInput = inputs[0] as HTMLInputElement;
+    const domainInput = inputs[2] as HTMLInputElement;
+    const pathInput = inputs[3] as HTMLInputElement;
+
+    expect(nameInput.disabled).toBe(true);
+    expect(domainInput.disabled).toBe(true);
+    expect(pathInput.disabled).toBe(true);
+  });
+
+  it("should have save button disabled when isSaving is true", async () => {
+    const onSave = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(true), 100);
+        })
+    );
+    render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={vi.fn()} onSave={onSave} />);
+
+    const saveButton = screen.getByTestId("save-editor") as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+
+    const form = document.querySelector("form");
+    if (form) {
+      fireEvent.submit(form);
+    }
+
+    await waitFor(() => {
+      expect(saveButton.disabled).toBe(true);
+    });
+  });
+
+  it("should show saving text when isSaving is true", async () => {
+    const onSave = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(true), 100);
+        })
+    );
+    render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={vi.fn()} onSave={onSave} />);
+
+    const saveButton = screen.getByTestId("save-editor");
+    expect(saveButton.textContent).toContain("保存");
+
+    const form = document.querySelector("form");
+    if (form) {
+      fireEvent.submit(form);
+    }
+
+    await waitFor(() => {
+      expect(saveButton.textContent).toContain("保存中…");
+    });
+  });
+
+  it("should use currentDomain as default domain for new cookie", () => {
+    render(
+      <CookieEditor
+        isOpen={true}
+        cookie={null}
+        currentDomain="example.com"
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    const inputs = screen.getAllByRole("textbox");
+    const domainInput = inputs[2] as HTMLInputElement;
+    expect(domainInput.value).toBe("example.com");
+  });
+
+  it("should not close when escape key is pressed while saving", async () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(true), 100);
+        })
+    );
+    render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={onClose} onSave={onSave} />);
+
+    const form = document.querySelector("form");
+    if (form) {
+      fireEvent.submit(form);
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText("保存中…")).toBeTruthy();
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("should not close when overlay is clicked while saving", async () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(true), 100);
+        })
+    );
+    render(<CookieEditor isOpen={true} cookie={mockCookie} onClose={onClose} onSave={onSave} />);
+
+    const form = document.querySelector("form");
+    if (form) {
+      fireEvent.submit(form);
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText("保存中…")).toBeTruthy();
+    });
+
+    const overlay = document.querySelector(".confirm-overlay");
+    if (overlay) {
+      fireEvent.click(overlay);
+      expect(onClose).not.toHaveBeenCalled();
+    }
   });
 });

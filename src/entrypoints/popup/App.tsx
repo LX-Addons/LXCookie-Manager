@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useStorage } from "@/hooks/useStorage";
+import { useClearLog } from "@/hooks/useClearLog";
 import { DomainManager } from "@/components/DomainManager";
 import { Settings } from "@/components/Settings";
 import { ClearLog } from "@/components/ClearLog";
@@ -8,28 +9,18 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
+import type { DomainList, CookieStats, Settings as SettingsType, Cookie } from "@/types";
+import { CookieClearType, ThemeMode, ModeType } from "@/types";
 import {
-  WHITELIST_KEY,
-  BLACKLIST_KEY,
-  SETTINGS_KEY,
-  CLEAR_LOG_KEY,
-  DEFAULT_SETTINGS,
-  LOG_RETENTION_MAP,
-} from "@/lib/store";
-import type {
-  DomainList,
-  CookieStats,
-  Settings as SettingsType,
-  ClearLogEntry,
-  Cookie,
-} from "@/types";
-import { CookieClearType, ThemeMode, LogRetention, ModeType } from "@/types";
-import { isDomainMatch, isInList, isTrackingCookie, isThirdPartyCookie } from "@/utils";
-import {
-  performCleanupWithFilter,
-  cleanupExpiredCookies as cleanupExpiredCookiesUtil,
-  performCleanup,
-} from "@/utils/cleanup";
+  isDomainMatch,
+  isInList,
+  isTrackingCookie,
+  isThirdPartyCookie,
+  normalizeDomain,
+  buildDomainString,
+} from "@/utils";
+import { performCleanupWithFilter } from "@/utils/cleanup";
 import { MESSAGE_DURATION, DEBOUNCE_DELAY_MS } from "@/lib/constants";
 import "./style.css";
 
@@ -53,14 +44,14 @@ function IndexPopup() {
     return "light";
   });
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const logIdCounterRef = useRef<number>(0);
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { confirmState, showConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
   const [whitelist, setWhitelist] = useStorage<DomainList>(WHITELIST_KEY, []);
   const [blacklist, setBlacklist] = useStorage<DomainList>(BLACKLIST_KEY, []);
   const [settings] = useStorage<SettingsType>(SETTINGS_KEY, DEFAULT_SETTINGS);
-  const [, setLogs] = useStorage<ClearLogEntry[]>(CLEAR_LOG_KEY, []);
+  const { addLog } = useClearLog();
   const { t } = useTranslation();
 
   const theme = useMemo(() => {
@@ -75,7 +66,7 @@ function IndexPopup() {
     () => [
       { id: "manage", label: t("tabs.manage"), icon: "🏠" },
       {
-        id: settings.mode === ModeType.WHITELIST ? "whitelist" : "blacklist",
+        id: "rules",
         label: settings.mode === ModeType.WHITELIST ? t("tabs.whitelist") : t("tabs.blacklist"),
         icon: "📝",
       },
@@ -111,8 +102,14 @@ function IndexPopup() {
   );
 
   const showMessage = useCallback((text: string, isError = false) => {
+    if (messageTimerRef.current) {
+      clearTimeout(messageTimerRef.current);
+    }
     setMessage({ text, isError, visible: true });
-    setTimeout(() => setMessage((prev) => ({ ...prev, visible: false })), MESSAGE_DURATION);
+    messageTimerRef.current = setTimeout(
+      () => setMessage((prev) => ({ ...prev, visible: false })),
+      MESSAGE_DURATION
+    );
   }, []);
 
   const updateStats = useCallback(async () => {
@@ -151,62 +148,10 @@ function IndexPopup() {
         }))
       );
     } catch (e) {
-      console.error("Failed to update stats:", e);
+      console.error("Failed to update stats:", { error: e, currentDomain });
       showMessage(t("popup.updateStatsFailed"), true);
     }
   }, [currentDomain, showMessage, t]);
-
-  const addLog = useCallback(
-    (
-      domain: string,
-      cookieType: CookieClearType,
-      count: number,
-      action: "clear" | "edit" | "delete" | "import" | "export" = "clear",
-      details?: string
-    ) => {
-      // 使用递增计数器生成唯一ID，避免使用 Math.random()
-      logIdCounterRef.current += 1;
-      const newLog: ClearLogEntry = {
-        id: `${Date.now()}-${logIdCounterRef.current}`,
-        domain,
-        cookieType,
-        count,
-        timestamp: Date.now(),
-        action,
-        details,
-      };
-
-      if (settings.logRetention === LogRetention.FOREVER) {
-        setLogs((prev) => [newLog, ...(prev ?? [])]);
-        return;
-      }
-
-      const now = Date.now();
-      const retentionMs = LOG_RETENTION_MAP[settings.logRetention] || 7 * 24 * 60 * 60 * 1000;
-      setLogs((prev) => {
-        const currentPrev = prev ?? [];
-        const filteredLogs = currentPrev.filter((log) => now - log.timestamp <= retentionMs);
-        return [newLog, ...filteredLogs];
-      });
-    },
-    [settings.logRetention, setLogs]
-  );
-
-  const buildDomainString = useCallback(
-    (clearedDomains: Set<string>, successMsg: string): string => {
-      if (clearedDomains.size === 1) {
-        return Array.from(clearedDomains)[0];
-      }
-      if (clearedDomains.size > 1) {
-        return t("common.domains", {
-          domain: Array.from(clearedDomains)[0],
-          count: clearedDomains.size,
-        });
-      }
-      return successMsg.includes(t("common.allWebsites")) ? t("common.allWebsites") : currentDomain;
-    },
-    [currentDomain, t]
-  );
 
   const clearCookies = useCallback(
     async (filterFn: (domain: string) => boolean, successMsg: string, logType: CookieClearType) => {
@@ -219,14 +164,25 @@ function IndexPopup() {
         });
 
         if (result.count > 0) {
-          const domainStr = buildDomainString(new Set(result.clearedDomains), successMsg);
-          addLog(domainStr, logType, result.count);
+          const domainStr = buildDomainString(
+            new Set(result.clearedDomains),
+            successMsg,
+            currentDomain,
+            t
+          );
+          addLog(domainStr, logType, result.count, settings.logRetention);
         }
 
         showMessage(t("popup.clearedSuccess", { successMsg, count: result.count }));
         await updateStats();
       } catch (e) {
-        console.error("Failed to clear cookies:", e);
+        console.error("Failed to clear cookies:", {
+          error: e,
+          domain: currentDomain,
+          trigger: "clearCookies",
+          mode: settings.mode,
+          clearType: logType,
+        });
         showMessage(t("popup.clearCookiesFailed"), true);
       }
     },
@@ -234,7 +190,9 @@ function IndexPopup() {
       settings.clearCache,
       settings.clearLocalStorage,
       settings.clearIndexedDB,
-      buildDomainString,
+      settings.logRetention,
+      settings.mode,
+      currentDomain,
       addLog,
       showMessage,
       updateStats,
@@ -242,63 +200,33 @@ function IndexPopup() {
     ]
   );
 
-  const cleanupStartup = useCallback(async () => {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.url) {
-        try {
-          const url = new URL(tab.url);
-          const result = await performCleanup({
-            domain: url.hostname,
-            clearType: settings.clearType,
-            clearCache: settings.clearCache,
-          });
-
-          if (result && result.count > 0) {
-            addLog(t("popup.startupCleanup"), settings.clearType, result.count);
-          }
-        } catch (e) {
-          console.error("Failed to cleanup on startup:", e);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to cleanup on startup:", e);
-    }
-  }, [settings.clearType, settings.clearCache, addLog, t]);
-
-  const cleanupExpiredCookies = useCallback(async () => {
-    try {
-      const count = await cleanupExpiredCookiesUtil();
-
-      if (count > 0) {
-        addLog(t("popup.expiredCookieCleanup"), CookieClearType.ALL, count);
-        showMessage(t("popup.cleanedExpired", { count }));
-      } else {
-        showMessage(t("popup.noExpiredFound"));
-      }
-
-      updateStats();
-    } catch (e) {
-      console.error("Failed to cleanup expired cookies:", e);
-      showMessage(t("popup.cleanExpiredFailed"), true);
-    }
-  }, [addLog, showMessage, updateStats, t]);
-
   const quickAddToWhitelist = useCallback(() => {
-    if (currentDomain && !whitelist.includes(currentDomain)) {
-      setWhitelist([...whitelist, currentDomain]);
-      showMessage(t("popup.addedToWhitelist", { domain: currentDomain }));
-    } else if (currentDomain) {
-      showMessage(t("popup.alreadyInWhitelist", { domain: currentDomain }));
+    if (currentDomain) {
+      const normalizedCurrentDomain = normalizeDomain(currentDomain);
+      const isAlreadyInList = whitelist.some(
+        (item) => normalizeDomain(item) === normalizedCurrentDomain
+      );
+      if (!isAlreadyInList) {
+        setWhitelist([...whitelist, currentDomain]);
+        showMessage(t("popup.addedToWhitelist", { domain: currentDomain }));
+      } else {
+        showMessage(t("popup.alreadyInWhitelist", { domain: currentDomain }));
+      }
     }
   }, [currentDomain, whitelist, setWhitelist, showMessage, t]);
 
   const quickAddToBlacklist = useCallback(() => {
-    if (currentDomain && !blacklist.includes(currentDomain)) {
-      setBlacklist([...blacklist, currentDomain]);
-      showMessage(t("popup.addedToBlacklist", { domain: currentDomain }));
-    } else if (currentDomain) {
-      showMessage(t("popup.alreadyInBlacklist", { domain: currentDomain }));
+    if (currentDomain) {
+      const normalizedCurrentDomain = normalizeDomain(currentDomain);
+      const isAlreadyInList = blacklist.some(
+        (item) => normalizeDomain(item) === normalizedCurrentDomain
+      );
+      if (!isAlreadyInList) {
+        setBlacklist([...blacklist, currentDomain]);
+        showMessage(t("popup.addedToBlacklist", { domain: currentDomain }));
+      } else {
+        showMessage(t("popup.alreadyInBlacklist", { domain: currentDomain }));
+      }
     }
   }, [currentDomain, blacklist, setBlacklist, showMessage, t]);
 
@@ -339,6 +267,9 @@ function IndexPopup() {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      if (messageTimerRef.current) {
+        clearTimeout(messageTimerRef.current);
+      }
       chrome.cookies.onChanged.removeListener(cookieListener);
     };
   }, [updateStats]);
@@ -357,13 +288,24 @@ function IndexPopup() {
   useEffect(() => {
     if (settings.themeMode === ThemeMode.CUSTOM && settings.customTheme) {
       const root = document.documentElement;
-      const { primary, success, warning, danger, bgPrimary, textPrimary } = settings.customTheme;
+      const {
+        primary,
+        success,
+        warning,
+        danger,
+        bgPrimary,
+        bgSecondary,
+        textPrimary,
+        textSecondary,
+      } = settings.customTheme;
       if (primary) root.style.setProperty("--primary-500", primary);
       if (success) root.style.setProperty("--success-500", success);
       if (warning) root.style.setProperty("--warning-500", warning);
       if (danger) root.style.setProperty("--danger-500", danger);
       if (bgPrimary) root.style.setProperty("--bg-primary", bgPrimary);
+      if (bgSecondary) root.style.setProperty("--bg-secondary", bgSecondary);
       if (textPrimary) root.style.setProperty("--text-primary", textPrimary);
+      if (textSecondary) root.style.setProperty("--text-secondary", textSecondary);
     }
   }, [settings.themeMode, settings.customTheme]);
 
@@ -379,28 +321,18 @@ function IndexPopup() {
             setCurrentDomain("");
           }
         }
-        updateStats();
-
-        if (settings.cleanupOnStartup) {
-          await cleanupStartup();
-        }
-
-        if (settings.cleanupExpiredCookies) {
-          await cleanupExpiredCookies();
-        }
       } catch {
         setCurrentDomain("");
       }
     }
     init();
-  }, [
-    settings.mode,
-    settings.cleanupOnStartup,
-    settings.cleanupExpiredCookies,
-    updateStats,
-    cleanupStartup,
-    cleanupExpiredCookies,
-  ]);
+  }, []);
+
+  useEffect(() => {
+    if (currentDomain !== undefined) {
+      updateStats();
+    }
+  }, [currentDomain, updateStats]);
 
   return (
     <ErrorBoundary>
@@ -520,14 +452,21 @@ function IndexPopup() {
               onMessage={(text, isError = false) => showMessage(text, isError)}
               whitelist={whitelist}
               blacklist={blacklist}
+              showCookieRisk={settings.showCookieRisk}
               onAddToWhitelist={(domains) => {
-                const newDomains = domains.filter((d) => !whitelist.includes(d));
+                const newDomains = domains.filter((d) => {
+                  const normalizedD = normalizeDomain(d);
+                  return !whitelist.some((item) => normalizeDomain(item) === normalizedD);
+                });
                 if (newDomains.length > 0) {
                   setWhitelist([...whitelist, ...newDomains]);
                 }
               }}
               onAddToBlacklist={(domains) => {
-                const newDomains = domains.filter((d) => !blacklist.includes(d));
+                const newDomains = domains.filter((d) => {
+                  const normalizedD = normalizeDomain(d);
+                  return !blacklist.some((item) => normalizeDomain(item) === normalizedD);
+                });
                 if (newDomains.length > 0) {
                   setBlacklist([...blacklist, ...newDomains]);
                 }
@@ -536,38 +475,52 @@ function IndexPopup() {
           </div>
         )}
 
-        {activeTab === "whitelist" && (
-          <div className="tab-content" role="tabpanel" id="whitelist-panel">
-            <DomainManager type="whitelist" currentDomain={currentDomain} onMessage={showMessage} />
-          </div>
-        )}
-
-        {activeTab === "blacklist" && (
-          <div className="tab-content" role="tabpanel" id="blacklist-panel">
+        {activeTab === "rules" && (
+          <div className="tab-content" role="tabpanel" id="rules-panel">
             <DomainManager
-              type="blacklist"
+              type={settings.mode === ModeType.WHITELIST ? "whitelist" : "blacklist"}
               currentDomain={currentDomain}
               onMessage={showMessage}
-              onClearBlacklist={async () => {
-                const result = await performCleanupWithFilter(
-                  (domain) => isInList(domain, blacklist),
-                  {
-                    clearType: CookieClearType.ALL,
-                  }
-                );
+              onClearBlacklist={
+                settings.mode === ModeType.BLACKLIST
+                  ? async () => {
+                      try {
+                        const result = await performCleanupWithFilter(
+                          (domain) => isInList(domain, blacklist),
+                          {
+                            clearType: CookieClearType.ALL,
+                          }
+                        );
 
-                if (result.count > 0) {
-                  const domainStr = buildDomainString(
-                    new Set(result.clearedDomains),
-                    t("tabs.blacklist")
-                  );
-                  addLog(domainStr, CookieClearType.ALL, result.count);
-                  showMessage(t("popup.clearedBlacklist", { count: result.count }));
-                  updateStats();
-                } else {
-                  showMessage(t("popup.noBlacklistCookies"));
-                }
-              }}
+                        if (result.count > 0) {
+                          const domainStr = buildDomainString(
+                            new Set(result.clearedDomains),
+                            t("tabs.blacklist"),
+                            currentDomain,
+                            t
+                          );
+                          addLog(
+                            domainStr,
+                            CookieClearType.ALL,
+                            result.count,
+                            settings.logRetention
+                          );
+                          showMessage(t("popup.clearedBlacklist", { count: result.count }));
+                          updateStats();
+                        } else {
+                          showMessage(t("popup.noBlacklistCookies"));
+                        }
+                      } catch (e) {
+                        console.error("Failed to clear blacklist:", {
+                          error: e,
+                          trigger: "clearBlacklist",
+                          mode: settings.mode,
+                        });
+                        showMessage(t("popup.clearCookiesFailed"), true);
+                      }
+                    }
+                  : undefined
+              }
             />
           </div>
         )}

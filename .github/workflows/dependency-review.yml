@@ -5,6 +5,8 @@ on:
     paths:
       - "package.json"
       - "pnpm-lock.yaml"
+      - ".github/workflows/*.yml"
+      - ".github/actions/**"
 
 permissions:
   contents: read
@@ -39,7 +41,7 @@ jobs:
       - name: "依赖审查"
         uses: actions/dependency-review-action@v4
         with:
-          comment-summary-in-pr: always
+          comment-summary-in-pr: never
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "安装依赖"
@@ -63,8 +65,9 @@ jobs:
             echo "$AUDIT_OUTPUT" | head -50 >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "::warning::发现安全漏洞，请查看审计报告并修复"
+            echo "::error::发现安全漏洞，请查看审计报告并修复"
             echo "audit_status=warning" >> $GITHUB_OUTPUT
+            exit 1
           fi
 
       - name: "许可证检查"
@@ -74,20 +77,20 @@ jobs:
           echo "## 📜 许可证合规检查" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          pnpm add -g license-checker-rseidelsohn@4.4.2
+          LICENSE_CHECKER="pnpm dlx license-checker-rseidelsohn@4.4.2"
 
           echo "### 📊 许可证摘要" >> $GITHUB_STEP_SUMMARY
-          license-checker-rseidelsohn --summary >> $GITHUB_STEP_SUMMARY
+          $LICENSE_CHECKER --summary >> $GITHUB_STEP_SUMMARY
 
           FORBIDDEN_LICENSES="GPL-2.0-only,GPL-2.0-or-later,GPL-3.0-only,GPL-3.0-or-later,AGPL-3.0-only,AGPL-3.0-or-later,LGPL-2.0-only,LGPL-2.0-or-later,LGPL-2.1-only,LGPL-2.1-or-later,LGPL-3.0-only,LGPL-3.0-or-later"
 
-          if license-checker-rseidelsohn --failOn "$FORBIDDEN_LICENSES" 2>&1; then
+          if $LICENSE_CHECKER --failOn "$FORBIDDEN_LICENSES" 2>&1; then
             echo "✅ 所有依赖均符合许可证政策。" >> $GITHUB_STEP_SUMMARY
             echo "license_status=ok" >> $GITHUB_OUTPUT
           else
             echo "❌ **检测到许可证违规！**" >> $GITHUB_STEP_SUMMARY
             echo "以下包使用了受限许可证（GPL/AGPL/LGPL），与隐私优先策略冲突：" >> $GITHUB_STEP_SUMMARY
-            license-checker-rseidelsohn --failOn "$FORBIDDEN_LICENSES" >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            $LICENSE_CHECKER --failOn "$FORBIDDEN_LICENSES" >> $GITHUB_STEP_SUMMARY 2>&1 || true
             echo "license_status=violation" >> $GITHUB_OUTPUT
             echo ""
             echo "::error::检测到许可证违规，存在 GPL/AGPL/LGPL 依赖，请检查并移除"
@@ -109,37 +112,3 @@ jobs:
 
           echo "size=$NODE_MODULES_SIZE" >> $GITHUB_OUTPUT
           echo "count=$DEPENDENCY_COUNT" >> $GITHUB_OUTPUT
-
-      - name: "创建 PR 评论"
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const auditStatus = '${{ steps.audit.outputs.audit_status }}';
-            const licenseStatus = '${{ steps.license.outputs.license_status }}';
-            const depSize = '${{ steps.size.outputs.size }}';
-            const depCount = '${{ steps.size.outputs.count }}';
-
-            const statusEmoji = (status) => {
-              if (status === 'clean' || status === 'ok') return '✅';
-              if (status === 'warning' || status === 'violation') return '⚠️';
-              return '❓';
-            };
-
-            const body = `## 🔍 依赖审查摘要
-
-            | 检查项 | 状态 | 详情 |
-            |-------|--------|---------|
-            | 安全审计 | ${statusEmoji(auditStatus)} | ${auditStatus === 'clean' ? '无漏洞' : '需要审查'} |
-            | 许可证检查 | ${statusEmoji(licenseStatus)} | ${licenseStatus === 'ok' ? '合规' : '检测到违规'} |
-            | 依赖信息 | 📦 | ${depCount} 个直接依赖，总体积 ${depSize} |
-
-            ${auditStatus === 'warning' || licenseStatus === 'violation' ? '⚠️ **需要处理**：请查看 [工作流摘要](' + process.env.GITHUB_SERVER_URL + '/' + process.env.GITHUB_REPOSITORY + '/actions/runs/' + process.env.GITHUB_RUN_ID + ') 中的审计结果。' : ''}
-            `;
-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });

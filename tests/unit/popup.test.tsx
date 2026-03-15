@@ -3,7 +3,7 @@ import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import IndexPopup from "@/entrypoints/popup/App";
 import * as storageHook from "@/hooks/useStorage";
 import { DEFAULT_SETTINGS } from "@/lib/store";
-import { performCleanupWithFilter, cleanupExpiredCookies } from "@/utils/cleanup";
+import { performCleanupWithFilter } from "@/utils/cleanup";
 import type { Cookie } from "@/types";
 
 vi.mock("@/hooks/useStorage", () => ({
@@ -20,11 +20,17 @@ vi.mock("@/components/CookieList", () => ({
     blacklist?: string[];
     onAddToWhitelist?: (domains: string[]) => void;
     onAddToBlacklist?: (domains: string[]) => void;
+    showCookieRisk?: boolean;
   }) => {
     return (
       <div data-testid="cookie-list">
         <div data-testid="cookie-count">{props.cookies?.length || 0}</div>
         <div data-testid="current-domain">{props.currentDomain || "无域名"}</div>
+        {props.showCookieRisk === true ? (
+          <div data-testid="cookie-risk-enabled">Risk enabled</div>
+        ) : (
+          <div data-testid="cookie-risk-disabled">Risk disabled</div>
+        )}
         <button
           onClick={() => props.onAddToWhitelist?.(["example.com"])}
           data-testid="add-to-whitelist"
@@ -51,22 +57,24 @@ vi.mock("@/components/CookieList", () => ({
 
 vi.mock("@/components/DomainManager", () => ({
   DomainManager: ({
-    domains,
-    onRemove,
-    title,
+    type,
+    currentDomain,
+    onMessage,
+    onClearBlacklist,
   }: {
-    domains: string[];
-    onRemove: (domain: string) => void;
-    title: string;
+    type: "whitelist" | "blacklist";
+    currentDomain: string;
+    onMessage: (msg: string) => void;
+    onClearBlacklist?: () => void;
   }) => (
     <div data-testid="domain-manager">
-      <span>{title}</span>
-      {domains.map((domain) => (
-        <div key={domain}>
-          {domain}
-          <button onClick={() => onRemove(domain)}>删除</button>
-        </div>
-      ))}
+      <span>{type === "whitelist" ? "Whitelist" : "Blacklist"}</span>
+      <button onClick={() => onMessage("test message")}>Test Message</button>
+      {type === "blacklist" && onClearBlacklist && (
+        <button onClick={onClearBlacklist} data-testid="clear-blacklist">
+          Clear Blacklist
+        </button>
+      )}
     </div>
   ),
 }));
@@ -99,7 +107,6 @@ vi.mock("@/utils/cleanup", () => ({
   performCleanupWithFilter: vi.fn(() =>
     Promise.resolve({ count: 5, clearedDomains: ["example.com"] })
   ),
-  cleanupExpiredCookies: vi.fn(() => Promise.resolve(3)),
   performCleanup: vi.fn(() => Promise.resolve({ count: 2, clearedDomains: ["test.com"] })),
 }));
 
@@ -116,7 +123,12 @@ vi.mock("@/utils", () => ({
   clearSingleCookie: vi.fn(() => Promise.resolve(true)),
   editCookie: vi.fn(() => Promise.resolve(true)),
   maskCookieValue: vi.fn(() => "••••••••"),
-  getCookieKey: vi.fn((name: string, domain: string) => `${name}-${domain}`),
+  getCookieKey: vi.fn((name: string, domain: string, path?: string, storeId?: string) => {
+    const parts = [name, domain];
+    if (path) parts.push(path);
+    if (storeId) parts.push(storeId);
+    return parts.join("|");
+  }),
   toggleSetValue: vi.fn((set: Set<string>, value: string) => {
     const next = new Set(set);
     if (next.has(value)) {
@@ -703,34 +715,6 @@ describe("IndexPopup", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("should handle cleanupExpiredCookies with count", async () => {
-    vi.mocked(cleanupExpiredCookies).mockResolvedValue(5);
-    setupMockStorage({ cleanupExpiredCookies: true });
-    const { container } = render(<IndexPopup />);
-
-    // 等待异步操作完成
-    await waitFor(() => {
-      expect(cleanupExpiredCookies).toHaveBeenCalled();
-    });
-
-    expect(container.querySelector("header")).toBeTruthy();
-  });
-
-  it("should handle cleanupExpiredCookies error", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(cleanupExpiredCookies).mockRejectedValue(new Error("Cleanup failed"));
-    setupMockStorage({ cleanupExpiredCookies: true });
-    const { container } = render(<IndexPopup />);
-
-    // 等待异步操作完成
-    await waitFor(() => {
-      expect(cleanupExpiredCookies).toHaveBeenCalled();
-    });
-
-    expect(container.querySelector("header")).toBeTruthy();
-    consoleErrorSpy.mockRestore();
-  });
-
   it("should handle quickAddToWhitelist when domain already in whitelist", () => {
     const mockSetWhitelist = vi.fn();
     (storageHook.useStorage as Mock).mockImplementation((key: string, defaultValue: unknown) => {
@@ -781,26 +765,47 @@ describe("IndexPopup", () => {
     expect(mockSetBlacklist).not.toHaveBeenCalled();
   });
 
-  it("should handle tab switching to whitelist tab", () => {
+  it("should handle tab switching to rules tab with whitelist mode", () => {
     setupMockStorage({ mode: "whitelist" });
-    const { container } = render(<IndexPopup />);
+    const { container, getByTestId } = render(<IndexPopup />);
 
-    const whitelistTab = container.querySelector('[data-testid="tab-whitelist"]');
-    if (whitelistTab) {
-      fireEvent.click(whitelistTab);
-      expect(whitelistTab).toBeTruthy();
+    const rulesTab = container.querySelector('[data-testid="tab-rules"]');
+    if (rulesTab) {
+      fireEvent.click(rulesTab);
     }
+
+    expect(getByTestId("domain-manager")).toBeTruthy();
+    expect(getByTestId("domain-manager").textContent).toContain("Whitelist");
   });
 
-  it("should handle tab switching to blacklist tab", () => {
+  it("should handle tab switching to rules tab with blacklist mode", () => {
     setupMockStorage({ mode: "blacklist" });
+    const { container, getByTestId } = render(<IndexPopup />);
+
+    const rulesTab = container.querySelector('[data-testid="tab-rules"]');
+    if (rulesTab) {
+      fireEvent.click(rulesTab);
+    }
+
+    expect(getByTestId("domain-manager")).toBeTruthy();
+    expect(getByTestId("domain-manager").textContent).toContain("Blacklist");
+    expect(getByTestId("clear-blacklist")).toBeTruthy();
+  });
+
+  it("should show cookie risk when enabled", () => {
+    setupMockStorage({ showCookieRisk: true });
     const { container } = render(<IndexPopup />);
 
-    const blacklistTab = container.querySelector('[data-testid="tab-blacklist"]');
-    if (blacklistTab) {
-      fireEvent.click(blacklistTab);
-      expect(blacklistTab).toBeTruthy();
-    }
+    const riskEnabled = container.querySelector('[data-testid="cookie-risk-enabled"]');
+    expect(riskEnabled).toBeTruthy();
+  });
+
+  it("should not show cookie risk when disabled", () => {
+    setupMockStorage({ showCookieRisk: false });
+    const { container } = render(<IndexPopup />);
+
+    const riskDisabled = container.querySelector('[data-testid="cookie-risk-disabled"]');
+    expect(riskDisabled).toBeTruthy();
   });
 
   it("should handle tab switching to settings tab", () => {

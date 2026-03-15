@@ -24,11 +24,7 @@ export const isInList = (domain: string, list: string[]): boolean => {
   const normalizedDomain = normalizeDomain(domain);
   return list.some((item) => {
     const normalizedItem = normalizeDomain(item);
-    return (
-      normalizedDomain === normalizedItem ||
-      normalizedDomain.endsWith("." + normalizedItem) ||
-      normalizedItem.endsWith("." + normalizedDomain)
-    );
+    return normalizedDomain === normalizedItem || normalizedDomain.endsWith("." + normalizedItem);
   });
 };
 
@@ -57,8 +53,27 @@ export const buildOrigins = (domains: Set<string>): string[] => {
   const origins: string[] = [];
   domains.forEach((d) => {
     origins.push(`https://${d}`);
+    origins.push(`http://${d}`);
   });
   return origins;
+};
+
+export const buildDomainString = (
+  clearedDomains: Set<string>,
+  successMsg: string,
+  currentDomain: string,
+  t: (path: string, params?: Record<string, string | number>) => string
+): string => {
+  if (clearedDomains.size === 1) {
+    return Array.from(clearedDomains)[0];
+  }
+  if (clearedDomains.size > 1) {
+    return t("common.domains", {
+      domain: Array.from(clearedDomains)[0],
+      count: clearedDomains.size,
+    });
+  }
+  return successMsg.includes(t("common.allWebsites")) ? t("common.allWebsites") : currentDomain;
 };
 
 export const isTrackingCookie = (cookie: { name: string; domain: string }): boolean => {
@@ -220,10 +235,66 @@ export const clearSingleCookie = async (
 ): Promise<boolean> => {
   try {
     const url = buildCookieUrl(cookie, cleanedDomain);
-    await chrome.cookies.remove({ url, name: cookie.name });
+    const removeDetails: chrome.cookies.Details = { url, name: cookie.name };
+    if (cookie.storeId) {
+      removeDetails.storeId = cookie.storeId;
+    }
+    await chrome.cookies.remove(removeDetails);
     return true;
   } catch (e) {
     console.error(`Failed to clear cookie ${cookie.name}:`, e);
+    return false;
+  }
+};
+
+export const createCookie = async (cookie: Partial<chrome.cookies.Cookie>): Promise<boolean> => {
+  try {
+    if (!cookie.name || cookie.value == null || !cookie.domain) {
+      return false;
+    }
+
+    const path = cookie.path || "/";
+    const cleanedDomain = cookie.domain.replace(/^\./, "");
+
+    const tempCookie = {
+      ...cookie,
+      domain: cookie.domain,
+      path,
+    } as chrome.cookies.Cookie;
+
+    const url = buildCookieUrl(tempCookie, cleanedDomain);
+
+    const sameSiteForChrome = toChromeSameSite(cookie.sameSite);
+    const secure = cookie.secure ?? (sameSiteForChrome === "no_restriction" ? true : false);
+
+    if (sameSiteForChrome === "no_restriction" && !secure) {
+      console.error("SameSite=None requires Secure flag");
+      return false;
+    }
+
+    const newCookie: chrome.cookies.SetDetails = {
+      url,
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path,
+      secure,
+      httpOnly: cookie.httpOnly ?? false,
+      sameSite: sameSiteForChrome,
+    };
+
+    if (cookie.storeId) {
+      newCookie.storeId = cookie.storeId;
+    }
+
+    if (cookie.expirationDate) {
+      newCookie.expirationDate = cookie.expirationDate;
+    }
+
+    await chrome.cookies.set(newCookie);
+    return true;
+  } catch (e) {
+    console.error("Failed to create cookie:", e);
     return false;
   }
 };
@@ -233,24 +304,61 @@ export const editCookie = async (
   updates: Partial<chrome.cookies.Cookie>
 ): Promise<boolean> => {
   try {
-    const cleanedDomain = originalCookie.domain.replace(/^\./, "");
-    const url = buildCookieUrl(originalCookie, cleanedDomain);
+    const safeUpdates: Partial<chrome.cookies.Cookie> = {};
 
-    await chrome.cookies.remove({ url, name: originalCookie.name });
+    if ("value" in updates) {
+      safeUpdates.value = updates.value;
+    }
+    if ("httpOnly" in updates) {
+      safeUpdates.httpOnly = updates.httpOnly;
+    }
+    if ("secure" in updates) {
+      safeUpdates.secure = updates.secure;
+    }
+    if ("sameSite" in updates) {
+      safeUpdates.sameSite = updates.sameSite;
+    }
+    if ("expirationDate" in updates) {
+      safeUpdates.expirationDate = updates.expirationDate;
+    }
 
-    const newCookie: chrome.cookies.SetDetails = {
-      url,
-      name: updates.name || originalCookie.name,
-      value: updates.value || originalCookie.value,
-      domain: originalCookie.domain,
-      path: updates.path || originalCookie.path,
-      secure: updates.secure ?? originalCookie.secure,
-      httpOnly: updates.httpOnly ?? originalCookie.httpOnly,
-      sameSite: updates.sameSite || originalCookie.sameSite,
+    const nextCookie = {
+      ...originalCookie,
+      ...safeUpdates,
     };
 
-    if (updates.expirationDate || originalCookie.expirationDate) {
-      newCookie.expirationDate = updates.expirationDate || originalCookie.expirationDate;
+    if (!nextCookie.name || nextCookie.value == null || !nextCookie.domain) {
+      return false;
+    }
+
+    const sameSiteForChrome = toChromeSameSite(nextCookie.sameSite);
+    const secure = nextCookie.secure ?? (sameSiteForChrome === "no_restriction" ? true : false);
+
+    if (sameSiteForChrome === "no_restriction" && !secure) {
+      console.error("SameSite=None requires Secure flag");
+      return false;
+    }
+
+    const newCleanedDomain = nextCookie.domain.replace(/^\./, "");
+    const newUrl = buildCookieUrl(nextCookie, newCleanedDomain);
+
+    const newCookie: chrome.cookies.SetDetails = {
+      url: newUrl,
+      name: nextCookie.name,
+      value: nextCookie.value,
+      domain: nextCookie.domain,
+      path: nextCookie.path,
+      secure,
+      httpOnly: nextCookie.httpOnly,
+      sameSite: sameSiteForChrome,
+    };
+
+    if (nextCookie.storeId) {
+      newCookie.storeId = nextCookie.storeId;
+    }
+
+    if (nextCookie.expirationDate) {
+      newCookie.expirationDate = nextCookie.expirationDate;
     }
 
     await chrome.cookies.set(newCookie);
@@ -382,9 +490,13 @@ export const getActionColor = (action: string): string => {
   }
 };
 
-export const formatLogTime = (timestamp: number, _t?: (key: string) => string): string => {
+export const formatLogTime = (
+  timestamp: number,
+  _t?: (key: string) => string,
+  locale: string = "zh-CN"
+): string => {
   const date = new Date(timestamp);
-  return date.toLocaleString("zh-CN", {
+  return date.toLocaleString(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -399,8 +511,13 @@ export const maskCookieValue = (value: string, mask: string): string => {
   return value.slice(0, 4) + mask.substring(4);
 };
 
-export const getCookieKey = (name: string, domain: string): string => {
-  return `${name}-${domain}`;
+export const getCookieKey = (
+  name: string,
+  domain: string,
+  path?: string,
+  storeId?: string
+): string => {
+  return `${name}|${domain}|${path ?? "/"}|${storeId ?? "0"}`;
 };
 
 export const toggleSetValue = (set: Set<string>, value: string): Set<string> => {
@@ -411,6 +528,43 @@ export const toggleSetValue = (set: Set<string>, value: string): Set<string> => 
     next.add(value);
   }
   return next;
+};
+
+export const fromChromeSameSite = (sameSite?: string): string => {
+  if (sameSite === "no_restriction") {
+    return "none";
+  }
+  return sameSite || "unspecified";
+};
+
+export const toChromeSameSite = (sameSite?: string): chrome.cookies.SameSiteStatus | undefined => {
+  if (sameSite === "none") {
+    return "no_restriction";
+  }
+  if (sameSite === "unspecified" || !sameSite) {
+    return undefined;
+  }
+  return sameSite as chrome.cookies.SameSiteStatus;
+};
+
+export const formatCookieSameSite = (
+  sameSite: string | undefined,
+  t: (key: string) => string
+): string => {
+  const normalized = fromChromeSameSite(sameSite);
+  if (normalized === "unspecified" || !normalized) {
+    return t("cookieList.notSet");
+  }
+  if (normalized === "strict") {
+    return t("cookieEditor.strict");
+  }
+  if (normalized === "lax") {
+    return t("cookieEditor.lax");
+  }
+  if (normalized === "none") {
+    return t("cookieEditor.none");
+  }
+  return normalized;
 };
 
 export const validateDomain = (

@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useStorage } from "@/hooks/useStorage";
 import { WHITELIST_KEY, BLACKLIST_KEY } from "@/lib/store";
 import type { DomainList } from "@/types";
-import { validateDomain } from "@/utils";
+import { validateDomain, normalizeDomain } from "@/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface Props {
@@ -28,7 +28,9 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
         onMessage(validation.message || t("domainManager.invalidDomain"));
         return;
       }
-      if (list.includes(trimmed)) {
+      const normalizedTrimmed = normalizeDomain(trimmed);
+      const isAlreadyInList = list.some((item) => normalizeDomain(item) === normalizedTrimmed);
+      if (isAlreadyInList) {
         onMessage(
           t("domainManager.alreadyInList", {
             domain: trimmed,
@@ -37,7 +39,7 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
         );
         return;
       }
-      setList([...list, trimmed]);
+      setList([...list, normalizedTrimmed]);
       setInputValue("");
       onMessage(
         t("domainManager.addedToList", {
@@ -50,7 +52,8 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
 
   const removeDomain = useCallback(
     (domain: string) => {
-      setList(list.filter((d) => d !== domain));
+      const normalizedDomain = normalizeDomain(domain);
+      setList(list.filter((d) => normalizeDomain(d) !== normalizedDomain));
       onMessage(t("domainManager.deleted"));
     },
     [list, setList, onMessage, t]

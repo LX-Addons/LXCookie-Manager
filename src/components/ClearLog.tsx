@@ -101,7 +101,9 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
                   </span>
                   <span className="log-type">{getCookieTypeName(log.cookieType, t)}</span>
                   <span className="log-count">{t("common.count", { count: log.count })}</span>
-                  <span className="log-time">{formatLogTime(log.timestamp, t)}</span>
+                  <span className="log-time">
+                    {formatLogTime(log.timestamp, t, settings.locale)}
+                  </span>
                 </div>
                 {log.details && <div className="log-details-text">{log.details}</div>}
               </div>
