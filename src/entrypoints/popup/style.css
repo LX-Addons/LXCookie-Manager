@@ -1141,7 +1141,7 @@ header h1 {
   border-color: var(--border-default);
 }
 
-.cookie-list-header span[role="heading"] {
+.cookie-list-header h3.cookie-heading {
   margin: 0;
   font-size: var(--font-size-sm);
   font-weight: var(--font-semibold);
@@ -1149,12 +1149,6 @@ header h1 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.cookie-list-header span[role="heading"]::before {
-  content: "🍪";
-  font-size: 14px;
-  line-height: 1;
 }
 
 .expand-icon {

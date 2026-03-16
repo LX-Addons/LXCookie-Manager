@@ -228,7 +228,10 @@ const setupMocks = () => {
   return { mockOnUpdate, mockOnMessage, mockOnAddToWhitelist, mockOnAddToBlacklist };
 };
 
-const renderAndExpandCookieList = (Component: React.ComponentType<any>, props: Record<string, unknown> = {}) => {
+const renderAndExpandCookieList = <P extends Record<string, unknown>>(
+  Component: React.ComponentType<P>,
+  props: P
+) => {
   const result = render(<Component {...props} />);
   const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
   fireEvent.click(headerButton);
