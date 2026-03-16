@@ -75,7 +75,11 @@ export const mockUseStorageImplementation = (
   useStorageMock: ReturnType<typeof createUseStorageMock>["useStorageMock"]
 ) => {
   return (key: string, defaultValue: unknown) => {
-    if (!(key in (useStorageMock as Mock).mock.results[0]?.value?.[0] || {})) {
+    const firstValue = (useStorageMock as Mock).mock.results[0]?.value?.[0];
+    const storageState: Record<string, unknown> =
+      firstValue && typeof firstValue === "object" ? (firstValue as Record<string, unknown>) : {};
+
+    if (!(key in storageState)) {
       return useStorageMock(key, defaultValue);
     }
     return useStorageMock(key, defaultValue);

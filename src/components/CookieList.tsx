@@ -382,7 +382,10 @@ export const CookieListContent = memo(
                             const displayValue = isVisible
                               ? cookie.value
                               : maskCookieValue(cookie.value, COOKIE_VALUE_MASK);
-                            const risk = assessCookieRisk(cookie, currentDomain, t);
+                            const risk =
+                              showCookieRisk !== false
+                                ? assessCookieRisk(cookie, currentDomain, t)
+                                : null;
                             const isSelected = selectedCookies.has(key);
                             const sensitive = isSensitiveCookie(cookie);
 
@@ -406,7 +409,10 @@ export const CookieListContent = memo(
                                     <strong>
                                       {cookie.name}
                                       {sensitive && (
-                                        <span className="sensitive-badge" title="敏感 Cookie">
+                                        <span
+                                          className="sensitive-badge"
+                                          title={t("cookieList.sensitiveCookie")}
+                                        >
                                           🔐
                                         </span>
                                       )}
@@ -433,7 +439,7 @@ export const CookieListContent = memo(
                                   </div>
                                 </div>
 
-                                {showCookieRisk !== false && (
+                                {showCookieRisk !== false && risk && (
                                   <div
                                     className="risk-badge"
                                     style={{ borderLeftColor: getRiskLevelColor(risk.level) }}

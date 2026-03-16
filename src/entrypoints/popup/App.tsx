@@ -17,7 +17,6 @@ import {
   isInList,
   isTrackingCookie,
   isThirdPartyCookie,
-  normalizeDomain,
   buildDomainString,
 } from "@/utils";
 import { performCleanupWithFilter } from "@/utils/cleanup";

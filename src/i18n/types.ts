@@ -182,6 +182,7 @@ export interface Translations {
     edit: string;
     hide: string;
     show: string;
+    selectCookie: string;
     value: string;
     path: string;
     secure: string;

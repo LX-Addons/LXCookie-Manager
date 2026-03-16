@@ -1,7 +1,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { LogRetention } from "@/types";
+import { LogRetention, CookieClearType, ThemeMode, ModeType, ScheduleInterval } from "@/types";
 
 const mockStorageData = new Map<string, unknown>();
+
+const createSettings = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  clearType: CookieClearType.ALL,
+  logRetention: LogRetention.SEVEN_DAYS,
+  themeMode: ThemeMode.AUTO,
+  mode: ModeType.WHITELIST,
+  enableAutoCleanup: false,
+  scheduleInterval: ScheduleInterval.DISABLED,
+  lastScheduledCleanup: 0,
+  clearCache: false,
+  clearLocalStorage: false,
+  clearIndexedDB: false,
+  cleanupOnTabDiscard: false,
+  cleanupOnStartup: false,
+  cleanupExpiredCookies: false,
+  cleanupOnTabClose: false,
+  cleanupOnBrowserClose: false,
+  cleanupOnNavigate: false,
+  showCookieRisk: false,
+  locale: "zh-CN",
+  ...overrides,
+});
 
 // 注意：wxt/utils/storage 的 mock 已在 tests/setup.ts 中定义
 // 这里不再重复定义，以避免 mock 冲突
@@ -216,14 +238,14 @@ describe("background", () => {
   it("should handle scheduled cleanup alarm", async () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      scheduleInterval: "hourly",
-      lastScheduledCleanup: Date.now() - 2 * 60 * 60 * 1000,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: Date.now() - 2 * 60 * 60 * 1000,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -254,13 +276,13 @@ describe("background", () => {
   it("should handle tab discard event with cleanup enabled", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabDiscard: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabDiscard: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -291,13 +313,13 @@ describe("background", () => {
   it("should handle startup cleanup when enabled", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -328,14 +350,15 @@ describe("background", () => {
   it("should handle scheduled cleanup with interval elapsed", async () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      scheduleInterval: "daily",
-      lastScheduledCleanup: Date.now() - 25 * 60 * 60 * 1000,
-      clearCache: true,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "daily",
+        lastScheduledCleanup: Date.now() - 25 * 60 * 60 * 1000,
+        clearCache: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -349,13 +372,13 @@ describe("background", () => {
   it("should not run scheduled cleanup when interval not elapsed", async () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      scheduleInterval: "daily",
-      lastScheduledCleanup: Date.now() - 1 * 60 * 60 * 1000,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        scheduleInterval: "daily",
+        lastScheduledCleanup: Date.now() - 1 * 60 * 60 * 1000,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -381,13 +404,13 @@ describe("background", () => {
   it("should handle tab discard with invalid URL", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabDiscard: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabDiscard: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -401,13 +424,13 @@ describe("background", () => {
   it("should handle tab discard without URL", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabDiscard: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabDiscard: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -421,13 +444,13 @@ describe("background", () => {
   it("should handle tab update without discarded flag", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabDiscard: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabDiscard: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -441,13 +464,13 @@ describe("background", () => {
   it("should handle startup cleanup with no active tab", async () => {
     await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     (chrome.tabs.query as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
       Promise.resolve([])
@@ -469,13 +492,13 @@ describe("background", () => {
   it("should handle startup cleanup with active tab having no URL", async () => {
     await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     (chrome.tabs.query as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
       Promise.resolve([{ id: 1, active: true, url: undefined }])
@@ -494,13 +517,13 @@ describe("background", () => {
   it("should handle startup cleanup with invalid URL in active tab", async () => {
     await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     (chrome.tabs.query as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
       Promise.resolve([{ id: 1, active: true, url: "chrome://extensions" }])
@@ -516,13 +539,13 @@ describe("background", () => {
   it("should handle startup cleanup with invalid URL in all tabs", async () => {
     await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     (chrome.tabs.query as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
       Promise.resolve([{ id: 1, active: true, url: undefined }])
@@ -544,10 +567,13 @@ describe("background", () => {
   it("should handle alarm with different name", async () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      scheduleInterval: "hourly",
-      lastScheduledCleanup: 0,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -579,14 +605,14 @@ describe("background", () => {
       Promise.reject(new Error("Cleanup failed"))
     );
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      scheduleInterval: "hourly",
-      lastScheduledCleanup: 0,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -601,13 +627,13 @@ describe("background", () => {
       Promise.reject(new Error("Cleanup failed"))
     );
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabDiscard: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabDiscard: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -622,13 +648,13 @@ describe("background", () => {
       Promise.reject(new Error("Cleanup failed"))
     );
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -640,13 +666,13 @@ describe("background", () => {
   it("should handle tabs query error in startup cleanup", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnStartup: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+      })
+    );
 
     (chrome.tabs.query as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
       Promise.reject(new Error("Query failed"))
@@ -726,26 +752,14 @@ describe("background", () => {
   it("should update lastScheduledCleanup after scheduled cleanup", async () => {
     await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      clearType: "all",
-      logRetention: LogRetention.SEVEN_DAYS,
-      themeMode: "auto",
-      mode: "whitelist",
-      enableAutoCleanup: true,
-      scheduleInterval: "hourly",
-      lastScheduledCleanup: 0,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-      cleanupOnTabDiscard: false,
-      cleanupOnStartup: false,
-      cleanupExpiredCookies: false,
-      cleanupOnTabClose: false,
-      cleanupOnBrowserClose: false,
-      cleanupOnNavigate: false,
-      showCookieRisk: false,
-      locale: "zh-CN",
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -760,14 +774,14 @@ describe("background", () => {
   it("should call checkScheduledCleanup on installed", async () => {
     const { performCleanupWithFilter } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      scheduleInterval: "hourly",
-      lastScheduledCleanup: 0,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -785,13 +799,13 @@ describe("background", () => {
   });
 
   it("should save domain for cleanup when window is closing", async () => {
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnBrowserClose: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnBrowserClose: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -810,13 +824,13 @@ describe("background", () => {
   it("should cleanup closed tab when not window closing", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabClose: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabClose: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -834,13 +848,13 @@ describe("background", () => {
   it("should not cleanup when enableAutoCleanup is false", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: false,
-      cleanupOnTabClose: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: false,
+        cleanupOnTabClose: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -861,13 +875,13 @@ describe("background", () => {
       Promise.reject(new Error("Cleanup failed"))
     );
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabClose: true,
-      clearCache: false,
-      clearLocalStorage: false,
-      clearIndexedDB: false,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabClose: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -883,10 +897,13 @@ describe("background", () => {
   it("should handle tab removed without URL in tabUrlMap", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabClose: true,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabClose: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -900,10 +917,13 @@ describe("background", () => {
   it("should handle tab removed with invalid URL", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnTabClose: true,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnTabClose: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -921,10 +941,13 @@ describe("background", () => {
   it("should handle tab navigate without previous URL", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnNavigate: true,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnNavigate: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -938,10 +961,13 @@ describe("background", () => {
   it("should handle tab navigate within same hostname", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnNavigate: true,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnNavigate: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -967,10 +993,13 @@ describe("background", () => {
   it("should handle tab navigate with invalid previous URL", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnNavigate: true,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnNavigate: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -988,10 +1017,13 @@ describe("background", () => {
   it("should handle tab navigate with invalid current URL", async () => {
     const { performCleanup } = await import("@/utils/cleanup");
 
-    mockStorageData.set("local:settings", {
-      enableAutoCleanup: true,
-      cleanupOnNavigate: true,
-    });
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnNavigate: true,
+      })
+    );
 
     await import("@/entrypoints/background");
 
@@ -1004,5 +1036,166 @@ describe("background", () => {
     }
 
     expect(performCleanup).not.toHaveBeenCalled();
+  });
+
+  it("should call cleanupExpiredCookies on scheduled cleanup when enabled", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+        cleanupExpiredCookies: true,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onAlarm) {
+      await cb({ name: "scheduled-cleanup" });
+    }
+
+    expect(cleanupExpiredCookies).toHaveBeenCalled();
+  });
+
+  it("should not call cleanupExpiredCookies on scheduled cleanup when disabled", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+        cleanupExpiredCookies: false,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onAlarm) {
+      await cb({ name: "scheduled-cleanup" });
+    }
+
+    expect(cleanupExpiredCookies).not.toHaveBeenCalled();
+  });
+
+  it("should call cleanupExpiredCookies on startup when enabled", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+        cleanupExpiredCookies: true,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onStartup) {
+      await cb();
+    }
+
+    expect(cleanupExpiredCookies).toHaveBeenCalled();
+  });
+
+  it("should not call cleanupExpiredCookies on startup when disabled", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        cleanupOnStartup: true,
+        cleanupExpiredCookies: false,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onStartup) {
+      await cb();
+    }
+
+    expect(cleanupExpiredCookies).not.toHaveBeenCalled();
+  });
+
+  it("should not call cleanupExpiredCookies when cleanupExpiredCookies is not set", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onAlarm) {
+      await cb({ name: "scheduled-cleanup" });
+    }
+
+    expect(cleanupExpiredCookies).not.toHaveBeenCalled();
+  });
+
+  it("should handle cleanupExpiredCookies returning count > 0", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+    (cleanupExpiredCookies as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+      Promise.resolve(5)
+    );
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+        cleanupExpiredCookies: true,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onAlarm) {
+      await cb({ name: "scheduled-cleanup" });
+    }
+
+    expect(cleanupExpiredCookies).toHaveBeenCalled();
+  });
+
+  it("should handle cleanupExpiredCookies error gracefully", async () => {
+    const { cleanupExpiredCookies } = await import("@/utils/cleanup");
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    (cleanupExpiredCookies as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+      Promise.reject(new Error("Cleanup expired cookies failed"))
+    );
+
+    mockStorageData.set(
+      "local:settings",
+      createSettings({
+        enableAutoCleanup: true,
+        scheduleInterval: "hourly",
+        lastScheduledCleanup: 0,
+        cleanupExpiredCookies: true,
+      })
+    );
+
+    await import("@/entrypoints/background");
+
+    for (const cb of listeners.onAlarm) {
+      await cb({ name: "scheduled-cleanup" });
+    }
+
+    expect(cleanupExpiredCookies).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
   });
 });

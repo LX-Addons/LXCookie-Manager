@@ -36,7 +36,7 @@ vi.mock("@/hooks/useTranslation", () => ({
         "common.delete": "删除",
         "common.yes": "是",
         "common.no": "否",
-        "common.count": "数量：{count}",
+        "common.count": "{count} 个",
         "actions.clear": "清除",
       };
       let text = translations[key] || key;
@@ -243,7 +243,7 @@ describe("ClearLog", () => {
 
     render(<ClearLog onMessage={mockOnMessage} />);
     expect(screen.getByText("example.com")).toBeTruthy();
-    expect(screen.getByText("数量：5")).toBeTruthy();
+    expect(screen.getByText("5 个")).toBeTruthy();
     expect(screen.getByText("清除")).toBeTruthy();
   });
 });
