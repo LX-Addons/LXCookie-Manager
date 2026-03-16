@@ -1146,7 +1146,7 @@ describe("fromChromeSameSite", () => {
   });
 
   it("should return unspecified for undefined", () => {
-    expect(fromChromeSameSite(undefined)).toBe("unspecified");
+    expect(fromChromeSameSite()).toBe("unspecified");
   });
 
   it("should return same value for other values", () => {

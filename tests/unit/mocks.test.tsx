@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { ReactNode } from "react";
 import {
   hasDomainInText,
   createTranslationMock,
@@ -226,7 +227,7 @@ describe("mocks", () => {
   describe("setupChromeCookieMocks", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      global.chrome = {
+      globalThis.chrome = {
         cookies: {
           getAll: vi.fn(),
           remove: vi.fn(),
@@ -268,7 +269,7 @@ describe("mocks", () => {
   describe("setupChromeBrowsingDataMocks", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      global.chrome = {
+      globalThis.chrome = {
         browsingData: {},
       } as unknown as typeof chrome;
     });
@@ -323,6 +324,21 @@ describe("mocks", () => {
   });
 
   describe("createConfirmDialogWrapperMock", () => {
+    const createTestComponent = (
+      ConfirmDialogWrapper: React.ComponentType<{ children: (showConfirm: any) => ReactNode }>,
+      onConfirm: () => void
+    ) => {
+      const TestComponent = () => (
+        <ConfirmDialogWrapper>
+          {(showConfirm) => (
+            <button onClick={() => showConfirm("标题", "消息", "warning", onConfirm)}>打开</button>
+          )}
+        </ConfirmDialogWrapper>
+      );
+      TestComponent.displayName = "TestComponent";
+      return TestComponent;
+    };
+
     it("should create confirm dialog wrapper mock", () => {
       const mock = createConfirmDialogWrapperMock();
       expect(mock.ConfirmDialogWrapper).toBeDefined();
@@ -340,18 +356,7 @@ describe("mocks", () => {
     it("should open dialog when showConfirm is called", () => {
       const mock = createConfirmDialogWrapperMock();
       const onConfirm = vi.fn();
-
-      const TestComponent = () => {
-        return (
-          <mock.ConfirmDialogWrapper>
-            {(showConfirm) => (
-              <button onClick={() => showConfirm("标题", "消息", "warning", onConfirm)}>
-                打开
-              </button>
-            )}
-          </mock.ConfirmDialogWrapper>
-        );
-      };
+      const TestComponent = createTestComponent(mock.ConfirmDialogWrapper, onConfirm);
 
       render(<TestComponent />);
       fireEvent.click(screen.getByText("打开"));
@@ -361,18 +366,7 @@ describe("mocks", () => {
     it("should call onConfirm when confirm button is clicked", () => {
       const mock = createConfirmDialogWrapperMock();
       const onConfirm = vi.fn();
-
-      const TestComponent = () => {
-        return (
-          <mock.ConfirmDialogWrapper>
-            {(showConfirm) => (
-              <button onClick={() => showConfirm("标题", "消息", "warning", onConfirm)}>
-                打开
-              </button>
-            )}
-          </mock.ConfirmDialogWrapper>
-        );
-      };
+      const TestComponent = createTestComponent(mock.ConfirmDialogWrapper, onConfirm);
 
       render(<TestComponent />);
       fireEvent.click(screen.getByText("打开"));
@@ -383,18 +377,7 @@ describe("mocks", () => {
     it("should close dialog when cancel button is clicked", () => {
       const mock = createConfirmDialogWrapperMock();
       const onConfirm = vi.fn();
-
-      const TestComponent = () => {
-        return (
-          <mock.ConfirmDialogWrapper>
-            {(showConfirm) => (
-              <button onClick={() => showConfirm("标题", "消息", "warning", onConfirm)}>
-                打开
-              </button>
-            )}
-          </mock.ConfirmDialogWrapper>
-        );
-      };
+      const TestComponent = createTestComponent(mock.ConfirmDialogWrapper, onConfirm);
 
       render(<TestComponent />);
       fireEvent.click(screen.getByText("打开"));
@@ -406,18 +389,7 @@ describe("mocks", () => {
     it("should display custom confirm text when provided", () => {
       const mock = createConfirmDialogWrapperMock({ confirmText: "确认文本" });
       const onConfirm = vi.fn();
-
-      const TestComponent = () => {
-        return (
-          <mock.ConfirmDialogWrapper>
-            {(showConfirm) => (
-              <button onClick={() => showConfirm("标题", "消息", "warning", onConfirm)}>
-                打开
-              </button>
-            )}
-          </mock.ConfirmDialogWrapper>
-        );
-      };
+      const TestComponent = createTestComponent(mock.ConfirmDialogWrapper, onConfirm);
 
       render(<TestComponent />);
       fireEvent.click(screen.getByText("打开"));
@@ -427,18 +399,7 @@ describe("mocks", () => {
     it("should not add data-testid when showDataTestId is false", () => {
       const mock = createConfirmDialogWrapperMock({ showDataTestId: false });
       const onConfirm = vi.fn();
-
-      const TestComponent = () => {
-        return (
-          <mock.ConfirmDialogWrapper>
-            {(showConfirm) => (
-              <button onClick={() => showConfirm("标题", "消息", "warning", onConfirm)}>
-                打开
-              </button>
-            )}
-          </mock.ConfirmDialogWrapper>
-        );
-      };
+      const TestComponent = createTestComponent(mock.ConfirmDialogWrapper, onConfirm);
 
       render(<TestComponent />);
       fireEvent.click(screen.getByText("打开"));

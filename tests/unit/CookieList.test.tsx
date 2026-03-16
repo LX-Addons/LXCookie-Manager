@@ -154,8 +154,8 @@ vi.mock("@/components/CookieEditor", () => ({
 
 vi.mock("@/components/ConfirmDialogWrapper", () => ({
   ConfirmDialogWrapper: ({ children }: { children: (showConfirm: any) => ReactNode }) => {
-    let isOpen = false;
-    let confirmCallback: (() => void) | null = null;
+    const [isOpen, setIsOpen] = useState(false);
+    const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
 
     const showConfirm = (
       _title: string,
@@ -163,8 +163,8 @@ vi.mock("@/components/ConfirmDialogWrapper", () => ({
       _variant: string,
       onConfirm: () => void
     ): ReactNode => {
-      confirmCallback = onConfirm;
-      isOpen = true;
+      setConfirmCallback(() => onConfirm);
+      setIsOpen(true);
       return null;
     };
 
@@ -177,7 +177,7 @@ vi.mock("@/components/ConfirmDialogWrapper", () => ({
               data-testid="confirm-yes"
               onClick={() => {
                 confirmCallback?.();
-                isOpen = false;
+                setIsOpen(false);
               }}
             >
               确定
@@ -185,7 +185,7 @@ vi.mock("@/components/ConfirmDialogWrapper", () => ({
             <button
               data-testid="confirm-no"
               onClick={() => {
-                isOpen = false;
+                setIsOpen(false);
               }}
             >
               取消
