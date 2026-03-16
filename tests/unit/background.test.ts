@@ -2,8 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LogRetention, CookieClearType, ThemeMode, ModeType, ScheduleInterval } from "@/types";
 
 const mockStorageData = new Map<string, unknown>();
+const DEFAULT_SETTINGS_OVERRIDES: Partial<Record<string, unknown>> = {};
 
-const createSettings = (overrides: Partial<Record<string, unknown>> = {}) => ({
+const createSettings = (
+  overrides: Partial<Record<string, unknown>> = DEFAULT_SETTINGS_OVERRIDES
+) => ({
   clearType: CookieClearType.ALL,
   logRetention: LogRetention.SEVEN_DAYS,
   themeMode: ThemeMode.AUTO,

@@ -18,6 +18,7 @@ import {
 } from "../utils/mocks";
 
 const TEST_DOMAIN = "example.com";
+const DEFAULT_TRANSLATIONS: Record<string, string> = {};
 
 const formatDomainText = (domain: string, prefix: string = "🌐 ", suffix: string = " (2)") =>
   `${prefix}${domain}${suffix}`;
@@ -69,7 +70,7 @@ describe("mocks", () => {
   });
 
   describe("createTranslationMock", () => {
-    const getT = (translations: Record<string, string> = {}) => {
+    const getT = (translations: Record<string, string> = DEFAULT_TRANSLATIONS) => {
       return createTranslationMock(translations).useTranslation().t;
     };
 

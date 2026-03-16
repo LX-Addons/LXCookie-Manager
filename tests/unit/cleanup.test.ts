@@ -24,6 +24,9 @@ const normalizeDomain = (domain: string): string => {
   return domain.replace(/^\./, "").toLowerCase();
 };
 
+const DEFAULT_SETTINGS_MOCK: Partial<Settings> = {};
+const DEFAULT_COOKIE_OVERRIDES: Partial<chrome.cookies.Cookie> = {};
+
 vi.mock("@/utils", async (importOriginal) => {
   const actual = await importOriginal();
   return {
@@ -83,7 +86,7 @@ vi.mock("@/utils", async (importOriginal) => {
 });
 
 const setupStorageMock = (
-  settings: Partial<Settings> | null | undefined = {},
+  settings: Partial<Settings> | null | undefined = DEFAULT_SETTINGS_MOCK,
   whitelist: string[] = [],
   blacklist: string[] = []
 ) => {
@@ -437,7 +440,9 @@ describe("cleanup", () => {
       return { removeSpy, setSpy };
     };
 
-    const createOriginalCookie = (overrides: Partial<chrome.cookies.Cookie> = {}) => ({
+    const createOriginalCookie = (
+      overrides: Partial<chrome.cookies.Cookie> = DEFAULT_COOKIE_OVERRIDES
+    ) => ({
       name: "test",
       value: "value123",
       domain: ".example.com",

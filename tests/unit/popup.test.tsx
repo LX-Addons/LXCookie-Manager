@@ -143,7 +143,9 @@ vi.mock("@/utils", () => ({
   buildDomainString: vi.fn(() => "测试域名"),
 }));
 
-const mockMatchMedia = (overrides: Partial<MediaQueryList> = {}) => {
+const DEFAULT_MATCH_MEDIA_OVERRIDES: Partial<MediaQueryList> = {};
+
+const mockMatchMedia = (overrides: Partial<MediaQueryList> = DEFAULT_MATCH_MEDIA_OVERRIDES) => {
   Object.defineProperty(globalThis, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
@@ -183,7 +185,9 @@ interface MockStorageOptions {
   locale?: string;
 }
 
-const createMockStorage = (overrides: MockStorageOptions = {}) => {
+const DEFAULT_MOCK_STORAGE_OPTIONS: MockStorageOptions = {};
+
+const createMockStorage = (overrides: MockStorageOptions = DEFAULT_MOCK_STORAGE_OPTIONS) => {
   return (key: string, defaultValue: unknown) => {
     if (key === "local:whitelist") {
       return [overrides.whitelist ?? [], vi.fn()];
@@ -201,7 +205,7 @@ const createMockStorage = (overrides: MockStorageOptions = {}) => {
   };
 };
 
-const setupMockStorage = (overrides: MockStorageOptions = {}) => {
+const setupMockStorage = (overrides: MockStorageOptions = DEFAULT_MOCK_STORAGE_OPTIONS) => {
   (storageHook.useStorage as Mock).mockImplementation(createMockStorage(overrides));
 };
 
@@ -271,7 +275,9 @@ const clickClearAllAndConfirm = async (container: HTMLElement) => {
   });
 };
 
-const testRenderWithStorage = (storageOptions: MockStorageOptions = {}) => {
+const testRenderWithStorage = (
+  storageOptions: MockStorageOptions = DEFAULT_MOCK_STORAGE_OPTIONS
+) => {
   setupMockStorage(storageOptions);
   const { container } = render(<IndexPopup />);
   expect(container.querySelector("header")).toBeTruthy();
@@ -333,9 +339,11 @@ const testRulesTab = (
   }
 };
 
+const DEFAULT_CLEANUP_RESULT: CleanupResult = { count: 0, clearedDomains: [] };
+
 const testClearBlacklist = async (
-  mockResult: CleanupResult = { count: 0, clearedDomains: [] },
-  storageOptions: MockStorageOptions = {},
+  mockResult: CleanupResult = DEFAULT_CLEANUP_RESULT,
+  storageOptions: MockStorageOptions = DEFAULT_MOCK_STORAGE_OPTIONS,
   tabQueryOverride?: chrome.tabs.Tab[]
 ) => {
   vi.mocked(performCleanupWithFilter).mockResolvedValue(mockResult);

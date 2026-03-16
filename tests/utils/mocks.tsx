@@ -3,6 +3,11 @@ import { vi } from "vitest";
 import type { ClearLogEntry } from "@/types";
 import { CookieClearType } from "@/types";
 
+const DEFAULT_COOKIE_OVERRIDES: Partial<chrome.cookies.Cookie> = {};
+const DEFAULT_LOG_ENTRY_OVERRIDES: Partial<ClearLogEntry> = {};
+const DEFAULT_COOKIES: chrome.cookies.Cookie[] = [];
+const DEFAULT_CONFIRM_DIALOG_OPTIONS: ConfirmDialogWrapperOptions = {};
+
 export const hasDomainInText = (
   textContent: string | null | undefined,
   domain: string
@@ -17,7 +22,7 @@ export const hasDomainInText = (
 };
 
 export const createMockCookie = (
-  overrides: Partial<chrome.cookies.Cookie> = {}
+  overrides: Partial<chrome.cookies.Cookie> = DEFAULT_COOKIE_OVERRIDES
 ): chrome.cookies.Cookie => ({
   name: "test",
   value: "value123",
@@ -32,7 +37,9 @@ export const createMockCookie = (
   ...overrides,
 });
 
-export const createMockLogEntry = (overrides: Partial<ClearLogEntry> = {}): ClearLogEntry => ({
+export const createMockLogEntry = (
+  overrides: Partial<ClearLogEntry> = DEFAULT_LOG_ENTRY_OVERRIDES
+): ClearLogEntry => ({
   id: "test-log",
   domain: "example.com",
   count: 1,
@@ -43,7 +50,7 @@ export const createMockLogEntry = (overrides: Partial<ClearLogEntry> = {}): Clea
 });
 
 export const setupChromeCookieMocks = (
-  cookies: chrome.cookies.Cookie[] = [],
+  cookies: chrome.cookies.Cookie[] = DEFAULT_COOKIES,
   options?: { removeError?: Error; setError?: Error }
 ) => {
   vi.spyOn(chrome.cookies, "getAll").mockResolvedValue(cookies);
@@ -325,7 +332,9 @@ const MockConfirmDialogWrapper = ({ children, confirmText, showDataTestId }: Moc
   );
 };
 
-export const createConfirmDialogWrapperMock = (options: ConfirmDialogWrapperOptions = {}) => {
+export const createConfirmDialogWrapperMock = (
+  options: ConfirmDialogWrapperOptions = DEFAULT_CONFIRM_DIALOG_OPTIONS
+) => {
   const { confirmText, showDataTestId = true } = options;
   return {
     ConfirmDialogWrapper: ({
