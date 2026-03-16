@@ -3,7 +3,7 @@ import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import IndexPopup from "@/entrypoints/popup/App";
 import * as storageHook from "@/hooks/useStorage";
 import { DEFAULT_SETTINGS } from "@/lib/store";
-import { performCleanupWithFilter } from "@/utils/cleanup";
+import { performCleanupWithFilter, type CleanupResult } from "@/utils/cleanup";
 import type { Cookie } from "@/types";
 
 vi.mock("@/hooks/useStorage", () => ({
@@ -334,9 +334,9 @@ const testRulesTab = (
 };
 
 const testClearBlacklist = async (
-  mockResult: any,
+  mockResult: CleanupResult = { count: 0, clearedDomains: [] },
   storageOptions: MockStorageOptions = {},
-  tabQueryOverride?: any
+  tabQueryOverride?: chrome.tabs.Tab[]
 ) => {
   vi.mocked(performCleanupWithFilter).mockResolvedValue(mockResult);
 
@@ -889,7 +889,7 @@ describe("IndexPopup", () => {
     await testClearBlacklist(
       { count: 5, clearedDomains: ["example.com", "test.com"] },
       { blacklist: ["example.com", "test.com"] },
-      [{ url: "https://example.com/page", active: true } as any]
+      [{ url: "https://example.com/page", active: true } as chrome.tabs.Tab]
     );
   });
 

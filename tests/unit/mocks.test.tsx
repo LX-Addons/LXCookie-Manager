@@ -253,7 +253,10 @@ describe("mocks", () => {
       const testError = new Error("Remove failed");
       setupChromeCookieMocks([], { removeError: testError });
       await expect(
-        (chrome.cookies.remove as any)({ name: "test", url: "http://example.com" })
+        chrome.cookies.remove({
+          name: "test",
+          url: "http://example.com",
+        })
       ).rejects.toThrow("Remove failed");
     });
 
@@ -261,7 +264,11 @@ describe("mocks", () => {
       const testError = new Error("Set failed");
       setupChromeCookieMocks([], { setError: testError });
       await expect(
-        (chrome.cookies.set as any)({ name: "test", url: "http://example.com", value: "test" })
+        chrome.cookies.set({
+          name: "test",
+          url: "http://example.com",
+          value: "test",
+        })
       ).rejects.toThrow("Set failed");
     });
   });
@@ -324,8 +331,16 @@ describe("mocks", () => {
   });
 
   describe("createConfirmDialogWrapperMock", () => {
+    type ShowConfirmFn = (
+      title: string,
+      message: string,
+      variant: string,
+      onConfirm: () => void
+    ) => ReactNode;
     const createTestComponent = (
-      ConfirmDialogWrapper: React.ComponentType<{ children: (showConfirm: any) => ReactNode }>,
+      ConfirmDialogWrapper: React.ComponentType<{
+        children: (showConfirm: ShowConfirmFn) => ReactNode;
+      }>,
       onConfirm: () => void
     ) => {
       const TestComponent = () => (

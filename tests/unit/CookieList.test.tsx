@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { useState, ReactNode } from "react";
 import { CookieList, CookieListContent } from "@/components/CookieList";
 import { hasDomainInText } from "../utils/mocks";
+import type { Cookie } from "@/types";
 
 const mockCookies = [
   {
@@ -153,7 +154,18 @@ vi.mock("@/components/CookieEditor", () => ({
 }));
 
 vi.mock("@/components/ConfirmDialogWrapper", () => ({
-  ConfirmDialogWrapper: ({ children }: { children: (showConfirm: any) => ReactNode }) => {
+  ConfirmDialogWrapper: ({
+    children,
+  }: {
+    children: (
+      showConfirm: (
+        title: string,
+        message: string,
+        variant: string,
+        onConfirm: () => void
+      ) => ReactNode
+    ) => ReactNode;
+  }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
 
@@ -216,7 +228,7 @@ const setupMocks = () => {
   return { mockOnUpdate, mockOnMessage, mockOnAddToWhitelist, mockOnAddToBlacklist };
 };
 
-const renderAndExpandCookieList = (Component: any, props: any = {}) => {
+const renderAndExpandCookieList = (Component: React.ComponentType<any>, props: Record<string, unknown> = {}) => {
   const result = render(<Component {...props} />);
   const headerButton = screen.getByRole("button", { name: /Cookie 详情/ });
   fireEvent.click(headerButton);
@@ -404,48 +416,48 @@ describe("CookieList", () => {
   });
 });
 
+const CookieListContentWithConfirm = (
+  props: Omit<React.ComponentProps<typeof CookieListContent>, "showConfirm">
+) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
+
+  const showConfirm = (
+    _title: string,
+    _message: string,
+    _variant: string,
+    onConfirm: () => void
+  ) => {
+    setConfirmCallback(() => onConfirm);
+    setIsOpen(true);
+    return null;
+  };
+
+  return (
+    <>
+      <CookieListContent {...props} showConfirm={showConfirm} />
+      {isOpen && (
+        <div className="confirm-dialog" data-testid="confirm-dialog">
+          <button
+            data-testid="confirm-yes"
+            onClick={() => {
+              confirmCallback?.();
+              setIsOpen(false);
+            }}
+          >
+            确定
+          </button>
+          <button data-testid="confirm-no" onClick={() => setIsOpen(false)}>
+            取消
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
 describe("CookieListContent", () => {
   const { mockOnUpdate, mockOnMessage, mockOnAddToWhitelist, mockOnAddToBlacklist } = setupMocks();
-
-  const CookieListContentWithConfirm = (
-    props: Omit<React.ComponentProps<typeof CookieListContent>, "showConfirm">
-  ) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
-
-    const showConfirm = (
-      _title: string,
-      _message: string,
-      _variant: string,
-      onConfirm: () => void
-    ) => {
-      setConfirmCallback(() => onConfirm);
-      setIsOpen(true);
-      return null;
-    };
-
-    return (
-      <>
-        <CookieListContent {...props} showConfirm={showConfirm} />
-        {isOpen && (
-          <div className="confirm-dialog" data-testid="confirm-dialog">
-            <button
-              data-testid="confirm-yes"
-              onClick={() => {
-                confirmCallback?.();
-                setIsOpen(false);
-              }}
-            >
-              确定
-            </button>
-            <button data-testid="confirm-no" onClick={() => setIsOpen(false)}>
-              取消
-            </button>
-          </div>
-        )}
-      </>
-    );
-  };
 
   it("should render content component", () => {
     render(
@@ -559,46 +571,6 @@ describe("CookieListContent", () => {
 describe("CookieList additional regression tests", () => {
   const { mockOnUpdate, mockOnMessage, mockOnAddToWhitelist, mockOnAddToBlacklist } = setupMocks();
 
-  const CookieListContentWithConfirm = (
-    props: Omit<React.ComponentProps<typeof CookieListContent>, "showConfirm">
-  ) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
-
-    const showConfirm = (
-      _title: string,
-      _message: string,
-      _variant: string,
-      onConfirm: () => void
-    ) => {
-      setConfirmCallback(() => onConfirm);
-      setIsOpen(true);
-      return null;
-    };
-
-    return (
-      <>
-        <CookieListContent {...props} showConfirm={showConfirm} />
-        {isOpen && (
-          <div className="confirm-dialog" data-testid="confirm-dialog">
-            <button
-              data-testid="confirm-yes"
-              onClick={() => {
-                confirmCallback?.();
-                setIsOpen(false);
-              }}
-            >
-              确定
-            </button>
-            <button data-testid="confirm-no" onClick={() => setIsOpen(false)}>
-              取消
-            </button>
-          </div>
-        )}
-      </>
-    );
-  };
-
   it("should handle cookies with same name and domain but different paths separately", () => {
     const cookiesWithSameName = [
       {
@@ -638,7 +610,9 @@ describe("CookieList additional regression tests", () => {
 
   it("should recognize full cookie key for sensitive statistics", async () => {
     const { isSensitiveCookie } = await import("@/utils");
-    (isSensitiveCookie as any).mockImplementation((cookie: any) => cookie.name === "sensitive");
+    (isSensitiveCookie as ReturnType<typeof vi.fn>).mockImplementation(
+      (cookie: Cookie) => cookie.name === "sensitive"
+    );
 
     const sensitiveCookies = [
       {
@@ -851,7 +825,9 @@ describe("CookieList additional regression tests", () => {
 
   it("should handle sensitive cookie in delete selected", async () => {
     const { isSensitiveCookie } = await import("@/utils");
-    (isSensitiveCookie as any).mockImplementation((cookie: any) => cookie.name === "sensitive");
+    (isSensitiveCookie as ReturnType<typeof vi.fn>).mockImplementation(
+      (cookie: Cookie) => cookie.name === "sensitive"
+    );
 
     const sensitiveCookies = [
       {

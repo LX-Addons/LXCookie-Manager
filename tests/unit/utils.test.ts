@@ -727,7 +727,7 @@ describe("createCookie", () => {
     const result = await createCookie({
       value: "value",
       domain: "example.com",
-    } as any);
+    } as Partial<Parameters<typeof createCookie>[0]>);
     expect(result).toBe(false);
   });
 
@@ -735,7 +735,7 @@ describe("createCookie", () => {
     const result = await createCookie({
       name: "test",
       value: "value",
-    } as any);
+    } as Partial<Parameters<typeof createCookie>[0]>);
     expect(result).toBe(false);
   });
 

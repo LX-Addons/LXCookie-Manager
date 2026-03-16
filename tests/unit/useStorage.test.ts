@@ -15,7 +15,10 @@ vi.doMock("wxt/utils/storage", () => ({
 }));
 
 describe("useStorage", () => {
-  let useStorage: any;
+  let useStorage: <T>(
+    key: `local:${string}` | `session:${string}` | `sync:${string}` | `managed:${string}`,
+    defaultValue: T
+  ) => readonly [T, (newValue: T | ((prev: T) => T)) => void];
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -59,14 +62,14 @@ describe("useStorage", () => {
     });
 
     it("should update value when watcher triggers", () => {
-      let watchCallback: (newValue: any) => void;
-      mockStorage.watch.mockImplementation((key: string, callback: (newValue: any) => void) => {
+      let watchCallback: ((newValue: unknown) => void) | undefined;
+      mockStorage.watch.mockImplementation((key: string, callback: (newValue: unknown) => void) => {
         watchCallback = callback;
         return () => {};
       });
       const { result } = renderHook(() => useStorage("local:test", "default"));
       act(() => {
-        watchCallback!("updated value");
+        watchCallback?.("updated value");
       });
       expect(result.current[0]).toBe("updated value");
     });

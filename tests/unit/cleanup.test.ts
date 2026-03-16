@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { performCleanup, performCleanupWithFilter, cleanupExpiredCookies } from "@/utils/cleanup";
-import { CookieClearType, ModeType } from "@/types";
+import { CookieClearType, ModeType, Settings } from "@/types";
 import { storage } from "@/lib/store";
 
 vi.mock("@/lib/store", () => ({
@@ -83,13 +83,13 @@ vi.mock("@/utils", async (importOriginal) => {
 });
 
 const setupStorageMock = (
-  settings: any = {},
+  settings: Partial<Settings> | null | undefined = {},
   whitelist: string[] = [],
   blacklist: string[] = []
 ) => {
   vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
     if (key === "local:settings") {
-      return settings;
+      return settings === undefined ? null : settings;
     }
     if (key === "local:whitelist") {
       return whitelist;
@@ -264,7 +264,7 @@ describe("cleanup", () => {
   });
 
   describe("cleanupExpiredCookies", () => {
-    const setupChromeMocks = (cookies: any[]) => {
+    const setupChromeMocks = (cookies: unknown[]) => {
       globalThis.chrome = {
         cookies: {
           getAll: vi.fn().mockResolvedValue(cookies),
@@ -437,7 +437,7 @@ describe("cleanup", () => {
       return { removeSpy, setSpy };
     };
 
-    const createOriginalCookie = (overrides: any = {}) => ({
+    const createOriginalCookie = (overrides: Partial<chrome.cookies.Cookie> = {}) => ({
       name: "test",
       value: "value123",
       domain: ".example.com",
@@ -599,9 +599,9 @@ describe("cleanup", () => {
       const { createCookie } = await import("@/utils");
       const result1 = await createCookie({
         name: "test",
-        value: undefined,
+        value: undefined as unknown as string,
         domain: "example.com",
-      } as any);
+      });
       expect(result1).toBe(false);
     });
   });

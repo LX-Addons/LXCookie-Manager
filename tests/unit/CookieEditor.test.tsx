@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CookieEditor } from "@/components/CookieEditor";
+import type { Cookie } from "@/types";
 
 vi.mock("@/hooks/useTranslation", () => ({
   useTranslation: () => ({
@@ -36,7 +37,7 @@ vi.mock("@/hooks/useTranslation", () => ({
   }),
 }));
 
-const mockCookie = {
+const mockCookie: Cookie = {
   name: "test",
   value: "value123",
   domain: ".example.com",
@@ -55,10 +56,10 @@ const setupMocks = () => {
 
 const renderCookieEditor = (
   isOpen: boolean = true,
-  cookie: any = null,
+  cookie: Cookie | null = null,
   currentDomain?: string,
-  onClose?: any,
-  onSave?: any
+  onClose?: () => void,
+  onSave?: (cookie: Cookie) => Promise<boolean>
 ) => {
   const { mockOnClose, mockOnSave } = setupMocks();
   const result = render(
@@ -73,11 +74,17 @@ const renderCookieEditor = (
   return { ...result, mockOnClose: onClose || mockOnClose, mockOnSave: onSave || mockOnSave };
 };
 
-const testInputUpdate = (getElement: () => HTMLElement, newValue: string, cookie: any = null) => {
+const testInputUpdate = (
+  getElement: () => HTMLElement,
+  newValue: string,
+  cookie: Cookie | null = null
+) => {
   renderCookieEditor(true, cookie);
   const element = getElement();
   fireEvent.change(element, { target: { value: newValue } });
-  expect((element as any).value).toBe(newValue);
+  expect((element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value).toBe(
+    newValue
+  );
 };
 
 const submitForm = () => {

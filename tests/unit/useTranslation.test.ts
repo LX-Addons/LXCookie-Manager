@@ -24,7 +24,11 @@ vi.doMock("wxt/utils/storage", () => ({
 vi.doMock("@/i18n", () => mockI18n);
 
 describe("useTranslation", () => {
-  let useTranslation: any;
+  let useTranslation: () => {
+    t: (path: string, params?: Record<string, string | number>) => string;
+    locale: "zh-CN" | "en-US";
+    setLocale: (newLocale: "zh-CN" | "en-US") => void;
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();

@@ -282,6 +282,7 @@ interface MockWrapperProps {
   showDataTestId: boolean;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const MockConfirmDialogWrapper = ({ children, confirmText, showDataTestId }: MockWrapperProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [confirmCallback, setConfirmCallback] = useState<(() => void) | null>(null);
