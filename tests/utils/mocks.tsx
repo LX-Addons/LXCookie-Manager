@@ -58,13 +58,13 @@ export const setupChromeCookieMocks = (
   if (options?.removeError) {
     vi.spyOn(chrome.cookies, "remove").mockRejectedValue(options.removeError);
   } else {
-    vi.spyOn(chrome.cookies, "remove").mockResolvedValue(undefined);
+    vi.spyOn(chrome.cookies, "remove").mockResolvedValue();
   }
 
   if (options?.setError) {
     vi.spyOn(chrome.cookies, "set").mockRejectedValue(options.setError);
   } else {
-    vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    vi.spyOn(chrome.cookies, "set").mockResolvedValue();
   }
 };
 

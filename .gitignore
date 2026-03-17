@@ -20,7 +20,6 @@ playwright-report
 .env
 .env.local
 .env.development.local
-.env.test.local
 .env.production.local
 
 # IDE/Editor
@@ -40,6 +39,7 @@ Desktop.ini
 
 # Logs
 *.log
+debug.log
 
 # Temporary files
 temp/
@@ -59,15 +59,6 @@ yarn.lock
 .trae/documents
 .trae/rules
 NON_CORE_FILES.md
-.pnpm-store
 
 # Other IDEs
 .qodo
-
-# Logs
-*.log
-debug.log
-
-# Auto-generated directories
-.wxt
-.output

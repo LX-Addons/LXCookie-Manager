@@ -77,13 +77,13 @@
 ### 📦 安装依赖
 
 ```bash
-npx pnpm install --config.store-dir=./.pnpm-store
+pnpm install
 ```
 
 ### 🔧 开发模式
 
 ```bash
-npx pnpm run dev
+pnpm run dev
 ```
 
 ### 📥 加载扩展
@@ -96,28 +96,28 @@ npx pnpm run dev
 ### 🏗️ 构建发布
 
 ```bash
-npx pnpm run build
-npx pnpm run zip
+pnpm run build
+pnpm run zip
 ```
 
 ### ✅ 代码质量
 
 ```bash
-npx pnpm run lint          # ESLint 检查
-npx pnpm run lint:fix      # 自动修复 ESLint 问题
-npx pnpm run format        # Prettier 格式化代码
-npx pnpm run format:check  # 检查代码格式
-npx pnpm run type-check    # TypeScript 类型检查
+pnpm run lint          # ESLint 检查
+pnpm run lint:fix      # 自动修复 ESLint 问题
+pnpm run format        # Prettier 格式化代码
+pnpm run format:check  # 检查代码格式
+pnpm run type-check    # TypeScript 类型检查
 ```
 
 ### 🧪 测试
 
 ```bash
-npx pnpm run test          # 运行单元测试
-npx pnpm run test:ui       # 单元测试 UI 模式
-npx pnpm run test:coverage # 生成测试覆盖率报告
-npx pnpm run test:e2e      # 运行 E2E 测试
-npx pnpm run test:e2e:ui   # E2E 测试 UI 模式
+pnpm run test          # 运行单元测试
+pnpm run test:ui       # 单元测试 UI 模式
+pnpm run test:coverage # 生成测试覆盖率报告
+pnpm run test:e2e      # 运行 E2E 测试
+pnpm run test:e2e:ui   # E2E 测试 UI 模式
 ```
 
 ---
