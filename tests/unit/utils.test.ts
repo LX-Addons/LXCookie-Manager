@@ -56,10 +56,8 @@ const createMockCookies = () =>
 
 const setupCookieMocks = (cookies: chrome.cookies.Cookie[]) => {
   vi.spyOn(chrome.cookies, "getAll").mockResolvedValue(cookies);
-  vi.spyOn(chrome.cookies, "remove").mockImplementation(
-    async (details: chrome.cookies.Details) => details
-  );
-  vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+  vi.spyOn(chrome.cookies, "remove").mockResolvedValue();
+  vi.spyOn(chrome.cookies, "set").mockResolvedValue();
 };
 
 describe("normalizeDomain", () => {

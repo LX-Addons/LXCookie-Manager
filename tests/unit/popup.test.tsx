@@ -234,7 +234,7 @@ const setupChromeMocks = () => {
   global.chrome = {
     cookies: {
       getAll: vi.fn(() => Promise.resolve(mockCookies)),
-      remove: vi.fn(() => Promise.resolve(true)),
+      remove: vi.fn(() => Promise.resolve()),
       onChanged: {
         addListener: vi.fn(),
         removeListener: vi.fn(),

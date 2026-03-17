@@ -184,7 +184,7 @@ export default defineBackground(() => {
 
   const handleTabNavigate = async (
     tabId: number,
-    changeInfo: chrome.tabs.TabChangeInfo,
+    changeInfo: { url?: string },
     settings: Settings
   ) => {
     if (!changeInfo.url) return;
@@ -214,7 +214,7 @@ export default defineBackground(() => {
 
   const handleTabUpdated = async (
     tabId: number,
-    changeInfo: chrome.tabs.TabChangeInfo,
+    changeInfo: { url?: string; discarded?: boolean },
     tab: chrome.tabs.Tab
   ) => {
     const settings = await storage.getItem<Settings>(SETTINGS_KEY);
@@ -257,7 +257,7 @@ export default defineBackground(() => {
     });
   };
 
-  const handleTabRemoved = async (tabId: number, removeInfo: chrome.tabs.TabRemoveInfo) => {
+  const handleTabRemoved = async (tabId: number, removeInfo: { isWindowClosing?: boolean }) => {
     const settings = await storage.getItem<Settings>(SETTINGS_KEY);
     if (!settings?.enableAutoCleanup) return;
 
