@@ -55,7 +55,7 @@ const createMockCookies = () =>
   ] as chrome.cookies.Cookie[];
 
 const setupCookieMocks = (cookies: chrome.cookies.Cookie[]) => {
-  vi.spyOn(chrome.cookies, "getAll").mockResolvedValue(cookies as any);
+  vi.spyOn(chrome.cookies, "getAll").mockImplementation(() => Promise.resolve(cookies));
   vi.spyOn(chrome.cookies, "remove").mockResolvedValue();
   vi.spyOn(chrome.cookies, "set").mockResolvedValue();
 };
@@ -306,7 +306,7 @@ describe("clearCookies", () => {
 
   it("should handle errors when clearing cookies", async () => {
     const mockCookies = createMockCookies();
-    vi.spyOn(chrome.cookies, "getAll").mockResolvedValue(mockCookies as any);
+    vi.spyOn(chrome.cookies, "getAll").mockImplementation(() => Promise.resolve(mockCookies));
     vi.spyOn(chrome.cookies, "remove").mockRejectedValue(new Error("Failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 

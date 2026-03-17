@@ -1,7 +1,7 @@
 import { storage, WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import type { Settings } from "@/types";
 import { ModeType, CookieClearType } from "@/types";
-import { isInList, isDomainMatch } from "@/utils";
+import { isInList, isDomainMatch, type CookieRemoveDetails } from "@/utils";
 import { clearBrowserData, clearCookies, type ClearBrowserDataOptions } from "@/utils";
 
 export interface CleanupOptions {
@@ -116,7 +116,7 @@ export const cleanupExpiredCookies = async (): Promise<number> => {
       if (cookie.expirationDate && cookie.expirationDate * 1000 < now) {
         const cleanedDomain = cookie.domain.replace(/^\./, "");
         const url = `http${cookie.secure ? "s" : ""}://${cleanedDomain}${cookie.path}`;
-        const removeDetails: { url: string; name: string; storeId?: string } = {
+        const removeDetails: CookieRemoveDetails = {
           url,
           name: cookie.name,
         };

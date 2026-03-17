@@ -53,6 +53,21 @@ export const buildOrigins = (domains: Set<string>): string[] => {
   return [...domains].flatMap((d) => [`https://${d}`, `http://${d}`]);
 };
 
+/**
+ * 构建非空的 origins 数组，用于 chrome.browsingData.remove
+ * 如果 domains 为空，返回 null 表示不需要执行清理操作
+ */
+export const buildNonEmptyOrigins = (domains: Set<string>): [string, ...string[]] | null => {
+  if (domains.size === 0) {
+    return null;
+  }
+  const origins = buildOrigins(domains);
+  if (origins.length === 0) {
+    return null;
+  }
+  return origins as [string, ...string[]];
+};
+
 export const buildDomainString = (
   clearedDomains: Set<string>,
   successMsg: string,
@@ -230,7 +245,7 @@ export const clearSingleCookie = async (
 ): Promise<boolean> => {
   try {
     const url = buildCookieUrl(cookie, cleanedDomain);
-    const removeDetails: { url: string; name: string; storeId?: string } = {
+    const removeDetails: CookieRemoveDetails = {
       url,
       name: cookie.name,
     };
@@ -376,45 +391,51 @@ export const clearCookies = async (options: ClearCookiesOptions = {}) => {
 export const clearBrowserData = async (domains: Set<string>, options: ClearBrowserDataOptions) => {
   const { clearCache, clearLocalStorage, clearIndexedDB } = options;
 
-  if (clearCache && domains.size > 0) {
+  if (clearCache) {
     try {
-      const origins = buildOrigins(domains) as [string, ...string[]];
-      await chrome.browsingData.remove(
-        { origins },
-        {
-          cacheStorage: true,
-          fileSystems: true,
-          serviceWorkers: true,
-        }
-      );
+      const origins = buildNonEmptyOrigins(domains);
+      if (origins) {
+        await chrome.browsingData.remove(
+          { origins },
+          {
+            cacheStorage: true,
+            fileSystems: true,
+            serviceWorkers: true,
+          }
+        );
+      }
     } catch (e) {
       console.error("Failed to clear cache:", e);
     }
   }
 
-  if (clearLocalStorage && domains.size > 0) {
+  if (clearLocalStorage) {
     try {
-      const origins = buildOrigins(domains) as [string, ...string[]];
-      await chrome.browsingData.remove(
-        { origins },
-        {
-          localStorage: true,
-        }
-      );
+      const origins = buildNonEmptyOrigins(domains);
+      if (origins) {
+        await chrome.browsingData.remove(
+          { origins },
+          {
+            localStorage: true,
+          }
+        );
+      }
     } catch (e) {
       console.error("Failed to clear localStorage:", e);
     }
   }
 
-  if (clearIndexedDB && domains.size > 0) {
+  if (clearIndexedDB) {
     try {
-      const origins = buildOrigins(domains) as [string, ...string[]];
-      await chrome.browsingData.remove(
-        { origins },
-        {
-          indexedDB: true,
-        }
-      );
+      const origins = buildNonEmptyOrigins(domains);
+      if (origins) {
+        await chrome.browsingData.remove(
+          { origins },
+          {
+            indexedDB: true,
+          }
+        );
+      }
     } catch (e) {
       console.error("Failed to clear IndexedDB:", e);
     }
@@ -482,6 +503,8 @@ export const formatLogTime = (timestamp: number, locale: string = "zh-CN"): stri
   });
 };
 
+export type CookieRemoveDetails = Parameters<typeof chrome.cookies.remove>[0];
+
 export const maskCookieValue = (value: string, mask: string): string => {
   if (!value || value.length === 0) return mask;
   if (value.length <= 8) return mask;
@@ -524,7 +547,7 @@ export const toChromeSameSite = (
     return undefined;
   }
   if (sameSite === "lax" || sameSite === "strict") {
-    return sameSite as "lax" | "strict";
+    return sameSite;
   }
   return undefined;
 };

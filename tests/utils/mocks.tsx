@@ -53,7 +53,9 @@ export const setupChromeCookieMocks = (
   cookies: chrome.cookies.Cookie[] = DEFAULT_COOKIES,
   options?: { removeError?: Error; setError?: Error }
 ) => {
-  vi.spyOn(chrome.cookies, "getAll").mockResolvedValue(cookies as any);
+  vi.spyOn(chrome.cookies, "getAll").mockImplementation(
+    async () => cookies as chrome.cookies.Cookie[]
+  );
 
   if (options?.removeError) {
     vi.spyOn(chrome.cookies, "remove").mockRejectedValue(options.removeError);
