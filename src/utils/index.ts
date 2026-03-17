@@ -230,7 +230,7 @@ export const clearSingleCookie = async (
 ): Promise<boolean> => {
   try {
     const url = buildCookieUrl(cookie, cleanedDomain);
-    const removeDetails: chrome.cookies.Details = {
+    const removeDetails: { url: string; name: string; storeId?: string } = {
       url,
       name: cookie.name,
     };
@@ -378,7 +378,7 @@ export const clearBrowserData = async (domains: Set<string>, options: ClearBrows
 
   if (clearCache && domains.size > 0) {
     try {
-      const origins = buildOrigins(domains);
+      const origins = buildOrigins(domains) as [string, ...string[]];
       await chrome.browsingData.remove(
         { origins },
         {
@@ -394,7 +394,7 @@ export const clearBrowserData = async (domains: Set<string>, options: ClearBrows
 
   if (clearLocalStorage && domains.size > 0) {
     try {
-      const origins = buildOrigins(domains);
+      const origins = buildOrigins(domains) as [string, ...string[]];
       await chrome.browsingData.remove(
         { origins },
         {
@@ -408,7 +408,7 @@ export const clearBrowserData = async (domains: Set<string>, options: ClearBrows
 
   if (clearIndexedDB && domains.size > 0) {
     try {
-      const origins = buildOrigins(domains);
+      const origins = buildOrigins(domains) as [string, ...string[]];
       await chrome.browsingData.remove(
         { origins },
         {
@@ -514,7 +514,9 @@ export const fromChromeSameSite = (sameSite?: string): string => {
   return sameSite || "unspecified";
 };
 
-export const toChromeSameSite = (sameSite?: string): chrome.cookies.SameSiteStatus | undefined => {
+export const toChromeSameSite = (
+  sameSite?: string
+): "no_restriction" | "lax" | "strict" | undefined => {
   if (sameSite === "none" || sameSite === "no_restriction") {
     return "no_restriction";
   }
@@ -522,7 +524,7 @@ export const toChromeSameSite = (sameSite?: string): chrome.cookies.SameSiteStat
     return undefined;
   }
   if (sameSite === "lax" || sameSite === "strict") {
-    return sameSite as chrome.cookies.SameSiteStatus;
+    return sameSite as "lax" | "strict";
   }
   return undefined;
 };

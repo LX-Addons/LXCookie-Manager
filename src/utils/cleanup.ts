@@ -116,7 +116,7 @@ export const cleanupExpiredCookies = async (): Promise<number> => {
       if (cookie.expirationDate && cookie.expirationDate * 1000 < now) {
         const cleanedDomain = cookie.domain.replace(/^\./, "");
         const url = `http${cookie.secure ? "s" : ""}://${cleanedDomain}${cookie.path}`;
-        const removeDetails: chrome.cookies.Details = {
+        const removeDetails: { url: string; name: string; storeId?: string } = {
           url,
           name: cookie.name,
         };

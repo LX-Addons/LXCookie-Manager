@@ -349,7 +349,7 @@ const testClearBlacklist = async (
   vi.mocked(performCleanupWithFilter).mockResolvedValue(mockResult);
 
   if (tabQueryOverride) {
-    vi.mocked(chrome.tabs.query).mockResolvedValue(tabQueryOverride);
+    vi.mocked(chrome.tabs.query).mockResolvedValue(tabQueryOverride as any);
   }
 
   setupMockStorage({ mode: "blacklist", ...storageOptions });

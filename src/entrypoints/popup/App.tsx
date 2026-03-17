@@ -335,6 +335,7 @@ function IndexPopup() {
     init();
   }, []);
 
+  // 当 currentDomain 变化时更新 stats - 这是同步外部系统 (chrome.cookies) 到 React 状态的合理使用场景
   useEffect(() => {
     updateStats();
   }, [currentDomain, updateStats]);

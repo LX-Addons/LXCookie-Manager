@@ -62,6 +62,7 @@ export const CookieListContent = memo(
       );
     }, [cookies, selectedCookies]);
 
+    // 当 cookies 变化时，清理无效的选中项 - 这是同步外部状态的合理使用场景
     useEffect(() => {
       const validKeys = new Set(
         cookies.map((cookie) =>
