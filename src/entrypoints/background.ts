@@ -9,7 +9,7 @@ import {
   TAB_URL_MAP_KEY,
 } from "@/lib/store";
 import type { Settings } from "@/types";
-import { performCleanup, performCleanupWithFilter } from "@/utils/cleanup";
+import { performCleanup, performCleanupWithFilter, cleanupExpiredCookies } from "@/utils/cleanup";
 import { ScheduleInterval } from "@/types";
 import { ALARM_INTERVAL_MINUTES } from "@/lib/constants";
 
@@ -59,24 +59,54 @@ export default defineBackground(() => {
     await saveTabUrlMap(tabUrlMap);
   };
 
+  const shouldPerformCleanup = (settings: Settings, now: number): boolean => {
+    if (settings.scheduleInterval === ScheduleInterval.DISABLED) return false;
+    const lastCleanup = settings.lastScheduledCleanup || 0;
+    const interval = SCHEDULE_INTERVAL_MAP[settings.scheduleInterval];
+    return now - lastCleanup >= interval;
+  };
+
+  const handleExpiredCookiesCleanup = async (settings: Settings, now: number) => {
+    if (!settings.cleanupExpiredCookies) return;
+    if (!shouldPerformCleanup(settings, now)) return;
+
+    try {
+      const count = await cleanupExpiredCookies();
+      if (count > 0) {
+        console.log(`Cleaned up ${count} expired cookies on scheduled cleanup`);
+      }
+    } catch (e) {
+      console.error("Failed to cleanup expired cookies on scheduled cleanup:", e);
+    }
+  };
+
+  const updateLastScheduledCleanup = async (timestamp: number) => {
+    const latestSettings = await storage.getItem<Settings>(SETTINGS_KEY);
+    if (latestSettings) {
+      await storage.setItem(SETTINGS_KEY, {
+        ...latestSettings,
+        lastScheduledCleanup: timestamp,
+      });
+    }
+  };
+
   const checkScheduledCleanup = async () => {
     try {
       const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-      if (!settings || settings.scheduleInterval === ScheduleInterval.DISABLED) {
-        return;
-      }
+      if (!settings?.enableAutoCleanup) return;
 
       const now = Date.now();
-      const lastCleanup = settings.lastScheduledCleanup || 0;
-      const interval = SCHEDULE_INTERVAL_MAP[settings.scheduleInterval];
+      let lastScheduledCleanup: number | undefined;
 
-      if (now - lastCleanup >= interval) {
+      if (shouldPerformCleanup(settings, now)) {
         await performCleanupWithFilter(() => true, getCleanupOptions(settings));
+        lastScheduledCleanup = now;
+      }
 
-        await storage.setItem(SETTINGS_KEY, {
-          ...settings,
-          lastScheduledCleanup: now,
-        });
+      await handleExpiredCookiesCleanup(settings, now);
+
+      if (lastScheduledCleanup !== undefined) {
+        await updateLastScheduledCleanup(lastScheduledCleanup);
       }
     } catch (e) {
       console.error("Failed to perform scheduled cleanup:", e);
@@ -277,15 +307,8 @@ export default defineBackground(() => {
     }
   };
 
-  const handleStartup = async () => {
-    await chrome.alarms.create("scheduled-cleanup", {
-      periodInMinutes: ALARM_INTERVAL_MINUTES,
-    });
-
-    const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-    if (!settings?.enableAutoCleanup) return;
-
-    await initializeTabUrlMap();
+  const runAutoCleanupTasks = async (settings: Settings) => {
+    if (!settings.enableAutoCleanup) return;
 
     if (settings.cleanupOnBrowserClose) {
       try {
@@ -302,6 +325,32 @@ export default defineBackground(() => {
         console.error("Failed to cleanup on startup:", e);
       }
     }
+  };
+
+  const runExpiredCookiesCleanup = async (settings: Settings) => {
+    if (!settings.enableAutoCleanup || !settings.cleanupExpiredCookies) return;
+
+    try {
+      const count = await cleanupExpiredCookies();
+      if (count > 0) {
+        console.log(`Cleaned up ${count} expired cookies on startup`);
+      }
+    } catch (e) {
+      console.error("Failed to cleanup expired cookies on startup:", e);
+    }
+  };
+
+  const handleStartup = async () => {
+    await chrome.alarms.create("scheduled-cleanup", {
+      periodInMinutes: ALARM_INTERVAL_MINUTES,
+    });
+
+    const settings = await storage.getItem<Settings>(SETTINGS_KEY);
+    if (!settings) return;
+
+    await initializeTabUrlMap();
+    await runAutoCleanupTasks(settings);
+    await runExpiredCookiesCleanup(settings);
   };
 
   const initializeStorage = async () => {

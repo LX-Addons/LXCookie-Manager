@@ -1,7 +1,7 @@
 # 🍪 Cookie Manager Pro
 
 <div align="center">
-  <img src="./assets/icon.png" alt="Cookie Manager Pro" width="120" height="120" />
+  <img src="./public/icon.png" alt="Cookie Manager Pro" width="120" height="120" />
 
   <h3 align="center">
     <strong>高级 Cookie 管理扩展</strong>
@@ -49,6 +49,7 @@
 
 - **实时统计**：总数、当前网站、会话 Cookie、持久 Cookie 一目了然
 - **详细信息**：查看 Cookie 名称、值、域名、路径、过期时间、安全属性
+- **Cookie 编辑**：支持创建、编辑、删除单个 Cookie
 - **选择性清理**：全部 Cookie / 仅会话 Cookie / 仅持久 Cookie
 - **过期清理**：一键清理所有已过期的 Cookie
 
@@ -57,6 +58,11 @@
 - **标签页丢弃**：当标签页被丢弃时自动清理对应 Cookie
 - **启动清理**：浏览器启动时自动清理当前标签页 Cookie
 - **过期检测**：自动识别并清理过期 Cookie
+
+### 🌍 国际化支持
+
+- **多语言**：支持中文（简体）和英文
+- **自动检测**：跟随浏览器语言设置
 
 ### 🎨 个性化体验
 
@@ -71,13 +77,13 @@
 ### 📦 安装依赖
 
 ```bash
-npm install
+npx pnpm install --config.store-dir=./.pnpm-store
 ```
 
 ### 🔧 开发模式
 
 ```bash
-npm run dev
+npx pnpm run dev
 ```
 
 ### 📥 加载扩展
@@ -85,32 +91,33 @@ npm run dev
 1. 打开 `chrome://extensions/` 或 `edge://extensions/`
 2. 启用「开发者模式」
 3. 点击「加载已解压的扩展程序」
-4. 选择 `build/chrome-mv3-dev` 文件夹
+4. 选择 `.output/chrome-mv3` 文件夹
 
 ### 🏗️ 构建发布
 
 ```bash
-npm run build
-npm run package
+npx pnpm run build
+npx pnpm run zip
 ```
 
 ### ✅ 代码质量
 
 ```bash
-npm run lint          # ESLint 检查
-npm run lint:fix      # 自动修复 ESLint 问题
-npm run format        # Prettier 格式化代码
-npm run format:check  # 检查代码格式
+npx pnpm run lint          # ESLint 检查
+npx pnpm run lint:fix      # 自动修复 ESLint 问题
+npx pnpm run format        # Prettier 格式化代码
+npx pnpm run format:check  # 检查代码格式
+npx pnpm run type-check    # TypeScript 类型检查
 ```
 
 ### 🧪 测试
 
 ```bash
-npm run test          # 运行单元测试
-npm run test:ui       # 单元测试 UI 模式
-npm run test:coverage # 生成测试覆盖率报告
-npm run test:e2e      # 运行 E2E 测试
-npm run test:e2e:ui   # E2E 测试 UI 模式
+npx pnpm run test          # 运行单元测试
+npx pnpm run test:ui       # 单元测试 UI 模式
+npx pnpm run test:coverage # 生成测试覆盖率报告
+npx pnpm run test:e2e      # 运行 E2E 测试
+npx pnpm run test:e2e:ui   # E2E 测试 UI 模式
 ```
 
 ---
@@ -119,29 +126,61 @@ npm run test:e2e:ui   # E2E 测试 UI 模式
 
 ```
 Cookie_Manager_Pro/
-├── 📂 assets/                 # 静态资源
+├── 📂 public/                 # 静态资源
 │   └── icon.png               # 扩展图标
-├── 📂 components/            # React 组件
-│   ├── ClearLog.tsx          # 清理日志
-│   ├── CookieList.tsx        # Cookie 列表
-│   ├── DomainManager.tsx     # 域名管理
-│   ├── Settings.tsx          # 设置面板
-│   ├── RadioGroup.tsx        # 单选按钮组
-│   └── CheckboxGroup.tsx     # 复选框组
-├── 📂 types/                 # TypeScript 类型
-│   └── index.ts              # 类型定义
-├── 📂 utils/                 # 工具函数
-│   └── cleanup.ts            # 清理逻辑
-├── 📂 tests/                 # 测试文件
-│   ├── e2e/                  # E2E 测试
-│   └── unit/                 # 单元测试
-├── background.ts             # Service Worker
-├── popup.tsx                 # 弹出窗口
-├── store.ts                  # 存储管理
-├── style.css                 # 全局样式
-├── package.json              # 项目配置
-├── tsconfig.json             # TypeScript 配置
-└── README.md                 # 项目说明
+├── 📂 src/
+│   ├── 📂 components/         # React 组件
+│   │   ├── CheckboxGroup.tsx  # 复选框组
+│   │   ├── ClearLog.tsx       # 清理日志
+│   │   ├── ConfirmDialog.tsx  # 确认对话框
+│   │   ├── ConfirmDialogWrapper.tsx
+│   │   ├── CookieEditor.tsx   # Cookie 编辑器
+│   │   ├── CookieList.tsx     # Cookie 列表
+│   │   ├── DomainManager.tsx  # 域名管理
+│   │   ├── ErrorBoundary.tsx  # 错误边界
+│   │   ├── RadioGroup.tsx     # 单选按钮组
+│   │   ├── Select.tsx         # 下拉选择
+│   │   └── Settings.tsx       # 设置面板
+│   ├── 📂 entrypoints/        # 扩展入口
+│   │   ├── popup/             # 弹出窗口
+│   │   │   ├── App.tsx
+│   │   │   ├── index.html
+│   │   │   ├── main.tsx
+│   │   │   └── style.css
+│   │   └── background.ts      # Service Worker
+│   ├── 📂 hooks/              # React Hooks
+│   │   ├── useConfirmDialog.ts
+│   │   ├── useStorage.ts
+│   │   └── useTranslation.ts
+│   ├── 📂 i18n/               # 国际化
+│   │   ├── en-US.json
+│   │   ├── zh-CN.json
+│   │   ├── index.ts
+│   │   └── types.ts
+│   ├── 📂 lib/                # 核心库
+│   │   ├── constants.ts
+│   │   └── store.ts           # 存储管理
+│   ├── 📂 types/              # TypeScript 类型
+│   │   └── index.ts
+│   └── 📂 utils/              # 工具函数
+│       ├── cleanup.ts         # 清理逻辑
+│       └── index.ts
+├── 📂 tests/                  # 测试文件
+│   ├── e2e/                   # E2E 测试
+│   ├── unit/                  # 单元测试
+│   ├── utils/                 # 测试工具
+│   └── setup.ts
+├── 📂 .github/                # GitHub 配置
+│   ├── workflows/             # CI/CD 工作流
+│   └── dependabot.yml
+├── package.json               # 项目配置
+├── tsconfig.json              # TypeScript 配置
+├── wxt.config.ts              # WXT 配置
+├── vitest.config.ts           # Vitest 配置
+├── playwright.config.ts       # Playwright 配置
+├── eslint.config.js           # ESLint 配置
+├── .prettierrc.json           # Prettier 配置
+└── README.md                  # 项目说明
 ```
 
 ---
@@ -150,11 +189,13 @@ Cookie_Manager_Pro/
 
 |           技术            |  版本   | 说明               |
 | :-----------------------: | :-----: | ------------------ |
-|          **WXT**          | 0.20.17 | 现代浏览器扩展框架 |
-|         **React**         | 18.2.0  | 前端 UI 框架       |
-|      **TypeScript**       |  5.3.3  | 类型安全开发       |
-| **@wxt-dev/module-react** |  1.1.2  | WXT React 模块     |
+|          **WXT**          | 0.20.19 | 现代浏览器扩展框架 |
+|         **React**         | 19.1.0  | 前端 UI 框架       |
+|      **TypeScript**       |  5.9.3  | 类型安全开发       |
+| **@wxt-dev/module-react** |  1.2.2  | WXT React 模块     |
 |       **Manifest**        |   V3    | Chrome 扩展规范    |
+|        **Vitest**         | 4.0.18  | 单元测试框架       |
+|      **Playwright**       | 1.58.2  | E2E 测试框架       |
 
 ---
 

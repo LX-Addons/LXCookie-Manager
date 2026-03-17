@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { performCleanup, performCleanupWithFilter, cleanupExpiredCookies } from "@/utils/cleanup";
-import { CookieClearType, ModeType } from "@/types";
+import { CookieClearType, ModeType, Settings } from "@/types";
 import { storage } from "@/lib/store";
 
 vi.mock("@/lib/store", () => ({
@@ -24,61 +24,85 @@ const normalizeDomain = (domain: string): string => {
   return domain.replace(/^\./, "").toLowerCase();
 };
 
-vi.mock("@/utils", () => ({
-  isInList: vi.fn((domain: string, list: string[]) => {
-    const normalizedDomain = normalizeDomain(domain);
-    return list.some((item: string) => {
-      const normalizedItem = normalizeDomain(item);
+const DEFAULT_SETTINGS_MOCK: Partial<Settings> = {};
+const DEFAULT_COOKIE_OVERRIDES: Partial<chrome.cookies.Cookie> = {};
+
+vi.mock("@/utils", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    isInList: vi.fn((domain: string, list: string[]) => {
+      const normalizedDomain = normalizeDomain(domain);
+      return list.some((item: string) => {
+        const normalizedItem = normalizeDomain(item);
+        return (
+          normalizedDomain === normalizedItem || normalizedDomain.endsWith("." + normalizedItem)
+        );
+      });
+    }),
+    isDomainMatch: vi.fn((cookieDomain: string, targetDomain: string) => {
+      const normalizedCookie = normalizeDomain(cookieDomain);
+      const normalizedTarget = normalizeDomain(targetDomain);
       return (
-        normalizedDomain === normalizedItem ||
-        normalizedDomain.endsWith("." + normalizedItem) ||
-        normalizedItem.endsWith("." + normalizedDomain)
+        normalizedCookie === normalizedTarget ||
+        normalizedTarget.endsWith("." + normalizedCookie) ||
+        normalizedCookie.endsWith("." + normalizedTarget)
       );
-    });
-  }),
-  isDomainMatch: vi.fn((cookieDomain: string, targetDomain: string) => {
-    const normalizedCookie = normalizeDomain(cookieDomain);
-    const normalizedTarget = normalizeDomain(targetDomain);
-    return (
-      normalizedCookie === normalizedTarget ||
-      normalizedTarget.endsWith("." + normalizedCookie) ||
-      normalizedCookie.endsWith("." + normalizedTarget)
-    );
-  }),
-  clearCookies: vi.fn(async (options) => {
-    const mockCookies = [
-      {
-        name: "test1",
-        domain: ".example.com",
-        path: "/",
-        secure: true,
-        expirationDate: Date.now() / 1000 + 3600,
-      },
-      { name: "test2", domain: ".test.com", path: "/", secure: false },
-      {
-        name: "test3",
-        domain: ".demo.com",
-        path: "/",
-        secure: true,
-        expirationDate: Date.now() / 1000 + 7200,
-      },
-    ];
-    let count = 0;
-    const clearedDomains = new Set<string>();
+    }),
+    clearCookies: vi.fn(async (options) => {
+      const mockCookies = [
+        {
+          name: "test1",
+          domain: ".example.com",
+          path: "/",
+          secure: true,
+          expirationDate: Date.now() / 1000 + 3600,
+        },
+        { name: "test2", domain: ".test.com", path: "/", secure: false },
+        {
+          name: "test3",
+          domain: ".demo.com",
+          path: "/",
+          secure: true,
+          expirationDate: Date.now() / 1000 + 7200,
+        },
+      ];
+      let count = 0;
+      const clearedDomains = new Set<string>();
 
-    for (const cookie of mockCookies) {
-      const cleanedDomain = cookie.domain.replace(/^\./, "");
-      if (options?.filterFn && !options.filterFn(cleanedDomain)) continue;
-      if (options?.clearType === CookieClearType.SESSION && cookie.expirationDate) continue;
-      if (options?.clearType === CookieClearType.PERSISTENT && !cookie.expirationDate) continue;
-      count++;
-      clearedDomains.add(cleanedDomain);
+      for (const cookie of mockCookies) {
+        const cleanedDomain = cookie.domain.replace(/^\./, "");
+        if (options?.filterFn && !options.filterFn(cleanedDomain)) continue;
+        if (options?.clearType === CookieClearType.SESSION && cookie.expirationDate) continue;
+        if (options?.clearType === CookieClearType.PERSISTENT && !cookie.expirationDate) continue;
+        count++;
+        clearedDomains.add(cleanedDomain);
+      }
+
+      return { count, clearedDomains };
+    }),
+    clearBrowserData: vi.fn(async () => {}),
+  };
+});
+
+const setupStorageMock = (
+  settings: Partial<Settings> | null | undefined = DEFAULT_SETTINGS_MOCK,
+  whitelist: string[] = [],
+  blacklist: string[] = []
+) => {
+  vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
+    if (key === "local:settings") {
+      return settings === undefined ? null : settings;
     }
-
-    return { count, clearedDomains };
-  }),
-  clearBrowserData: vi.fn(async () => {}),
-}));
+    if (key === "local:whitelist") {
+      return whitelist;
+    }
+    if (key === "local:blacklist") {
+      return blacklist;
+    }
+    return null;
+  });
+};
 
 describe("cleanup", () => {
   beforeEach(() => {
@@ -87,276 +111,133 @@ describe("cleanup", () => {
 
   describe("performCleanup", () => {
     it("should return null when domain is in whitelist (whitelist mode)", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return ["example.com"];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL },
+        ["example.com"],
+        []
+      );
       const result = await performCleanup({
         domain: "example.com",
         clearType: CookieClearType.ALL,
       });
-
       expect(result).toBeNull();
     });
 
     it("should cleanup when domain is not in whitelist (whitelist mode)", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return ["other.com"];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL },
+        ["other.com"],
+        []
+      );
       const result = await performCleanup({
         domain: "example.com",
         clearType: CookieClearType.ALL,
       });
-
       expect(result).not.toBeNull();
       expect(result?.count).toBeGreaterThan(0);
     });
 
     it("should return null when domain is not in blacklist (blacklist mode)", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.BLACKLIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return ["other.com"];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.BLACKLIST, clearType: CookieClearType.ALL },
+        [],
+        ["other.com"]
+      );
       const result = await performCleanup({
         domain: "example.com",
         clearType: CookieClearType.ALL,
       });
-
       expect(result).toBeNull();
     });
 
     it("should cleanup when domain is in blacklist (blacklist mode)", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.BLACKLIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return ["example.com"];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.BLACKLIST, clearType: CookieClearType.ALL },
+        [],
+        ["example.com"]
+      );
       const result = await performCleanup({
         domain: "example.com",
         clearType: CookieClearType.ALL,
       });
-
       expect(result).not.toBeNull();
       expect(result?.count).toBeGreaterThan(0);
     });
 
     it("should use default settings when settings is null", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return null;
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock(null, [], []);
       const result = await performCleanup({
         domain: "example.com",
         clearType: CookieClearType.ALL,
       });
-
       expect(result).not.toBeNull();
     });
 
-    it("should pass clearCache option to cleanup", async () => {
+    const testBrowserDataOption = async (
+      optionKey: "clearCache" | "clearLocalStorage" | "clearIndexedDB",
+      optionValue: boolean
+    ) => {
       const { clearBrowserData } = await import("@/utils");
-
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL, clearCache: true };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL, [optionKey]: optionValue },
+        [],
+        []
+      );
       await performCleanup({
         domain: "example.com",
         clearType: CookieClearType.ALL,
-        clearCache: true,
+        [optionKey]: optionValue,
       });
-
       expect(clearBrowserData).toHaveBeenCalledWith(
         expect.any(Set),
-        expect.objectContaining({ clearCache: true })
+        expect.objectContaining({ [optionKey]: optionValue })
       );
-    });
+    };
 
-    it("should pass clearLocalStorage option to cleanup", async () => {
-      const { clearBrowserData } = await import("@/utils");
+    it("should pass clearCache option to cleanup", () => testBrowserDataOption("clearCache", true));
 
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return {
-            mode: ModeType.WHITELIST,
-            clearType: CookieClearType.ALL,
-            clearLocalStorage: true,
-          };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
+    it("should pass clearLocalStorage option to cleanup", () =>
+      testBrowserDataOption("clearLocalStorage", true));
 
-      await performCleanup({
-        domain: "example.com",
-        clearType: CookieClearType.ALL,
-        clearLocalStorage: true,
-      });
-
-      expect(clearBrowserData).toHaveBeenCalledWith(
-        expect.any(Set),
-        expect.objectContaining({ clearLocalStorage: true })
-      );
-    });
-
-    it("should pass clearIndexedDB option to cleanup", async () => {
-      const { clearBrowserData } = await import("@/utils");
-
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return {
-            mode: ModeType.WHITELIST,
-            clearType: CookieClearType.ALL,
-            clearIndexedDB: true,
-          };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
-      await performCleanup({
-        domain: "example.com",
-        clearType: CookieClearType.ALL,
-        clearIndexedDB: true,
-      });
-
-      expect(clearBrowserData).toHaveBeenCalledWith(
-        expect.any(Set),
-        expect.objectContaining({ clearIndexedDB: true })
-      );
-    });
+    it("should pass clearIndexedDB option to cleanup", () =>
+      testBrowserDataOption("clearIndexedDB", true));
   });
 
   describe("performCleanupWithFilter", () => {
     it("should cleanup all domains not in whitelist (whitelist mode)", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return ["example.com"];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL },
+        ["example.com"],
+        []
+      );
       const result = await performCleanupWithFilter(() => true, {
         clearType: CookieClearType.ALL,
       });
-
       expect(result.count).toBeGreaterThan(0);
     });
 
     it("should cleanup only domains in blacklist (blacklist mode)", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.BLACKLIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return ["example.com", "test.com"];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.BLACKLIST, clearType: CookieClearType.ALL },
+        [],
+        ["example.com", "test.com"]
+      );
       const result = await performCleanupWithFilter(() => true, {
         clearType: CookieClearType.ALL,
       });
-
       expect(result.count).toBeGreaterThan(0);
     });
 
     it("should combine custom filter with mode filter", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return ["example.com"];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock(
+        { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL },
+        ["example.com"],
+        []
+      );
       const customFilter = (domain: string) => domain === "test.com";
-
       const result = await performCleanupWithFilter(customFilter, {
         clearType: CookieClearType.ALL,
       });
-
-      // 白名单模式：example.com 在白名单中，test.com 和 demo.com 不在
-      // 自定义 filter：只允许 test.com
-      // 结果应该只清理 test.com
       expect(result.count).toBe(1);
       expect(result.clearedDomains).toContain("test.com");
       expect(result.clearedDomains).not.toContain("example.com");
@@ -365,25 +246,10 @@ describe("cleanup", () => {
 
     it("should use options over settings for clearType", async () => {
       const { clearCookies } = await import("@/utils");
-
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.SESSION };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock({ mode: ModeType.WHITELIST, clearType: CookieClearType.SESSION }, [], []);
       await performCleanupWithFilter(() => true, {
         clearType: CookieClearType.PERSISTENT,
       });
-
-      // 验证 clearCookies 被调用时使用了 options 中的 PERSISTENT，而不是 settings 中的 SESSION
       expect(clearCookies).toHaveBeenCalledWith(
         expect.objectContaining({
           clearType: CookieClearType.PERSISTENT,
@@ -392,28 +258,24 @@ describe("cleanup", () => {
     });
 
     it("should handle empty whitelist and blacklist", async () => {
-      vi.mocked(storage.getItem).mockImplementation(async (key: string) => {
-        if (key === "local:settings") {
-          return { mode: ModeType.WHITELIST, clearType: CookieClearType.ALL };
-        }
-        if (key === "local:whitelist") {
-          return [];
-        }
-        if (key === "local:blacklist") {
-          return [];
-        }
-        return null;
-      });
-
+      setupStorageMock({ mode: ModeType.WHITELIST, clearType: CookieClearType.ALL }, [], []);
       const result = await performCleanupWithFilter(() => true, {
         clearType: CookieClearType.ALL,
       });
-
       expect(result.count).toBeGreaterThan(0);
     });
   });
 
   describe("cleanupExpiredCookies", () => {
+    const setupChromeMocks = (cookies: unknown[]) => {
+      globalThis.chrome = {
+        cookies: {
+          getAll: vi.fn().mockResolvedValue(cookies),
+          remove: vi.fn().mockResolvedValue({}),
+        },
+      } as unknown as typeof chrome;
+    };
+
     it("should remove expired cookies", async () => {
       const pastTime = Date.now() / 1000 - 3600;
       const mockCookies = [
@@ -432,16 +294,8 @@ describe("cleanup", () => {
           expirationDate: Date.now() / 1000 + 3600,
         },
       ];
-
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue(mockCookies),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks(mockCookies);
       const count = await cleanupExpiredCookies();
-
       expect(count).toBe(1);
       expect(chrome.cookies.remove).toHaveBeenCalledTimes(1);
     });
@@ -464,16 +318,8 @@ describe("cleanup", () => {
           expirationDate: futureTime,
         },
       ];
-
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue(mockCookies),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks(mockCookies);
       const count = await cleanupExpiredCookies();
-
       expect(count).toBe(0);
       expect(chrome.cookies.remove).not.toHaveBeenCalled();
     });
@@ -489,16 +335,8 @@ describe("cleanup", () => {
           expirationDate: Date.now() / 1000 + 3600,
         },
       ];
-
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue(mockCookies),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks(mockCookies);
       const count = await cleanupExpiredCookies();
-
       expect(count).toBe(0);
     });
 
@@ -513,34 +351,18 @@ describe("cleanup", () => {
           expirationDate: pastTime,
         },
       ];
-
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue(mockCookies),
-          remove: vi.fn().mockRejectedValue(new Error("Remove failed")),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks(mockCookies);
+      vi.mocked(chrome.cookies.remove).mockRejectedValueOnce(new Error("Remove failed"));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
       const count = await cleanupExpiredCookies();
-
       expect(count).toBe(0);
       expect(consoleSpy).toHaveBeenCalled();
-
       consoleSpy.mockRestore();
     });
 
     it("should handle empty cookies list", async () => {
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue([]),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks([]);
       const count = await cleanupExpiredCookies();
-
       expect(count).toBe(0);
       expect(chrome.cookies.remove).not.toHaveBeenCalled();
     });
@@ -556,16 +378,8 @@ describe("cleanup", () => {
           expirationDate: pastTime,
         },
       ];
-
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue(mockCookies),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks(mockCookies);
       await cleanupExpiredCookies();
-
       expect(chrome.cookies.remove).toHaveBeenCalledWith({
         url: "https://example.com/path",
         name: "expired",
@@ -583,20 +397,217 @@ describe("cleanup", () => {
           expirationDate: pastTime,
         },
       ];
-
-      globalThis.chrome = {
-        cookies: {
-          getAll: vi.fn().mockResolvedValue(mockCookies),
-          remove: vi.fn().mockResolvedValue({}),
-        },
-      } as unknown as typeof chrome;
-
+      setupChromeMocks(mockCookies);
       await cleanupExpiredCookies();
-
       expect(chrome.cookies.remove).toHaveBeenCalledWith({
         url: "http://example.com/path",
         name: "expired",
       });
+    });
+
+    it("should include storeId when removing expired cookies", async () => {
+      const pastTime = Date.now() / 1000 - 3600;
+      const mockCookies = [
+        {
+          name: "expired",
+          domain: ".example.com",
+          path: "/",
+          secure: true,
+          expirationDate: pastTime,
+          storeId: "1",
+        },
+      ];
+      setupChromeMocks(mockCookies);
+      await cleanupExpiredCookies();
+      expect(chrome.cookies.remove).toHaveBeenCalledWith({
+        url: "https://example.com/",
+        name: "expired",
+        storeId: "1",
+      });
+    });
+  });
+
+  describe("editCookie safety tests", () => {
+    const setupEditCookieMocks = () => {
+      const removeSpy = vi.fn();
+      const setSpy = vi.fn();
+      globalThis.chrome = {
+        cookies: {
+          remove: removeSpy,
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+      return { removeSpy, setSpy };
+    };
+
+    const createOriginalCookie = (
+      overrides: Partial<chrome.cookies.Cookie> = DEFAULT_COOKIE_OVERRIDES
+    ) => ({
+      name: "test",
+      value: "value123",
+      domain: ".example.com",
+      path: "/test",
+      secure: false,
+      httpOnly: false,
+      sameSite: "lax" as const,
+      hostOnly: false,
+      session: false,
+      storeId: "0",
+      ...overrides,
+    });
+
+    it("should not remove original cookie when sameSite and secure combination is invalid", async () => {
+      const { editCookie } = await import("@/utils");
+      const { removeSpy, setSpy } = setupEditCookieMocks();
+      setSpy.mockRejectedValueOnce(new Error("Invalid SameSite"));
+      const originalCookie = createOriginalCookie();
+      const result = await editCookie(originalCookie, {
+        sameSite: "no_restriction",
+      });
+      expect(result).toBe(false);
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it("should handle invalid sameSite none without secure correctly", async () => {
+      const { editCookie } = await import("@/utils");
+      const { removeSpy } = setupEditCookieMocks();
+      const originalCookie = createOriginalCookie();
+      const result = await editCookie(originalCookie, {
+        sameSite: "no_restriction",
+        secure: false,
+      });
+      expect(result).toBe(false);
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it("should successfully edit cookie with valid parameters", async () => {
+      const { editCookie } = await import("@/utils");
+      const { setSpy } = setupEditCookieMocks();
+      setSpy.mockResolvedValueOnce({});
+      const originalCookie = createOriginalCookie();
+      const result = await editCookie(originalCookie, {
+        value: "newValue",
+      });
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalled();
+    });
+
+    it("should not call chrome.cookies.remove during normal edit", async () => {
+      const { editCookie } = await import("@/utils");
+      const { removeSpy, setSpy } = setupEditCookieMocks();
+      setSpy.mockResolvedValueOnce({});
+      const originalCookie = createOriginalCookie();
+      const result = await editCookie(originalCookie, {
+        value: "newValue",
+      });
+      expect(result).toBe(true);
+      expect(removeSpy).not.toHaveBeenCalled();
+      expect(setSpy).toHaveBeenCalled();
+    });
+
+    it("should preserve storeId when editing cookie", async () => {
+      const { editCookie } = await import("@/utils");
+      const { setSpy } = setupEditCookieMocks();
+      setSpy.mockResolvedValueOnce({});
+      const originalCookie = createOriginalCookie({ storeId: "custom-store-id" });
+      const result = await editCookie(originalCookie, {
+        value: "newValue",
+      });
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          storeId: "custom-store-id",
+        })
+      );
+    });
+
+    it("should map sameSite none to no_restriction on set", async () => {
+      const { editCookie } = await import("@/utils");
+      const { setSpy } = setupEditCookieMocks();
+      setSpy.mockResolvedValueOnce({});
+      const originalCookie = createOriginalCookie({ secure: true });
+      const result = await editCookie(originalCookie, {
+        sameSite: "none" as unknown as chrome.cookies.SameSiteStatus,
+      });
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sameSite: "no_restriction",
+        })
+      );
+    });
+
+    it("should omit expirationDate when clearing to session cookie", async () => {
+      const { editCookie } = await import("@/utils");
+      const { setSpy } = setupEditCookieMocks();
+      setSpy.mockResolvedValueOnce({});
+      const originalCookie = createOriginalCookie({
+        expirationDate: Date.now() / 1000 + 3600,
+      });
+      const result = await editCookie(originalCookie, {
+        expirationDate: undefined,
+      });
+      expect(result).toBe(true);
+      const setCall = setSpy.mock.calls[0][0];
+      expect(setCall.expirationDate).toBeUndefined();
+    });
+
+    it("should ignore name/domain/path/storeId updates and use original values", async () => {
+      const { editCookie } = await import("@/utils");
+      const { setSpy } = setupEditCookieMocks();
+      setSpy.mockResolvedValueOnce({});
+      const originalCookie = createOriginalCookie({
+        name: "original-name",
+        domain: ".original-domain.com",
+        path: "/original-path",
+        storeId: "original-store-id",
+      });
+      const result = await editCookie(originalCookie, {
+        name: "new-name",
+        domain: "new-domain.com",
+        path: "/new-path",
+        storeId: "new-store-id",
+        value: "new-value",
+      });
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "original-name",
+          domain: ".original-domain.com",
+          path: "/original-path",
+          storeId: "original-store-id",
+          value: "new-value",
+        })
+      );
+    });
+  });
+
+  describe("createCookie value strategy", () => {
+    it("should allow empty string as cookie value", async () => {
+      const { createCookie } = await import("@/utils");
+      const setSpy = vi.fn().mockResolvedValue({});
+      globalThis.chrome = {
+        cookies: {
+          set: setSpy,
+        },
+      } as unknown as typeof chrome;
+      const result = await createCookie({
+        name: "test",
+        value: "",
+        domain: "example.com",
+      });
+      expect(result).toBe(true);
+      expect(setSpy).toHaveBeenCalled();
+    });
+
+    it("should reject null or undefined cookie value", async () => {
+      const { createCookie } = await import("@/utils");
+      const result1 = await createCookie({
+        name: "test",
+        value: undefined as unknown as string,
+        domain: "example.com",
+      });
+      expect(result1).toBe(false);
     });
   });
 });

@@ -31,6 +31,21 @@ env:
   NODE_VERSION: "24"
   PNPM_VERSION: "10.32.1"
   EXTENSION_SIZE_LIMIT_MB: 10
+  # 可复用的 shell 函数：查找并验证唯一的 zip 文件
+  # 使用方式：eval "$GET_ZIP_PATH" 然后调用 get_zip_path
+  GET_ZIP_PATH: |
+    get_zip_path() {
+      local output_var="${1:-zip_path}"
+      mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
+      if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
+        echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
+        printf '%s\n' "${ZIP_FILES[@]}"
+        return 1
+      fi
+      local ZIP_PATH="${ZIP_FILES[0]}"
+      echo "${output_var}=$ZIP_PATH" >> "$GITHUB_OUTPUT"
+      echo "✅ zip 文件路径：$ZIP_PATH"
+    }
 
 jobs:
   setup:
@@ -38,18 +53,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read
       actions: write
     outputs:
       cache_key: ${{ steps.cache-key.outputs.key }}
       artifact_retention: ${{ steps.retention.outputs.days }}
+      ref_slug: ${{ steps.ref-slug.outputs.value }}
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
 
+      - name: 生成分支标识
+        id: ref-slug
+        run: |
+          REF_NAME='${{ github.ref_name }}'
+          REF_SLUG=$(printf '%s' "$REF_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
+          REF_HASH=$(printf '%s' "$REF_NAME" | sha256sum | cut -c1-8)
+          echo "value=${REF_SLUG}-${REF_HASH}" >> $GITHUB_OUTPUT
+
       - name: 生成缓存 key
         id: cache-key
         run: |
-          CACHE_KEY="${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}"
+          CACHE_KEY="${{ runner.os }}-${{ steps.ref-slug.outputs.value }}-node${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}"
           echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
           echo "📁 缓存 Key: $CACHE_KEY"
 
@@ -65,13 +90,13 @@ jobs:
           fi
 
       - name: 清除当前分支旧缓存
-        if: ${{ github.event.inputs.clear_caches == 'true' || github.event_name == 'push' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clear_caches == 'true' }}
         uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const branchPrefix = '${{ github.ref_name }}'.replace(/[^a-zA-Z0-9-]/g, '-');
+            const branchPrefix = '${{ steps.ref-slug.outputs.value }}';
             const nodeVersion = '${{ env.NODE_VERSION }}';
             const prefixes = [
               '${{ runner.os }}-' + branchPrefix + '-node' + nodeVersion + '-',
@@ -135,6 +160,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [setup]
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -159,40 +187,57 @@ jobs:
             ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
       - name: TypeScript 类型检查
+        id: typecheck
         run: pnpm exec tsc --noEmit
 
       - name: ESLint 代码检查
+        id: eslint
         run: pnpm run lint
 
       - name: Prettier 格式检查
+        id: prettier
         run: pnpm run format:check
 
       - name: 输出检查摘要
         if: always()
         run: |
+          typecheck_status="${{ steps.typecheck.outcome }}"
+          eslint_status="${{ steps.eslint.outcome }}"
+          prettier_status="${{ steps.prettier.outcome }}"
+
+          to_label() {
+            if [ "$1" = "success" ]; then
+              echo "✅ 通过"
+            elif [ "$1" = "failure" ]; then
+              echo "❌ 失败"
+            else
+              echo "⚠️ $1"
+            fi
+          }
+
           echo "## 🔍 代码检查结果" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 检查项 | 状态 |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: |" >> $GITHUB_STEP_SUMMARY
-          echo "| TypeScript 类型检查 | ✅ 通过 |" >> $GITHUB_STEP_SUMMARY
-          echo "| ESLint 代码检查 | ✅ 通过 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Prettier 格式检查 | ✅ 通过 |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript 类型检查 | $(to_label "$typecheck_status") |" >> $GITHUB_STEP_SUMMARY
+          echo "| ESLint 代码检查 | $(to_label "$eslint_status") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Prettier 格式检查 | $(to_label "$prettier_status") |" >> $GITHUB_STEP_SUMMARY
 
   test:
     name: 单元测试
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [setup]
-    strategy:
-      matrix:
-        node-version: [24]
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -204,10 +249,10 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: 配置 Node.js ${{ matrix.node-version }}
+      - name: 配置 Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
 
       - name: 缓存 node_modules
@@ -217,10 +262,10 @@ jobs:
           path: |
             node_modules
             ~/.pnpm-store
-          key: ${{ runner.os }}-${{ github.ref_name }}-node${{ matrix.node-version }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.ref_name }}-node${{ matrix.node-version }}-
-            ${{ runner.os }}-node${{ matrix.node-version }}-
+            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -243,6 +288,7 @@ jobs:
     timeout-minutes: 15
     needs: [setup]
     permissions:
+      contents: read
       security-events: write
     steps:
       - name: 检出仓库
@@ -270,7 +316,7 @@ jobs:
             ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
@@ -288,15 +334,8 @@ jobs:
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
-          # 分开执行命令以确保退出码判断可靠
-          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1)
-          AUDIT_EXIT_CODE=$?
-
-          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
-            AUDIT_STATUS=clean
-          else
-            AUDIT_STATUS=warning
-          fi
+          AUDIT_EXIT_CODE=0
+          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
 
           echo "<details><summary>点击查看完整审计报告</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -305,7 +344,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
 
-          if [ "$AUDIT_STATUS" = "clean" ]; then
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "✅ 未发现安全漏洞" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=clean" >> $GITHUB_OUTPUT
@@ -343,9 +382,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [setup, lint, test]
+    permissions:
+      contents: read
+      packages: read
     outputs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.version.outputs.name }}
+      zip_path: ${{ steps.zip-info.outputs.zip_path }}
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -370,7 +413,7 @@ jobs:
             ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
@@ -380,9 +423,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: .wxt
-          key: ${{ runner.os }}-${{ github.ref_name }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'entrypoints/**/*', 'components/**/*', 'hooks/**/*', 'lib/**/*', 'i18n/**/*', 'utils/**/*', 'types/**/*', 'wxt.config.ts') }}
+          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'entrypoints/**/*', 'components/**/*', 'hooks/**/*', 'lib/**/*', 'i18n/**/*', 'utils/**/*', 'types/**/*', 'wxt.config.ts') }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.ref_name }}-wxt-
+            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-
             ${{ runner.os }}-wxt-
 
       - name: 构建扩展
@@ -461,7 +504,6 @@ jobs:
 
       - name: 打包扩展
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           echo "=========================================="
           echo "📦 开始打包扩展"
           echo "=========================================="
@@ -470,43 +512,28 @@ jobs:
 
           echo ""
           echo "🔨 运行 pnpm run zip..."
-          set +e
-          pnpm run zip 2>&1
-          ZIP_EXIT_CODE=$?
-          set -e
-          echo "pnpm run zip 退出码：$ZIP_EXIT_CODE"
-          
+          pnpm run zip
+
           echo ""
           echo "📁 打包后 .output/ 目录内容 (递归):"
           ls -laR .output/ || true
-          
+
           echo ""
           echo "🔍 查找生成的 zip 文件 (整个项目):"
           find . -name "*.zip" -type f 2>/dev/null | head -20
-          
+
           ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
           echo "📊 在 .output/ 中找到 $ZIP_COUNT 个 zip 文件"
+
           if [ "$ZIP_COUNT" -eq 0 ]; then
-            echo "⚠️ 警告：未找到生成的 zip 文件，尝试手动创建..."
-            if [ -d ".output/chrome-mv3" ]; then
-              cd .output/chrome-mv3
-              ZIP_FILE="../cookie-manager-pro-${VERSION}-mv3.zip"
-              echo "📦 创建 zip 文件：$ZIP_FILE"
-              zip -r "$ZIP_FILE" .
-              cd ../..
-              echo "✅ 手动创建 zip 完成"
-              ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
-              echo "📊 手动创建后找到 $ZIP_COUNT 个 zip 文件"
-            else
-              echo "❌ 构建目录 .output/chrome-mv3 不存在"
-              exit 1
-            fi
+            echo "❌ pnpm run zip 执行完成，但未生成 zip 文件"
+            exit 1
           fi
-          
+
           echo ""
           echo "🔍 最终 zip 文件列表:"
           find .output -name "*.zip" -type f -exec ls -la {} \;
-          
+
           echo ""
           # 验证 zip 文件是否存在
           FINAL_ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
@@ -514,8 +541,14 @@ jobs:
             echo "❌ 最终验证失败：仍然没有找到 zip 文件"
             exit 1
           fi
-          
+
           echo "✅ zip 文件验证成功，找到 $FINAL_ZIP_COUNT 个文件"
+
+      - name: 获取 zip 文件路径
+        id: zip-info
+        run: |
+          eval "$GET_ZIP_PATH"
+          get_zip_path "zip_path"
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v6
@@ -528,18 +561,18 @@ jobs:
       - name: 验证 zip 文件存在后上传
         run: |
           echo "🔍 验证 zip 文件是否存在..."
-          ls -la .output/*.zip
-          if [ ! -f ".output/cookie-manager-pro-${{ steps.version.outputs.version }}-mv3.zip" ]; then
-            echo "❌ zip 文件不存在"
+          ls -la "${{ steps.zip-info.outputs.zip_path }}"
+          if [ ! -f "${{ steps.zip-info.outputs.zip_path }}" ]; then
+            echo "❌ zip 文件不存在: ${{ steps.zip-info.outputs.zip_path }}"
             exit 1
           fi
-          echo "✅ zip 文件存在：.output/cookie-manager-pro-${{ steps.version.outputs.version }}-mv3.zip"
+          echo "✅ zip 文件存在：${{ steps.zip-info.outputs.zip_path }}"
 
       - name: 上传打包产物
         uses: actions/upload-artifact@v6
         with:
           name: extension-zip
-          path: .output/cookie-manager-pro-${{ steps.version.outputs.version }}-mv3.zip
+          path: ${{ steps.zip-info.outputs.zip_path }}
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
           if-no-files-found: error
 
@@ -558,6 +591,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [setup, build]
+    permissions:
+      contents: read
+      packages: read
     if: needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
@@ -583,7 +619,7 @@ jobs:
             ~/.pnpm-store
           key: ${{ needs.setup.outputs.cache_key }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.ref_name }}-node${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
             ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
@@ -640,9 +676,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [setup, lint, test, security, build, e2e]
-    if: always() && github.event_name == 'pull_request'
+    if: >
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -710,14 +750,15 @@ jobs:
             body += `${getBadge('代码检查', lintResult)} ${getBadge('单元测试', testResult)} ${getBadge('安全扫描', securityResult)} ${getBadge('构建', buildResult)} ${getBadge('E2E测试', e2eResult)}\n\n`;
 
             const results = {
+              setup: setupResult,
               lint: lintResult,
               test: testResult,
               security: securityResult,
               build: buildResult
             };
 
-            const allSuccess = ['lint', 'test', 'security', 'build'].every(r => 
-              results[r] === 'success' || results[r] === 'skipped'
+            const allSuccess = ['setup', 'lint', 'test', 'security', 'build'].every(r =>
+              results[r] === 'success'
             );
             const e2eSuccess = e2eResult === 'success' || e2eResult === 'skipped';
 
@@ -777,16 +818,18 @@ jobs:
     name: 创建发布
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [setup, lint, test, build, security]
+    needs: [setup, lint, test, security, build, e2e]
     permissions:
       contents: write
     if: |
       needs.lint.result == 'success' &&
       needs.test.result == 'success' &&
-      needs.build.result == 'success' &&
       needs.security.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.e2e.result == 'success' &&
       github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.create_release == 'true'
+      github.event.inputs.create_release == 'true' &&
+      github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
         uses: actions/checkout@v5
@@ -829,6 +872,12 @@ jobs:
           fi
           echo "✅ 找到 zip 文件"
 
+      - name: 获取发布 zip 文件路径
+        id: release-zip
+        run: |
+          eval "$GET_ZIP_PATH"
+          get_zip_path "zip_path"
+
       - name: 生成完整发布内容
         id: final_notes
         uses: actions/github-script@v8
@@ -837,10 +886,10 @@ jobs:
         with:
           script: |
             const currentVersion = process.env.CURRENT_VERSION;
-            
+
             let previousTag = '';
             const currentTag = 'v' + currentVersion;
-            
+
             try {
               const { data: tagsList } = await github.rest.repos.listTags({
                 owner: context.repo.owner,
@@ -896,9 +945,9 @@ jobs:
             } catch (error) {
               core.error('⚠️ 获取标签列表失败: ' + error.message);
             }
-            
+
             const lines = [];
-            
+
             let changelogContent = '';
             try {
               if (previousTag) {
@@ -1046,17 +1095,17 @@ jobs:
               core.error('⚠️ 错误堆栈: ' + error.stack);
               changelogContent = '';
             }
-            
+
             if (changelogContent && changelogContent !== 'null') {
               lines.push(changelogContent);
             } else {
               lines.push('- 🔄 版本更新至 ' + currentVersion);
             }
-            
+
             const finalContent = lines.join('\n');
             core.info('📋 最终内容长度: ' + finalContent.length);
             core.info('📋 最终内容前 500 字符: ' + finalContent.substring(0, 500));
-            
+
             require('fs').writeFileSync('release-notes.md', finalContent);
             core.info('✅ 已将发布内容写入 release-notes.md');
 
@@ -1076,7 +1125,7 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: 发布 v${{ steps.version.outputs.version }}
           body_path: release-notes.md
-          files: .output/cookie-manager-pro-${{ steps.version.outputs.version }}-mv3.zip
+          files: ${{ steps.release-zip.outputs.zip_path }}
           draft: false
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           generate_release_notes: false
@@ -1097,9 +1146,10 @@ jobs:
     name: Dependabot通知
     runs-on: ubuntu-latest
     needs: [setup, lint, test, security, build, e2e]
-    if: |
+    if: >
       github.event_name == 'pull_request' &&
       github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       needs.lint.result == 'success' &&
       needs.test.result == 'success' &&
       needs.security.result == 'success' &&

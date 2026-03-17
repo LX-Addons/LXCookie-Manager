@@ -2,6 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
+vi.mock("@/hooks/useTranslation", () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        "errorBoundary.error": "出错了",
+        "errorBoundary.errorMessage": "抱歉，扩展遇到了一个错误。请尝试重新加载。",
+        "errorBoundary.retry": "重试",
+      };
+      return translations[key] || key;
+    },
+  }),
+}));
+
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
   if (shouldThrow) {
     throw new Error("Test error");

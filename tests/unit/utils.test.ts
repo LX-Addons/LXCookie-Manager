@@ -14,6 +14,7 @@ import {
   getRiskLevelText,
   clearSingleCookie,
   editCookie,
+  createCookie,
   getActionText,
   getActionColor,
   formatLogTime,
@@ -22,6 +23,9 @@ import {
   toggleSetValue,
   validateDomain,
   isSensitiveCookie,
+  fromChromeSameSite,
+  toChromeSameSite,
+  buildDomainString,
 } from "@/utils";
 import { CookieClearType } from "@/types";
 
@@ -55,6 +59,7 @@ const setupCookieMocks = (cookies: chrome.cookies.Cookie[]) => {
   vi.spyOn(chrome.cookies, "remove").mockImplementation(
     async (details: chrome.cookies.Details) => details
   );
+  vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
 };
 
 describe("normalizeDomain", () => {
@@ -106,9 +111,9 @@ describe("isInList", () => {
     expect(isInList("sub.example.com", list)).toBe(true);
   });
 
-  it("should return true for child domain in list", () => {
+  it("should return false for parent domain when child is in list", () => {
     const list = ["sub.example.com"];
-    expect(isInList("example.com", list)).toBe(true);
+    expect(isInList("example.com", list)).toBe(false);
   });
 
   it("should return false for no match", () => {
@@ -169,7 +174,12 @@ describe("buildOrigins", () => {
   it("should build origins from domains", () => {
     const domains = new Set(["example.com", "test.com"]);
     const origins = buildOrigins(domains);
-    expect(origins).toEqual(["https://example.com", "https://test.com"]);
+    expect(origins).toEqual([
+      "https://example.com",
+      "http://example.com",
+      "https://test.com",
+      "http://test.com",
+    ]);
   });
 
   it("should handle empty set", () => {
@@ -642,9 +652,149 @@ describe("clearSingleCookie", () => {
   });
 });
 
+describe("createCookie", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupCookieMocks([]);
+  });
+
+  it("should create cookie successfully", async () => {
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+    });
+    expect(result).toBe(true);
+    expect(chrome.cookies.set).toHaveBeenCalled();
+  });
+
+  it("should create cookie with storeId", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      storeId: "1",
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.storeId).toBe("1");
+  });
+
+  it("should create cookie with expirationDate", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      expirationDate: Date.now() / 1000 + 3600,
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.expirationDate).toBeTruthy();
+  });
+
+  it("should create cookie with sameSite none and secure true", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      sameSite: "no_restriction",
+      secure: true,
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.sameSite).toBe("no_restriction");
+    expect(setCall.secure).toBe(true);
+  });
+
+  it("should fail when sameSite none and secure false", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      sameSite: "no_restriction",
+      secure: false,
+    });
+    expect(result).toBe(false);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("should fail when missing name", async () => {
+    const result = await createCookie({
+      value: "value",
+      domain: "example.com",
+    } as Partial<Parameters<typeof createCookie>[0]>);
+    expect(result).toBe(false);
+  });
+
+  it("should fail when missing domain", async () => {
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+    } as Partial<Parameters<typeof createCookie>[0]>);
+    expect(result).toBe(false);
+  });
+
+  it("should fail when value is null", async () => {
+    const result = await createCookie({
+      name: "test",
+      value: null as unknown as string,
+      domain: "example.com",
+    });
+    expect(result).toBe(false);
+  });
+
+  it("should handle errors when creating cookie", async () => {
+    vi.spyOn(chrome.cookies, "set").mockRejectedValue(new Error("Failed"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+    });
+    expect(result).toBe(false);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("should normalize path without leading slash", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      path: "api",
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.path).toBe("/api");
+    expect(setCall.url).toContain("example.com/api");
+  });
+
+  it("should preserve path with leading slash", async () => {
+    const setMock = vi.spyOn(chrome.cookies, "set").mockResolvedValue(undefined);
+    const result = await createCookie({
+      name: "test",
+      value: "value",
+      domain: "example.com",
+      path: "/api/v1",
+    });
+    expect(result).toBe(true);
+    const setCall = setMock.mock.calls[0][0];
+    expect(setCall.path).toBe("/api/v1");
+    expect(setCall.url).toContain("example.com/api/v1");
+  });
+});
+
 describe("editCookie", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setupCookieMocks([]);
   });
 
   it("should edit cookie successfully", async () => {
@@ -705,7 +855,7 @@ describe("editCookie", () => {
       session: false,
       hostOnly: false,
     } as chrome.cookies.Cookie;
-    vi.spyOn(chrome.cookies, "remove").mockRejectedValue(new Error("Failed"));
+    vi.spyOn(chrome.cookies, "set").mockRejectedValue(new Error("Failed"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const result = await editCookie(originalCookie, {});
@@ -871,8 +1021,20 @@ describe("maskCookieValue", () => {
 
 describe("getCookieKey", () => {
   it("should generate correct key from name and domain", () => {
-    expect(getCookieKey("session", "example.com")).toBe("session-example.com");
-    expect(getCookieKey("_ga", "google.com")).toBe("_ga-google.com");
+    expect(getCookieKey("session", "example.com")).toBe("session|example.com|/|0");
+    expect(getCookieKey("_ga", "google.com")).toBe("_ga|google.com|/|0");
+  });
+
+  it("should include path when provided", () => {
+    expect(getCookieKey("session", "example.com", "/")).toBe("session|example.com|/|0");
+    expect(getCookieKey("session", "example.com", "/admin")).toBe("session|example.com|/admin|0");
+  });
+
+  it("should include storeId when provided", () => {
+    expect(getCookieKey("session", "example.com", "/", "0")).toBe("session|example.com|/|0");
+    expect(getCookieKey("session", "example.com", "/admin", "1")).toBe(
+      "session|example.com|/admin|1"
+    );
   });
 });
 
@@ -975,5 +1137,93 @@ describe("isSensitiveCookie", () => {
     expect(isSensitiveCookie({ name: "SESSION" })).toBe(true);
     expect(isSensitiveCookie({ name: "AuthToken" })).toBe(true);
     expect(isSensitiveCookie({ name: "JWT_TOKEN" })).toBe(true);
+  });
+});
+
+describe("fromChromeSameSite", () => {
+  it("should convert no_restriction to none", () => {
+    expect(fromChromeSameSite("no_restriction")).toBe("none");
+  });
+
+  it("should return unspecified for undefined", () => {
+    expect(fromChromeSameSite()).toBe("unspecified");
+  });
+
+  it("should return same value for other values", () => {
+    expect(fromChromeSameSite("strict")).toBe("strict");
+    expect(fromChromeSameSite("lax")).toBe("lax");
+    expect(fromChromeSameSite("unspecified")).toBe("unspecified");
+  });
+});
+
+describe("toChromeSameSite", () => {
+  it("should convert none to no_restriction", () => {
+    expect(toChromeSameSite("none")).toBe("no_restriction");
+  });
+
+  it("should return undefined for unspecified", () => {
+    expect(toChromeSameSite("unspecified")).toBeUndefined();
+  });
+
+  it("should return same value for other values", () => {
+    expect(toChromeSameSite("strict")).toBe("strict");
+    expect(toChromeSameSite("lax")).toBe("lax");
+  });
+});
+
+describe("buildDomainString", () => {
+  it("should return single domain when clearedDomains has one domain", () => {
+    const mockT = vi.fn((key: string, params?: Record<string, string | number>) => {
+      if (key === "common.domains") {
+        return `${params?.domain} 等${params?.count}个域名`;
+      }
+      if (key === "common.allWebsites") {
+        return "所有网站";
+      }
+      return key;
+    });
+    const clearedDomains = new Set(["example.com"]);
+    const result = buildDomainString(clearedDomains, "test", "current.com", mockT);
+    expect(result).toBe("example.com");
+  });
+
+  it("should return domains string when clearedDomains has multiple domains", () => {
+    const mockT = vi.fn((key: string, params?: Record<string, string | number>) => {
+      if (key === "common.domains") {
+        return `${params?.domain} 等${params?.count}个域名`;
+      }
+      if (key === "common.allWebsites") {
+        return "所有网站";
+      }
+      return key;
+    });
+    const clearedDomains = new Set(["example.com", "test.com"]);
+    const result = buildDomainString(clearedDomains, "test", "current.com", mockT);
+    expect(result).toBe("example.com 等2个域名");
+    expect(mockT).toHaveBeenCalledWith("common.domains", { domain: "example.com", count: 2 });
+  });
+
+  it("should return successMsg when clearedDomains is empty and includes allWebsites", () => {
+    const mockT = vi.fn((key: string, _params?: Record<string, string | number>) => {
+      if (key === "common.allWebsites") {
+        return "所有网站";
+      }
+      return key;
+    });
+    const clearedDomains = new Set<string>();
+    const result = buildDomainString(clearedDomains, "测试 所有网站", "current.com", mockT);
+    expect(result).toBe("所有网站");
+  });
+
+  it("should return currentDomain when clearedDomains is empty and not includes allWebsites", () => {
+    const mockT = vi.fn((key: string, _params?: Record<string, string | number>) => {
+      if (key === "common.allWebsites") {
+        return "所有网站";
+      }
+      return key;
+    });
+    const clearedDomains = new Set<string>();
+    const result = buildDomainString(clearedDomains, "测试", "current.com", mockT);
+    expect(result).toBe("current.com");
   });
 });

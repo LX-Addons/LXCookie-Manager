@@ -1092,6 +1092,26 @@ header h1 {
   line-height: var(--line-height-tight);
 }
 
+.log-type-clear {
+  background: var(--primary-500);
+}
+
+.log-type-edit {
+  background: var(--warning-500);
+}
+
+.log-type-delete {
+  background: var(--danger-500);
+}
+
+.log-type-import {
+  background: var(--success-500);
+}
+
+.log-type-export {
+  background: #8b5cf6;
+}
+
 .log-count {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
@@ -1141,7 +1161,7 @@ header h1 {
   border-color: var(--border-default);
 }
 
-.cookie-list-header h3 {
+.cookie-list-header h3.cookie-heading {
   margin: 0;
   font-size: var(--font-size-sm);
   font-weight: var(--font-semibold);
@@ -1149,12 +1169,6 @@ header h1 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.cookie-list-header h3::before {
-  content: "🍪";
-  font-size: 14px;
-  line-height: 1;
 }
 
 .expand-icon {
@@ -1716,6 +1730,34 @@ header h1 {
 
 .risk-reason {
   color: var(--text-secondary);
+}
+
+.risk-badge.risk-low {
+  border-left-color: var(--success-500);
+}
+
+.risk-badge.risk-low .risk-level {
+  background-color: var(--success-500);
+}
+
+.risk-badge.risk-medium {
+  border-left-color: var(--warning-500);
+}
+
+.risk-badge.risk-medium .risk-level {
+  background-color: var(--warning-500);
+}
+
+.risk-badge.risk-high {
+  border-left-color: var(--danger-500);
+}
+
+.risk-badge.risk-high .risk-level {
+  background-color: var(--danger-500);
+}
+
+.ml-auto {
+  margin-left: auto;
 }
 
 .cookie-editor-dialog {

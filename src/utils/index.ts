@@ -24,11 +24,7 @@ export const isInList = (domain: string, list: string[]): boolean => {
   const normalizedDomain = normalizeDomain(domain);
   return list.some((item) => {
     const normalizedItem = normalizeDomain(item);
-    return (
-      normalizedDomain === normalizedItem ||
-      normalizedDomain.endsWith("." + normalizedItem) ||
-      normalizedItem.endsWith("." + normalizedDomain)
-    );
+    return normalizedDomain === normalizedItem || normalizedDomain.endsWith("." + normalizedItem);
   });
 };
 
@@ -54,11 +50,25 @@ export const getCookieTypeName = (type: string, t?: (key: string) => string): st
 };
 
 export const buildOrigins = (domains: Set<string>): string[] => {
-  const origins: string[] = [];
-  domains.forEach((d) => {
-    origins.push(`https://${d}`);
-  });
-  return origins;
+  return [...domains].flatMap((d) => [`https://${d}`, `http://${d}`]);
+};
+
+export const buildDomainString = (
+  clearedDomains: Set<string>,
+  successMsg: string,
+  currentDomain: string,
+  t: (path: string, params?: Record<string, string | number>) => string
+): string => {
+  if (clearedDomains.size === 1) {
+    return Array.from(clearedDomains)[0];
+  }
+  if (clearedDomains.size > 1) {
+    return t("common.domains", {
+      domain: Array.from(clearedDomains)[0],
+      count: clearedDomains.size,
+    });
+  }
+  return successMsg.includes(t("common.allWebsites")) ? t("common.allWebsites") : currentDomain;
 };
 
 export const isTrackingCookie = (cookie: { name: string; domain: string }): boolean => {
@@ -220,10 +230,78 @@ export const clearSingleCookie = async (
 ): Promise<boolean> => {
   try {
     const url = buildCookieUrl(cookie, cleanedDomain);
-    await chrome.cookies.remove({ url, name: cookie.name });
+    const removeDetails: chrome.cookies.Details = { url, name: cookie.name };
+    if (cookie.storeId) {
+      removeDetails.storeId = cookie.storeId;
+    }
+    await chrome.cookies.remove(removeDetails);
     return true;
   } catch (e) {
     console.error(`Failed to clear cookie ${cookie.name}:`, e);
+    return false;
+  }
+};
+
+const buildCookieSetDetails = (
+  cookie: chrome.cookies.Cookie
+): { success: true; setDetails: chrome.cookies.SetDetails } | { success: false } => {
+  if (!cookie.name || cookie.value == null || !cookie.domain) {
+    return { success: false };
+  }
+
+  const sameSiteForChrome = toChromeSameSite(cookie.sameSite);
+  const secure = cookie.secure ?? sameSiteForChrome === "no_restriction";
+
+  if (sameSiteForChrome === "no_restriction" && !secure) {
+    console.error("SameSite=None requires Secure flag");
+    return { success: false };
+  }
+
+  const cleanedDomain = cookie.domain.replace(/^\./, "");
+  const normalizedPath = cookie.path?.startsWith("/") ? cookie.path : `/${cookie.path ?? ""}`;
+  const url = `http${secure ? "s" : ""}://${cleanedDomain}${normalizedPath}`;
+
+  const setDetails: chrome.cookies.SetDetails = {
+    url,
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.domain,
+    path: normalizedPath,
+    secure,
+    httpOnly: cookie.httpOnly ?? false,
+  };
+
+  if (sameSiteForChrome !== undefined) {
+    setDetails.sameSite = sameSiteForChrome;
+  }
+
+  if (cookie.storeId) {
+    setDetails.storeId = cookie.storeId;
+  }
+
+  if (cookie.expirationDate) {
+    setDetails.expirationDate = cookie.expirationDate;
+  }
+
+  return { success: true, setDetails };
+};
+
+export const createCookie = async (cookie: Partial<chrome.cookies.Cookie>): Promise<boolean> => {
+  try {
+    const fullCookie: chrome.cookies.Cookie = {
+      ...cookie,
+      path: cookie.path || "/",
+    } as chrome.cookies.Cookie;
+
+    const result = buildCookieSetDetails(fullCookie);
+    if (!result.success) {
+      return false;
+    }
+
+    await chrome.cookies.set(result.setDetails);
+    return true;
+  } catch (e) {
+    console.error("Failed to create cookie:", e);
     return false;
   }
 };
@@ -233,27 +311,35 @@ export const editCookie = async (
   updates: Partial<chrome.cookies.Cookie>
 ): Promise<boolean> => {
   try {
-    const cleanedDomain = originalCookie.domain.replace(/^\./, "");
-    const url = buildCookieUrl(originalCookie, cleanedDomain);
+    const safeUpdates: Partial<chrome.cookies.Cookie> = {};
 
-    await chrome.cookies.remove({ url, name: originalCookie.name });
-
-    const newCookie: chrome.cookies.SetDetails = {
-      url,
-      name: updates.name || originalCookie.name,
-      value: updates.value || originalCookie.value,
-      domain: originalCookie.domain,
-      path: updates.path || originalCookie.path,
-      secure: updates.secure ?? originalCookie.secure,
-      httpOnly: updates.httpOnly ?? originalCookie.httpOnly,
-      sameSite: updates.sameSite || originalCookie.sameSite,
-    };
-
-    if (updates.expirationDate || originalCookie.expirationDate) {
-      newCookie.expirationDate = updates.expirationDate || originalCookie.expirationDate;
+    if ("value" in updates) {
+      safeUpdates.value = updates.value;
+    }
+    if ("httpOnly" in updates) {
+      safeUpdates.httpOnly = updates.httpOnly;
+    }
+    if ("secure" in updates) {
+      safeUpdates.secure = updates.secure;
+    }
+    if ("sameSite" in updates) {
+      safeUpdates.sameSite = updates.sameSite;
+    }
+    if ("expirationDate" in updates) {
+      safeUpdates.expirationDate = updates.expirationDate;
     }
 
-    await chrome.cookies.set(newCookie);
+    const nextCookie = {
+      ...originalCookie,
+      ...safeUpdates,
+    };
+
+    const result = buildCookieSetDetails(nextCookie);
+    if (!result.success) {
+      return false;
+    }
+
+    await chrome.cookies.set(result.setDetails);
     return true;
   } catch (e) {
     console.error("Failed to edit cookie:", e);
@@ -382,9 +468,9 @@ export const getActionColor = (action: string): string => {
   }
 };
 
-export const formatLogTime = (timestamp: number, _t?: (key: string) => string): string => {
+export const formatLogTime = (timestamp: number, locale: string = "zh-CN"): string => {
   const date = new Date(timestamp);
-  return date.toLocaleString("zh-CN", {
+  return date.toLocaleString(locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -399,8 +485,13 @@ export const maskCookieValue = (value: string, mask: string): string => {
   return value.slice(0, 4) + mask.substring(4);
 };
 
-export const getCookieKey = (name: string, domain: string): string => {
-  return `${name}-${domain}`;
+export const getCookieKey = (
+  name: string,
+  domain: string,
+  path?: string,
+  storeId?: string
+): string => {
+  return `${name}|${domain}|${path ?? "/"}|${storeId ?? "0"}`;
 };
 
 export const toggleSetValue = (set: Set<string>, value: string): Set<string> => {
@@ -411,6 +502,46 @@ export const toggleSetValue = (set: Set<string>, value: string): Set<string> => 
     next.add(value);
   }
   return next;
+};
+
+export const fromChromeSameSite = (sameSite?: string): string => {
+  if (sameSite === "no_restriction") {
+    return "none";
+  }
+  return sameSite || "unspecified";
+};
+
+export const toChromeSameSite = (sameSite?: string): chrome.cookies.SameSiteStatus | undefined => {
+  if (sameSite === "none" || sameSite === "no_restriction") {
+    return "no_restriction";
+  }
+  if (sameSite === "unspecified" || !sameSite) {
+    return undefined;
+  }
+  if (sameSite === "lax" || sameSite === "strict") {
+    return sameSite;
+  }
+  return undefined;
+};
+
+export const formatCookieSameSite = (
+  sameSite: string | undefined,
+  t: (key: string) => string
+): string => {
+  const normalized = fromChromeSameSite(sameSite);
+  if (normalized === "unspecified" || !normalized) {
+    return t("cookieList.notSet");
+  }
+  if (normalized === "strict") {
+    return t("cookieEditor.strict");
+  }
+  if (normalized === "lax") {
+    return t("cookieEditor.lax");
+  }
+  if (normalized === "none") {
+    return t("cookieEditor.none");
+  }
+  return normalized;
 };
 
 export const validateDomain = (

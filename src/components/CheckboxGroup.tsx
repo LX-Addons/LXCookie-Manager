@@ -4,12 +4,14 @@ interface OptionWithOnChange {
   checked: boolean;
   label: string;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }
 
 interface OptionWithValue {
   value: string;
   label: string;
   checked: boolean;
+  disabled?: boolean;
 }
 
 interface PropsWithIndividualOnChange {
@@ -32,7 +34,8 @@ export const CheckboxGroup = memo(({ options, onChange }: Props) => {
     // Unified API mode
     const unifiedOptions = options as OptionWithValue[];
 
-    const handleChange = (value: string, checked: boolean) => {
+    const handleChange = (value: string, checked: boolean, disabled: boolean) => {
+      if (disabled) return;
       // Get currently checked values from props
       const currentValues = unifiedOptions.filter((opt) => opt.checked).map((opt) => opt.value);
 
@@ -54,7 +57,8 @@ export const CheckboxGroup = memo(({ options, onChange }: Props) => {
             <input
               type="checkbox"
               checked={option.checked}
-              onChange={(e) => handleChange(option.value, e.target.checked)}
+              onChange={(e) => handleChange(option.value, e.target.checked, !!option.disabled)}
+              disabled={option.disabled}
             />
             <span>{option.label}</span>
           </label>
@@ -73,7 +77,8 @@ export const CheckboxGroup = memo(({ options, onChange }: Props) => {
           <input
             type="checkbox"
             checked={option.checked}
-            onChange={(e) => option.onChange(e.target.checked)}
+            onChange={(e) => !option.disabled && option.onChange(e.target.checked)}
+            disabled={option.disabled}
           />
           <span>{option.label}</span>
         </label>

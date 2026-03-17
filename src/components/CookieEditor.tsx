@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import type { Cookie, SameSite } from "@/types";
 import { useTranslation } from "@/hooks/useTranslation";
+import { fromChromeSameSite } from "@/utils";
 
 interface Props {
   isOpen: boolean;
   cookie: Cookie | null;
+  currentDomain?: string;
   onClose: () => void;
-  onSave: (cookie: Cookie) => void;
+  onSave: (cookie: Cookie) => Promise<boolean>;
 }
 
 const DEFAULT_COOKIE: Cookie = {
@@ -19,26 +21,47 @@ const DEFAULT_COOKIE: Cookie = {
   sameSite: "unspecified",
 };
 
-const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">) => {
-  const [formData, setFormData] = useState<Cookie>(() =>
-    cookie ? { ...cookie } : { ...DEFAULT_COOKIE }
-  );
+const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Props, "isOpen">) => {
+  const [formData, setFormData] = useState<Cookie>(() => {
+    if (cookie) {
+      return {
+        ...cookie,
+        sameSite: fromChromeSameSite(cookie.sameSite) as SameSite,
+      };
+    }
+    return {
+      ...DEFAULT_COOKIE,
+      domain: currentDomain || "",
+    };
+  });
+  const [isSaving, setIsSaving] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !isSaving) {
         onClose();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, isSaving]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    onClose();
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const success = await onSave(formData);
+      if (success) {
+        onClose();
+      }
+    } catch (error) {
+      console.error("Failed to save cookie:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDialogKeyDown = (e: React.KeyboardEvent) => {
@@ -46,7 +69,7 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
   };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !isSaving) {
       onClose();
     }
   };
@@ -55,7 +78,7 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
     <div
       className="confirm-overlay"
       onClick={handleOverlayClick}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      onKeyDown={(e) => e.key === "Escape" && !isSaving && onClose()}
       role="presentation"
       data-testid="cookie-editor"
     >
@@ -79,6 +102,7 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
               className="form-input"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              disabled={!!cookie}
               required
             />
           </div>
@@ -91,7 +115,6 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
               className="form-textarea"
               value={formData.value}
               onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              required
             />
           </div>
           <div className="form-group">
@@ -104,6 +127,7 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
               className="form-input"
               value={formData.domain}
               onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
+              disabled={!!cookie}
               required
             />
           </div>
@@ -117,6 +141,7 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
               className="form-input"
               value={formData.path}
               onChange={(e) => setFormData({ ...formData, path: e.target.value })}
+              disabled={!!cookie}
               required
             />
           </div>
@@ -178,11 +203,17 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
               className="btn btn-secondary"
               onClick={onClose}
               data-testid="cancel-editor"
+              disabled={isSaving}
             >
               {t("common.cancel")}
             </button>
-            <button type="submit" className="btn btn-primary" data-testid="save-editor">
-              {t("common.save")}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              data-testid="save-editor"
+              disabled={isSaving}
+            >
+              {isSaving ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </form>
@@ -191,13 +222,18 @@ const CookieEditorContent = ({ cookie, onClose, onSave }: Omit<Props, "isOpen">)
   );
 };
 
-export const CookieEditor = ({ isOpen, cookie, onClose, onSave }: Props) => {
+export const CookieEditor = ({ isOpen, cookie, currentDomain, onClose, onSave }: Props) => {
   if (!isOpen) return null;
 
   return (
     <CookieEditorContent
-      key={cookie ? `edit-${cookie.domain}-${cookie.name}` : "new"}
+      key={
+        cookie
+          ? `edit-${cookie.domain}-${cookie.name}-${cookie.path}-${cookie.storeId || "0"}`
+          : "new"
+      }
       cookie={cookie}
+      currentDomain={currentDomain}
       onClose={onClose}
       onSave={onSave}
     />
