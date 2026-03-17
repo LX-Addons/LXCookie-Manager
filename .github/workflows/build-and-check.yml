@@ -61,7 +61,7 @@ jobs:
       ref_slug: ${{ steps.ref-slug.outputs.value }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 生成分支标识
         id: ref-slug
@@ -165,7 +165,7 @@ jobs:
       packages: read
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 安装 pnpm
         uses: pnpm/action-setup@v4
@@ -173,7 +173,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -240,7 +240,7 @@ jobs:
       packages: read
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -250,7 +250,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -292,7 +292,7 @@ jobs:
       security-events: write
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -302,7 +302,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -323,7 +323,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: 检查密钥泄露
-        uses: trufflesecurity/trufflehog@d722a7e50645c42123e31fe97761a88ade988db8
+        uses: trufflesecurity/trufflehog@6c05c4a00b91aa542267d8e32a8254774799d68d
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -391,7 +391,7 @@ jobs:
       zip_path: ${{ steps.zip-info.outputs.zip_path }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 安装 pnpm
         uses: pnpm/action-setup@v4
@@ -399,7 +399,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -551,7 +551,7 @@ jobs:
           get_zip_path "zip_path"
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: extension-build
           path: .output/chrome-mv3/
@@ -569,7 +569,7 @@ jobs:
           echo "✅ zip 文件存在：${{ steps.zip-info.outputs.zip_path }}"
 
       - name: 上传打包产物
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: extension-zip
           path: ${{ steps.zip-info.outputs.zip_path }}
@@ -597,7 +597,7 @@ jobs:
     if: needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 安装 pnpm
         uses: pnpm/action-setup@v4
@@ -605,7 +605,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -631,7 +631,7 @@ jobs:
           echo "🔍 工作流运行 ID: ${{ github.run_id }}"
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: extension-build
           path: .output/chrome-mv3/
@@ -665,7 +665,7 @@ jobs:
 
       - name: 上传 Playwright 报告
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/
@@ -685,7 +685,7 @@ jobs:
       issues: write
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 获取版本信息
         id: info
@@ -832,7 +832,7 @@ jobs:
       github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -842,7 +842,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 设置 Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -855,7 +855,7 @@ jobs:
           echo "name=$NAME" >> $GITHUB_OUTPUT
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: extension-zip
           path: .output/

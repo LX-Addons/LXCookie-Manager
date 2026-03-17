@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "检出代码库"
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: "安装 pnpm"
         uses: pnpm/action-setup@v4
@@ -30,7 +30,7 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: "设置 Node.js 环境"
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
