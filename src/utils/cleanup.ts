@@ -1,8 +1,14 @@
 import { storage, WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import type { Settings } from "@/types";
 import { ModeType, CookieClearType } from "@/types";
-import { isInList, isDomainMatch, type CookieRemoveDetails } from "@/utils";
-import { clearBrowserData, clearCookies, type ClearBrowserDataOptions } from "@/utils";
+import {
+  isInList,
+  isDomainMatch,
+  clearBrowserData,
+  clearCookies,
+  type CookieRemoveDetails,
+  type ClearBrowserDataOptions,
+} from "@/utils";
 
 export interface CleanupOptions {
   domain: string;

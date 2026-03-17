@@ -390,10 +390,10 @@ export const clearCookies = async (options: ClearCookiesOptions = {}) => {
 
 export const clearBrowserData = async (domains: Set<string>, options: ClearBrowserDataOptions) => {
   const { clearCache, clearLocalStorage, clearIndexedDB } = options;
+  const origins = buildNonEmptyOrigins(domains);
 
   if (clearCache) {
     try {
-      const origins = buildNonEmptyOrigins(domains);
       if (origins) {
         await chrome.browsingData.remove(
           { origins },
@@ -411,7 +411,6 @@ export const clearBrowserData = async (domains: Set<string>, options: ClearBrows
 
   if (clearLocalStorage) {
     try {
-      const origins = buildNonEmptyOrigins(domains);
       if (origins) {
         await chrome.browsingData.remove(
           { origins },
@@ -427,7 +426,6 @@ export const clearBrowserData = async (domains: Set<string>, options: ClearBrows
 
   if (clearIndexedDB) {
     try {
-      const origins = buildNonEmptyOrigins(domains);
       if (origins) {
         await chrome.browsingData.remove(
           { origins },
