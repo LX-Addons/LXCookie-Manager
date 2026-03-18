@@ -12,9 +12,6 @@
   </p>
 
   <p align="center">
-    <a href="https://sonarcloud.io/summary/new_code?id=LX-Addons_Cookie_Manager_Pro">
-      <img src="https://sonarcloud.io/api/project_badges/measure?project=LX-Addons_Cookie_Manager_Pro&metric=alert_status" alt="Quality Gate Status" />
-    </a>
     <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
     </a>
@@ -24,13 +21,6 @@
     <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/issues">
       <img src="https://img.shields.io/github/issues/LX-Addons/Cookie_Manager_Pro" alt="Issues" />
     </a>
-  </p>
-
-  <p align="center">
-    <a href="#核心功能">核心功能</a> •
-    <a href="#快速开始">快速开始</a> •
-    <a href="#项目结构">项目结构</a> •
-    <a href="#技术栈">技术栈</a>
   </p>
 </div>
 
@@ -69,56 +59,6 @@
 - **三主题支持**：跟随系统 / 亮色模式 / 暗色模式
 - **清理日志**：完整记录清理历史，支持按时间筛选
 - **操作反馈**：即时消息提示，操作结果清晰可见
-
----
-
-## 🚀 快速开始
-
-### 📦 安装依赖
-
-```bash
-pnpm install
-```
-
-### 🔧 开发模式
-
-```bash
-pnpm run dev
-```
-
-### 📥 加载扩展
-
-1. 打开 `chrome://extensions/` 或 `edge://extensions/`
-2. 启用「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择 `.output/chrome-mv3` 文件夹
-
-### 🏗️ 构建发布
-
-```bash
-pnpm run build
-pnpm run zip
-```
-
-### ✅ 代码质量
-
-```bash
-pnpm run lint          # ESLint 检查
-pnpm run lint:fix      # 自动修复 ESLint 问题
-pnpm run format        # Prettier 格式化代码
-pnpm run format:check  # 检查代码格式
-pnpm run type-check    # TypeScript 类型检查
-```
-
-### 🧪 测试
-
-```bash
-pnpm run test          # 运行单元测试
-pnpm run test:ui       # 单元测试 UI 模式
-pnpm run test:coverage # 生成测试覆盖率报告
-pnpm run test:e2e      # 运行 E2E 测试
-pnpm run test:e2e:ui   # E2E 测试 UI 模式
-```
 
 ---
 
@@ -189,12 +129,12 @@ Cookie_Manager_Pro/
 
 |           技术            |  版本   | 说明               |
 | :-----------------------: | :-----: | ------------------ |
-|          **WXT**          | 0.20.19 | 现代浏览器扩展框架 |
-|         **React**         | 19.1.0  | 前端 UI 框架       |
+|          **WXT**          | 0.20.20 | 现代浏览器扩展框架 |
+|         **React**         | 19.2.4  | 前端 UI 框架       |
 |      **TypeScript**       |  5.9.3  | 类型安全开发       |
 | **@wxt-dev/module-react** |  1.2.2  | WXT React 模块     |
 |       **Manifest**        |   V3    | Chrome 扩展规范    |
-|        **Vitest**         | 4.0.18  | 单元测试框架       |
+|        **Vitest**         |  4.1.0  | 单元测试框架       |
 |      **Playwright**       | 1.58.2  | E2E 测试框架       |
 
 ---
