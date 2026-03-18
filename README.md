@@ -66,62 +66,93 @@
 
 ```
 Cookie_Manager_Pro/
-├── 📂 public/                 # 静态资源
-│   └── icon.png               # 扩展图标
+│
+├── 📂 public/
+│   └── 🖼️ icon.png                    # 扩展图标资源
+│
 ├── 📂 src/
-│   ├── 📂 components/         # React 组件
-│   │   ├── CheckboxGroup.tsx  # 复选框组
-│   │   ├── ClearLog.tsx       # 清理日志
-│   │   ├── ConfirmDialog.tsx  # 确认对话框
-│   │   ├── ConfirmDialogWrapper.tsx
-│   │   ├── CookieEditor.tsx   # Cookie 编辑器
-│   │   ├── CookieList.tsx     # Cookie 列表
-│   │   ├── DomainManager.tsx  # 域名管理
-│   │   ├── ErrorBoundary.tsx  # 错误边界
-│   │   ├── RadioGroup.tsx     # 单选按钮组
-│   │   ├── Select.tsx         # 下拉选择
-│   │   └── Settings.tsx       # 设置面板
-│   ├── 📂 entrypoints/        # 扩展入口
-│   │   ├── popup/             # 弹出窗口
-│   │   │   ├── App.tsx
-│   │   │   ├── index.html
-│   │   │   ├── main.tsx
-│   │   │   └── style.css
-│   │   └── background.ts      # Service Worker
-│   ├── 📂 hooks/              # React Hooks
-│   │   ├── useConfirmDialog.ts
-│   │   ├── useStorage.ts
-│   │   └── useTranslation.ts
-│   ├── 📂 i18n/               # 国际化
-│   │   ├── en-US.json
-│   │   ├── zh-CN.json
-│   │   ├── index.ts
-│   │   └── types.ts
-│   ├── 📂 lib/                # 核心库
-│   │   ├── constants.ts
-│   │   └── store.ts           # 存储管理
-│   ├── 📂 types/              # TypeScript 类型
-│   │   └── index.ts
-│   └── 📂 utils/              # 工具函数
-│       ├── cleanup.ts         # 清理逻辑
-│       └── index.ts
-├── 📂 tests/                  # 测试文件
-│   ├── e2e/                   # E2E 测试
-│   ├── unit/                  # 单元测试
-│   ├── utils/                 # 测试工具
-│   └── setup.ts
-├── 📂 .github/                # GitHub 配置
-│   ├── workflows/             # CI/CD 工作流
-│   └── dependabot.yml
-├── package.json               # 项目配置
-├── tsconfig.json              # TypeScript 配置
-├── wxt.config.ts              # WXT 配置
-├── vitest.config.ts           # Vitest 配置
-├── playwright.config.ts       # Playwright 配置
-├── eslint.config.js           # ESLint 配置
-├── .prettierrc.json           # Prettier 配置
-└── README.md                  # 项目说明
+│   │
+│   ├── 📂 components/                  # 🎨 React UI 组件
+│   │   ├── ⬜ CheckboxGroup.tsx        # 复选框组组件
+│   │   ├── 📋 ClearLog.tsx             # 清理日志组件
+│   │   ├── ⚠️ ConfirmDialog.tsx        # 确认对话框
+│   │   ├── ⚠️ ConfirmDialogWrapper.tsx # 对话框包装器
+│   │   ├── ✏️ CookieEditor.tsx         # Cookie 编辑器
+│   │   ├── 📜 CookieList.tsx           # Cookie 列表
+│   │   ├── 🌐 DomainManager.tsx        # 域名管理器
+│   │   ├── 🛡️ ErrorBoundary.tsx        # 错误边界处理
+│   │   ├── 🔘 RadioGroup.tsx           # 单选按钮组
+│   │   ├── 📦 Select.tsx               # 下拉选择框
+│   │   └── ⚙️ Settings.tsx             # 设置面板
+│   │
+│   ├── 📂 entrypoints/                 # 🚀 扩展入口点
+│   │   ├── 📂 popup/                   # 弹出窗口
+│   │   │   ├── App.tsx                 # 主应用组件
+│   │   │   ├── index.html              # HTML 模板
+│   │   │   ├── main.tsx                # 入口文件
+│   │   │   └── style.css               # 样式文件
+│   │   └── 📄 background.ts            # Service Worker
+│   │
+│   ├── 📂 hooks/                       # 🪝 React Hooks
+│   │   ├── useClearLog.ts              # 清理日志 Hook
+│   │   ├── useConfirmDialog.ts         # 对话框 Hook
+│   │   ├── useStorage.ts               # 存储 Hook
+│   │   └── useTranslation.ts           # 国际化 Hook
+│   │
+│   ├── 📂 i18n/                        # 🌍 国际化资源
+│   │   ├── en-US.json                  # 英文语言包
+│   │   ├── zh-CN.json                  # 中文语言包
+│   │   ├── index.ts                    # i18n 入口
+│   │   └── types.ts                    # 类型定义
+│   │
+│   ├── 📂 lib/                         # 📚 核心库
+│   │   ├── constants.ts                # 常量定义
+│   │   └── store.ts                    # 状态存储
+│   │
+│   ├── 📂 types/                       # 📝 TypeScript 类型
+│   │   └── index.ts                    # 类型定义入口
+│   │
+│   └── 📂 utils/                       # 🔧 工具函数
+│       ├── cleanup.ts                  # Cookie 清理逻辑
+│       └── index.ts                    # 工具函数入口
+│
+├── 📂 tests/                           # 🧪 测试文件
+│   ├── 📂 e2e/                         # E2E 端到端测试
+│   ├── 📂 unit/                        # 单元测试
+│   ├── 📂 utils/                       # 测试工具函数
+│   └── setup.ts                        # 测试配置
+│
+├── 📂 .github/                         # ⚡ GitHub 配置
+│   ├── 📂 workflows/                   # CI/CD 工作流
+│   └── dependabot.yml                  # 依赖更新配置
+│
+├── 📄 package.json                     # 项目依赖配置
+├── 📄 tsconfig.json                    # TypeScript 配置
+├── 📄 wxt.config.ts                    # WXT 框架配置
+├── 📄 vitest.config.ts                 # Vitest 测试配置
+├── 📄 playwright.config.ts             # Playwright 配置
+├── 📄 eslint.config.js                 # ESLint 规则配置
+├── 📄 .prettierrc.json                 # Prettier 格式化配置
+└── 📄 README.md                        # 项目说明文档
 ```
+
+<details>
+<summary>📊 目录结构概览</summary>
+
+| 目录 | 职责 | 主要内容 |
+|:----:|:----:|:---------|
+| `public/` | 静态资源 | 扩展图标 |
+| `src/components/` | UI 组件 | React 可复用组件 |
+| `src/entrypoints/` | 扩展入口 | Popup、Background |
+| `src/hooks/` | 自定义 Hooks | 状态管理、国际化 |
+| `src/i18n/` | 国际化 | 多语言支持 |
+| `src/lib/` | 核心库 | 常量、存储 |
+| `src/types/` | 类型定义 | TypeScript 类型 |
+| `src/utils/` | 工具函数 | 清理逻辑等 |
+| `tests/` | 测试文件 | 单元测试、E2E |
+| `.github/` | CI/CD | 自动化工作流 |
+
+</details>
 
 ---
 
@@ -156,15 +187,6 @@ Cookie_Manager_Pro/
 | :-----------: | ------------------------ |
 | `https://*/*` | 管理 HTTPS 网站的 Cookie |
 | `http://*/*`  | 管理 HTTP 网站的 Cookie  |
-
----
-
-## 🌐 浏览器支持
-
-| 浏览器 | 最低版本 |    状态     |
-| :----: | :------: | :---------: |
-| Chrome |   90+    | ✅ 完全支持 |
-|  Edge  |   90+    | ✅ 完全支持 |
 
 ---
 
