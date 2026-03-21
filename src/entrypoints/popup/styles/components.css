@@ -1575,8 +1575,6 @@
 .checkbox-control input[type="checkbox"],
 .radio-control input[type="radio"] {
   cursor: pointer;
-  width: 18px;
-  height: 18px;
   accent-color: var(--primary-600);
   flex-shrink: 0;
   appearance: none;

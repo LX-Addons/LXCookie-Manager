@@ -116,7 +116,14 @@ vi.mock("@/utils/cleanup", () => ({
 }));
 
 vi.mock("@/utils", () => ({
-  isDomainMatch: vi.fn((domain: string, currentDomain: string) => domain.includes(currentDomain)),
+  isDomainMatch: vi.fn((domain: string, currentDomain: string) => {
+    const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
+    const normalizedCurrent = currentDomain.replace(/^\./, "").toLowerCase();
+    if (normalizedDomain === normalizedCurrent) return true;
+    if (normalizedCurrent.endsWith("." + normalizedDomain)) return true;
+    if (normalizedDomain.endsWith("." + normalizedCurrent)) return true;
+    return false;
+  }),
   isInList: vi.fn(() => false),
   isTrackingCookie: vi.fn(() => false),
   isThirdPartyCookie: vi.fn(() => false),

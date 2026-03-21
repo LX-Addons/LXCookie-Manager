@@ -233,25 +233,23 @@ function IndexPopup() {
   );
 
   const quickAddToRule = useCallback(() => {
+    if (!currentDomain) return;
+
     if (settings.mode === ModeType.WHITELIST) {
-      if (currentDomain) {
-        const isNotInList = !isInList(currentDomain, whitelist);
-        if (isNotInList) {
-          setWhitelist([...whitelist, currentDomain]);
-          showMessage(t("popup.addedToWhitelist", { domain: currentDomain }));
-        } else {
-          showMessage(t("popup.alreadyInWhitelist", { domain: currentDomain }));
-        }
+      const isNotInList = !isInList(currentDomain, whitelist);
+      if (isNotInList) {
+        setWhitelist([...whitelist, currentDomain]);
+        showMessage(t("popup.addedToWhitelist", { domain: currentDomain }));
+      } else {
+        showMessage(t("popup.alreadyInWhitelist", { domain: currentDomain }));
       }
     } else {
-      if (currentDomain) {
-        const isNotInList = !isInList(currentDomain, blacklist);
-        if (isNotInList) {
-          setBlacklist([...blacklist, currentDomain]);
-          showMessage(t("popup.addedToBlacklist", { domain: currentDomain }));
-        } else {
-          showMessage(t("popup.alreadyInBlacklist", { domain: currentDomain }));
-        }
+      const isNotInList = !isInList(currentDomain, blacklist);
+      if (isNotInList) {
+        setBlacklist([...blacklist, currentDomain]);
+        showMessage(t("popup.addedToBlacklist", { domain: currentDomain }));
+      } else {
+        showMessage(t("popup.alreadyInBlacklist", { domain: currentDomain }));
       }
     }
   }, [
@@ -437,7 +435,7 @@ function IndexPopup() {
           </div>
         </header>
 
-        <nav className="tabs" role="tablist" tabIndex={0} onKeyDown={handleTabKeyDown}>
+        <div className="tabs" role="tablist" tabIndex={0} onKeyDown={handleTabKeyDown}>
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -455,7 +453,7 @@ function IndexPopup() {
               <span>{tab.label}</span>
             </button>
           ))}
-        </nav>
+        </div>
 
         {activeTab === "manage" && (
           <main className="tab-content" role="tabpanel" id="manage-panel">
