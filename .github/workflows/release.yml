@@ -182,23 +182,22 @@ jobs:
 
           const rawCommits = run(
             previousTag
-              ? `git log ${previousTag}..HEAD --no-merges --format=%s`
-              : 'git log HEAD --no-merges --format=%s -n 50',
+              ? `git log ${previousTag}..HEAD --no-merges --format=%s%x00`
+              : 'git log HEAD --no-merges --format=%s%x00 -n 50',
           );
 
           const categories = [
-            { title: '核心功能升级', intro: '本次版本带来以下重点能力与体验增强：', types: ['feat'], items: [] },
-            { title: '体验与界面优化', intro: '围绕使用流畅度与界面表现做了进一步打磨：', types: ['style', 'ui'], items: [] },
-            { title: '稳定性与问题修复', intro: '针对已知问题和边缘场景进行了修复与增强：', types: ['fix', 'hotfix'], items: [] },
-            { title: '工程与质量改进', intro: '在代码结构、测试、构建与依赖层面持续优化：', types: ['refactor', 'perf', 'test', 'docs', 'build', 'ci', 'chore', 'deps'], items: [] },
-            { title: '其他更新', intro: '此外还包含以下补充调整：', types: [], items: [] },
+            { title: '核心功能升级', intro: '本次版本带来以下重点能力与体验增强：', types: ['feat'], items: [], collapsible: false },
+            { title: '体验与界面优化', intro: '围绕使用流畅度与界面表现做了进一步打磨：', types: ['style', 'ui'], items: [], collapsible: false },
+            { title: '稳定性与问题修复', intro: '针对已知问题和边缘场景进行了修复与增强：', types: ['fix', 'hotfix'], items: [], collapsible: true },
+            { title: '工程与质量改进', intro: '在代码结构、测试、构建与依赖层面持续优化：', types: ['refactor', 'perf', 'test', 'docs', 'build', 'ci', 'chore', 'deps'], items: [], collapsible: true },
+            { title: '其他更新', intro: '此外还包含以下补充调整：', types: [], items: [], collapsible: false },
           ];
 
-          const highlights = [];
           const seen = new Set();
           let commitCount = 0;
 
-          for (const rawSubject of rawCommits.split(/\r?\n/).filter(Boolean)) {
+          for (const rawSubject of rawCommits.split('\x00').filter(Boolean)) {
             const subject = normalizeWhitespace(rawSubject);
             if (!subject || /^merge pull request/i.test(subject)) {
               continue;
@@ -217,25 +216,37 @@ jobs:
 
             const target = categories.find((category) => category.types.includes(type)) ?? categories[categories.length - 1];
             target.items.push(description);
-
-            if ((type === 'feat' || type === 'fix') && highlights.length < 3) {
-              highlights.push(description);
-            }
           }
 
           const nonEmptyCategories = categories.filter((category) => category.items.length > 0);
-          const summary = highlights.length > 0
-            ? highlights.map((item) => `- ${item}`)
-            : ['- 本次版本主要聚焦于整体稳定性、体验细节与工程质量提升。'];
+
+          const renderCategory = (category) => {
+            const content = [
+              category.intro,
+              '',
+              ...category.items.map((item) => `- ${item}`),
+            ].join('\n');
+
+            if (category.collapsible) {
+              return [
+                `<details>`,
+                `<summary><strong>${category.title}</strong></summary>`,
+                '',
+                content,
+                '',
+                `</details>`,
+              ].join('\n');
+            }
+
+            return [
+              `## ${category.title}`,
+              '',
+              content,
+            ].join('\n');
+          };
 
           const sections = nonEmptyCategories.length > 0
-            ? nonEmptyCategories.map((category) => [
-                `## ${category.title}`,
-                '',
-                category.intro,
-                '',
-                ...category.items.map((item) => `- ${item}`),
-              ].join('\n')).join('\n\n')
+            ? nonEmptyCategories.map(renderCategory).join('\n\n')
             : [
                 '## 更新内容',
                 '',
@@ -257,20 +268,14 @@ jobs:
             '',
             `> ${releaseKind} · 为更稳定、更顺手的 Cookie 管理体验而更新。`,
             '',
-            '## 本次亮点',
-            '',
-            ...summary,
-            '',
-            '## 发布信息',
+            '<details>',
+            '<summary><strong>发布信息</strong></summary>',
             '',
             ...metadata,
             '',
+            '</details>',
+            '',
             sections,
-            '',
-            '## 获取与安装',
-            '',
-            '- 下载本页附件中的 Chrome 扩展压缩包。',
-            '- 进入浏览器扩展管理页，开启开发者模式后加载解压后的扩展，或按既有分发方式安装。',
             '',
           ].join('\n');
 
