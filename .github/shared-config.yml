@@ -3,14 +3,15 @@
 # =============================================================================
 # ⚠️ 重要提示：此文件仅作为文档参考，GitHub Actions 不会自动读取它！
 #
-# 更新版本时，需要手动修改以下 2 个文件：
-#   1. .github/workflows/build-and-check.yml
-#   2. .github/workflows/dependency-review.yml
+# 当前工作流已统一通过 `.github/workflows/setup-env.yml` 输出这些值。
+# 如需更新版本，请同时修改：
+#   1. .github/workflows/setup-env.yml
+#   2. 此文件（作为文档参考）
 #
-# 修改步骤：
-#   1. 修改此文件记录新版本（作为文档）
-#   2. 同步修改上述 2 个工作流文件的 env 部分
-#   3. 提交并测试
+# 建议步骤：
+#   1. 修改 setup-env.yml 中的输出值
+#   2. 同步修改此文件中的记录
+#   3. 提交并测试相关工作流
 # =============================================================================
 
 # 依赖审查工具版本
@@ -28,13 +29,4 @@ EXTENSION_SIZE_LIMIT_MB: "10"
 # =============================================================================
 # 需要同步修改的文件位置：
 # =============================================================================
-# build-and-check.yml (Line 36-39):
-#   env:
-#     NODE_VERSION: "24"
-#     PNPM_VERSION: "10.32.1"
-#     EXTENSION_SIZE_LIMIT_MB: 10
-#
-# dependency-review.yml (Line 17-20):
-#   env:
-#     PNPM_VERSION: "10.32.1"
-#     NODE_VERSION: "24"
+# .github/workflows/setup-env.yml

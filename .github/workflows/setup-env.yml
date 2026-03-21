@@ -1,0 +1,31 @@
+name: 设置构建环境
+
+on:
+  workflow_call:
+    outputs:
+      node_version:
+        description: Node.js 版本
+        value: ${{ jobs.setup.outputs.node_version }}
+      pnpm_version:
+        description: pnpm 版本
+        value: ${{ jobs.setup.outputs.pnpm_version }}
+      extension_size_limit_mb:
+        description: 扩展体积限制 (MB)
+        value: ${{ jobs.setup.outputs.extension_size_limit_mb }}
+
+jobs:
+  setup:
+    name: 设置环境变量
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      node_version: ${{ steps.set-vars.outputs.node_version }}
+      pnpm_version: ${{ steps.set-vars.outputs.pnpm_version }}
+      extension_size_limit_mb: ${{ steps.set-vars.outputs.extension_size_limit_mb }}
+    steps:
+      - name: 设置环境变量
+        id: set-vars
+        run: |
+          echo "node_version=24" >> $GITHUB_OUTPUT
+          echo "pnpm_version=10.32.1" >> $GITHUB_OUTPUT
+          echo "extension_size_limit_mb=10" >> $GITHUB_OUTPUT

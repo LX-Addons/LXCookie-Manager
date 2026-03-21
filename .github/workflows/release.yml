@@ -1,0 +1,132 @@
+name: 创建发布
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GET_ZIP_PATH: |
+    get_zip_path() {
+      local output_var="${1:-zip_path}"
+      mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
+      if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
+        echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
+        printf '%s\n' "${ZIP_FILES[@]}"
+        return 1
+      fi
+      local ZIP_PATH="${ZIP_FILES[0]}"
+      echo "${output_var}=$ZIP_PATH" >> "$GITHUB_OUTPUT"
+      echo "✅ zip 文件路径：$ZIP_PATH"
+    }
+
+jobs:
+  get-env:
+    name: 获取环境配置
+    uses: ./.github/workflows/setup-env.yml
+    permissions: {}
+
+  release:
+    name: 创建发布
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [get-env]
+    permissions:
+      contents: write
+    env:
+      NODE_VERSION: ${{ needs.get-env.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.get-env.outputs.pnpm_version }}
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建扩展
+        run: pnpm run build
+
+      - name: 打包扩展
+        run: pnpm run zip
+
+      - name: 获取版本信息
+        id: version
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          NAME=$(jq -r '.name' package.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+
+      - name: 验证 zip 文件存在
+        run: |
+          echo "📁 构建产物内容:"
+          ls -la .output/
+
+          if ! find .output -name "*.zip" -type f | grep -q .; then
+            echo "❌ 未找到 zip 文件"
+            exit 1
+          fi
+          echo "✅ 找到 zip 文件"
+
+      - name: 获取发布 zip 文件路径
+        id: release-zip
+        run: |
+          eval "$GET_ZIP_PATH"
+          get_zip_path "zip_path"
+
+      - name: 检查标签是否存在
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 检查标签已存在提示
+        if: steps.check_tag.outputs.exists == 'true'
+        run: |
+          echo "⚠️ 标签 v${{ steps.version.outputs.version }} 已存在，跳过发布"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ⚠️ 发布已跳过" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "标签 \`v${{ steps.version.outputs.version }}\` 已存在，未创建新的发布。" >> $GITHUB_STEP_SUMMARY
+
+      - name: 创建发布版本
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: 发布 v${{ steps.version.outputs.version }}
+          files: ${{ steps.release-zip.outputs.zip_path }}
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          generate_release_notes: true
+
+      - name: 发布摘要
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          echo "## 🎉 发布已创建" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **版本** | \`v${{ steps.version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **类型** | ${{ github.ref == 'refs/heads/main' && '正式版' || '预发布版' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 发布资源:" >> $GITHUB_STEP_SUMMARY
+          find .output -name "*.zip" -type f -exec ls -la {} \; >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "未找到 zip 文件" >> $GITHUB_STEP_SUMMARY

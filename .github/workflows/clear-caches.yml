@@ -19,14 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: 检出仓库
-        uses: actions/checkout@v6
-
       - name: 清除缓存
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const prefix = '${{ inputs.cache_prefix }}';
+            const prefix = ${{ toJSON(inputs.cache_prefix) }};
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
@@ -35,6 +32,7 @@ jobs:
             let cachesCleared = 0;
             let page = 1;
             const perPage = 100;
+            const cachesToDelete = [];
 
             while (true) {
               const { data: { actions_caches: caches } } = await github.rest.actions.getActionsCacheList({
@@ -50,32 +48,36 @@ jobs:
               
               for (const cache of caches) {
                 const shouldDelete = !prefix || cache.key.startsWith(prefix);
-                
+
                 if (shouldDelete) {
-                  console.log(`删除缓存: ${cache.key} (ID: ${cache.id})`);
-                  try {
-                    await github.rest.actions.deleteActionsCacheById({
-                      owner,
-                      repo,
-                      cache_id: cache.id
-                    });
-                    cachesCleared++;
-                  } catch (error) {
-                    console.error(`删除缓存 ${cache.key} 失败:`, error.message);
-                  }
+                  cachesToDelete.push({ id: cache.id, key: cache.key });
                 }
               }
-              
+
               if (caches.length < perPage) {
                 break;
               }
               page++;
             }
 
+            for (const cache of cachesToDelete) {
+              console.log(`删除缓存：${cache.key} (ID: ${cache.id})`);
+              try {
+                await github.rest.actions.deleteActionsCacheById({
+                  owner,
+                  repo,
+                  cache_id: cache.id
+                });
+                cachesCleared++;
+              } catch (error) {
+                console.error(`删除缓存 ${cache.key} 失败:`, error.message);
+              }
+            }
+
             console.log(`\n✅ 成功清除了 ${cachesCleared} 个缓存`);
 
             if (prefix) {
-              console.log(`🔍 筛选前缀: "${prefix}"`);
+              console.log(`🔍 筛选前缀："${prefix}"`);
             } else {
               console.log(`🔍 清除了所有缓存`);
             }

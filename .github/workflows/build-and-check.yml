@@ -3,15 +3,18 @@ name: 构建与检查浏览器扩展
 on:
   push:
     branches: [main, beta, release]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - "LICENSE"
   pull_request:
-    branches: [main]
+    branches: [main, beta]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - "LICENSE"
   workflow_dispatch:
     inputs:
-      create_release:
-        description: "创建发布版本"
-        required: false
-        default: false
-        type: boolean
       skip_tests:
         description: "跳过 E2E 测试（加快构建速度）"
         required: false
@@ -27,12 +30,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || !contains(fromJSON('["main", "beta", "release"]'), github.ref_name) }}
 
+permissions:
+  contents: read
+
 env:
-  NODE_VERSION: "24"
-  PNPM_VERSION: "10.32.1"
-  EXTENSION_SIZE_LIMIT_MB: 10
-  # 可复用的 shell 函数：查找并验证唯一的 zip 文件
-  # 使用方式：eval "$GET_ZIP_PATH" 然后调用 get_zip_path
   GET_ZIP_PATH: |
     get_zip_path() {
       local output_var="${1:-zip_path}"
@@ -48,20 +49,32 @@ env:
     }
 
 jobs:
+  get-env:
+    name: 获取环境配置
+    uses: ./.github/workflows/setup-env.yml
+    permissions: {}
+
   setup:
     name: 准备环境
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    needs: [get-env]
     permissions:
       contents: read
       actions: write
+    env:
+      NODE_VERSION: ${{ needs.get-env.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.get-env.outputs.pnpm_version }}
+      EXTENSION_SIZE_LIMIT_MB: ${{ needs.get-env.outputs.extension_size_limit_mb }}
     outputs:
-      cache_key: ${{ steps.cache-key.outputs.key }}
       artifact_retention: ${{ steps.retention.outputs.days }}
       ref_slug: ${{ steps.ref-slug.outputs.value }}
+      node_version: ${{ needs.get-env.outputs.node_version }}
+      pnpm_version: ${{ needs.get-env.outputs.pnpm_version }}
+      extension_size_limit_mb: ${{ needs.get-env.outputs.extension_size_limit_mb }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 生成分支标识
         id: ref-slug
@@ -70,13 +83,6 @@ jobs:
           REF_SLUG=$(printf '%s' "$REF_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
           REF_HASH=$(printf '%s' "$REF_NAME" | sha256sum | cut -c1-8)
           echo "value=${REF_SLUG}-${REF_HASH}" >> $GITHUB_OUTPUT
-
-      - name: 生成缓存 key
-        id: cache-key
-        run: |
-          CACHE_KEY="${{ runner.os }}-${{ steps.ref-slug.outputs.value }}-node${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}"
-          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
-          echo "📁 缓存 Key: $CACHE_KEY"
 
       - name: 设置产物保留天数
         id: retention
@@ -91,7 +97,7 @@ jobs:
 
       - name: 清除当前分支旧缓存
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.clear_caches == 'true' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -103,6 +109,7 @@ jobs:
               '${{ runner.os }}-' + branchPrefix + '-wxt-'
             ];
             let cachesCleared = 0;
+            const cachesToDelete = [];
 
             console.log('🔍 正在清除当前分支相关缓存...');
             console.log('分支前缀: ' + branchPrefix);
@@ -110,7 +117,7 @@ jobs:
             for (const prefix of prefixes) {
               let page = 1;
               const perPage = 100;
-              
+
               while (true) {
                 const { data: { actions_caches: caches } } = await github.rest.actions.getActionsCacheList({
                   owner,
@@ -118,27 +125,31 @@ jobs:
                   per_page: perPage,
                   page: page
                 });
-                
+
                 if (!caches || caches.length === 0) break;
-                
+
                 for (const cache of caches) {
                   if (cache.key.startsWith(prefix)) {
-                    console.log(`🗑️ 删除缓存: ${cache.key}`);
-                    try {
-                      await github.rest.actions.deleteActionsCacheById({
-                        owner,
-                        repo,
-                        cache_id: cache.id
-                      });
-                      cachesCleared++;
-                    } catch (error) {
-                      console.error(`❌ 删除失败: ${error.message}`);
-                    }
+                    cachesToDelete.push({ id: cache.id, key: cache.key });
                   }
                 }
-                
+
                 if (caches.length < perPage) break;
                 page++;
+              }
+            }
+
+            for (const cache of cachesToDelete) {
+              console.log(`🗑️ 删除缓存: ${cache.key}`);
+              try {
+                await github.rest.actions.deleteActionsCacheById({
+                  owner,
+                  repo,
+                  cache_id: cache.id
+                });
+                cachesCleared++;
+              } catch (error) {
+                console.error(`❌ 删除失败: ${error.message}`);
               }
             }
 
@@ -152,7 +163,7 @@ jobs:
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| **分支** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **事件类型** | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **缓存 Key** | \`${{ steps.cache-key.outputs.key }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **分支标识** | \`${{ steps.ref-slug.outputs.value }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **产物保留** | ${{ steps.retention.outputs.days }} 天 |" >> $GITHUB_STEP_SUMMARY
 
   lint:
@@ -162,39 +173,32 @@ jobs:
     needs: [setup]
     permissions:
       contents: read
-      packages: read
+    env:
+      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-
-      - name: 缓存 node_modules
-        uses: actions/cache@v5
-        id: pnpm-cache
-        with:
-          path: |
-            node_modules
-            ~/.pnpm-store
-          key: ${{ needs.setup.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
       - name: 显示 TypeScript 版本
         run: pnpm exec tsc --version
+
+      - name: 生成 WXT 类型定义
+        run: pnpm wxt prepare
 
       - name: TypeScript 类型检查
         id: typecheck
@@ -240,35 +244,25 @@ jobs:
     needs: [setup]
     permissions:
       contents: read
-      packages: read
+    env:
+      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-
-      - name: 缓存 node_modules
-        uses: actions/cache@v5
-        id: pnpm-cache
-        with:
-          path: |
-            node_modules
-            ~/.pnpm-store
-          key: ${{ needs.setup.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -277,8 +271,8 @@ jobs:
         run: pnpm run test:coverage
 
       - name: 上传覆盖率到 Codecov
-        if: always()
-        uses: codecov/codecov-action@v5
+        if: success() || failure()
+        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
         with:
           files: ./coverage/lcov.info
           flags: unittests
@@ -293,40 +287,31 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    env:
+      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-
-      - name: 缓存 node_modules
-        uses: actions/cache@v5
-        id: pnpm-cache
-        with:
-          path: |
-            node_modules
-            ~/.pnpm-store
-          key: ${{ needs.setup.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
       - name: 检查密钥泄露
-        uses: trufflesecurity/trufflehog@6c05c4a00b91aa542267d8e32a8254774799d68d
+        uses: trufflesecurity/trufflehog@6c05c4a00b91aa542267d8e32a8254774799d68d # v3.93.8
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -334,6 +319,7 @@ jobs:
 
       - name: 依赖安全审计
         id: audit
+        continue-on-error: true
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
@@ -352,10 +338,31 @@ jobs:
             echo "✅ 未发现安全漏洞" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=clean" >> $GITHUB_OUTPUT
           else
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
-            echo "audit_status=warning" >> $GITHUB_OUTPUT
+            if echo "$AUDIT_OUTPUT" | grep -qiE "(registry|network|ECONNRESET|ETIMEDOUT|ENOTFOUND|5[0-9]{2})"; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "❌ **审计失败：无法连接到包注册表**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "可能是临时网络问题或 registry 故障，请重试或等待后再次运行。" >> $GITHUB_STEP_SUMMARY
+              echo "audit_status=registry_error" >> $GITHUB_OUTPUT
+              echo "::warning::安全审计失败：无法连接到包注册表，请重试"
+            else
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
+              echo "audit_status=warning" >> $GITHUB_OUTPUT
+              echo "::error::发现安全漏洞，请查看审计报告并修复"
+            fi
+          fi
+
+      - name: 汇总安全审计结果
+        if: always()
+        run: |
+          AUDIT_STATUS="${{ steps.audit.outputs.audit_status }}"
+          if [ "$AUDIT_STATUS" != "clean" ] && [ "$AUDIT_STATUS" != "registry_error" ]; then
+            echo "❌ 安全审计发现漏洞"
             exit 1
+          fi
+          if [ "$AUDIT_STATUS" = "registry_error" ]; then
+            echo "⚠️ 安全审计因网络问题失败，请考虑重试"
           fi
 
       - name: 安全模式检查
@@ -364,7 +371,12 @@ jobs:
           EXIT_CODE=0
 
           echo "#### eval 使用检查" >> $GITHUB_STEP_SUMMARY
-          if grep -r "eval(" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | grep -v ".wxt"; then
+          if grep -rPn '\beval\s*\(' --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | \
+             grep -v '/node_modules/' | \
+             grep -v '/\.wxt/' | \
+             grep -vP '^[^:]+:\d+:\s*//' | \
+             grep -v "// safe:" | \
+             grep -v "// eslint-disable"; then
             echo "❌ 发现 eval() 使用 - 潜在安全风险" >> $GITHUB_STEP_SUMMARY
             EXIT_CODE=1
           else
@@ -372,7 +384,9 @@ jobs:
           fi
 
           echo "#### dangerouslySetInnerHTML 检查" >> $GITHUB_STEP_SUMMARY
-          if grep -r "dangerouslySetInnerHTML" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | grep -v ".wxt"; then
+          if grep -r "dangerouslySetInnerHTML" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | \
+             grep -v '/node_modules/' | \
+             grep -v '/\.wxt/'; then
             echo "⚠️ 发现 dangerouslySetInnerHTML 使用 - XSS 风险" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ 未发现 dangerouslySetInnerHTML 使用" >> $GITHUB_STEP_SUMMARY
@@ -387,46 +401,37 @@ jobs:
     needs: [setup, lint, test]
     permissions:
       contents: read
-      packages: read
+    env:
+      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
+      EXTENSION_SIZE_LIMIT_MB: ${{ needs.setup.outputs.extension_size_limit_mb }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       name: ${{ steps.version.outputs.name }}
       zip_path: ${{ steps.zip-info.outputs.zip_path }}
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-
-      - name: 缓存 node_modules
-        uses: actions/cache@v5
-        id: pnpm-cache
-        with:
-          path: |
-            node_modules
-            ~/.pnpm-store
-          key: ${{ needs.setup.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
       - name: 缓存 WXT 构建缓存
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: .wxt
-          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'entrypoints/**/*', 'components/**/*', 'hooks/**/*', 'lib/**/*', 'i18n/**/*', 'utils/**/*', 'types/**/*', 'wxt.config.ts') }}
+          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-
             ${{ runner.os }}-wxt-
@@ -469,11 +474,11 @@ jobs:
           fi
 
           SIZE_KB=$(du -sk "$BUILD_DIR" | cut -f1)
-          SIZE_MB=$((SIZE_KB / 1024))
-          echo "📊 扩展体积: ${SIZE_MB}MB (${SIZE_KB}KB)"
+          MAX_SIZE_KB=$((${{ env.EXTENSION_SIZE_LIMIT_MB }} * 1024))
+          echo "📊 扩展体积: ${SIZE_KB}KB (限制: ${MAX_SIZE_KB}KB)"
 
-          if [ "$SIZE_MB" -gt "${{ env.EXTENSION_SIZE_LIMIT_MB }}" ]; then
-            echo "❌ 扩展体积 (${SIZE_MB}MB) 超出限制 (${{ env.EXTENSION_SIZE_LIMIT_MB }}MB)"
+          if [ "$SIZE_KB" -gt "$MAX_SIZE_KB" ]; then
+            echo "❌ 扩展体积 (${SIZE_KB}KB) 超出限制 (${MAX_SIZE_KB}KB)"
             exit 1
           fi
           echo "✅ 扩展体积符合限制"
@@ -554,9 +559,9 @@ jobs:
           get_zip_path "zip_path"
 
       - name: 上传构建产物
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: extension-build
+          name: extension-build-${{ steps.version.outputs.version }}-${{ github.run_id }}
           path: .output/chrome-mv3/
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
           if-no-files-found: error
@@ -572,9 +577,9 @@ jobs:
           echo "✅ zip 文件存在：${{ steps.zip-info.outputs.zip_path }}"
 
       - name: 上传打包产物
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: extension-zip
+          name: extension-zip-${{ steps.version.outputs.version }}-${{ github.run_id }}
           path: ${{ steps.zip-info.outputs.zip_path }}
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
           if-no-files-found: error
@@ -596,34 +601,24 @@ jobs:
     needs: [setup, build]
     permissions:
       contents: read
-      packages: read
+    env:
+      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
+      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
     if: needs.build.result == 'success' && github.event.inputs.skip_tests != 'true'
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 配置 Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-
-      - name: 缓存 node_modules
-        uses: actions/cache@v5
-        id: pnpm-cache
-        with:
-          path: |
-            node_modules
-            ~/.pnpm-store
-          key: ${{ needs.setup.outputs.cache_key }}
-          restore-keys: |
-            ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-node${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node${{ env.NODE_VERSION }}-
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -634,9 +629,9 @@ jobs:
           echo "🔍 工作流运行 ID: ${{ github.run_id }}"
 
       - name: 下载构建产物
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: extension-build
+          name: extension-build-${{ needs.build.outputs.version }}-${{ github.run_id }}
           path: .output/chrome-mv3/
 
       - name: 准备测试扩展
@@ -668,7 +663,7 @@ jobs:
 
       - name: 上传 Playwright 报告
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: playwright-report
           path: playwright-report/
@@ -684,11 +679,12 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
     permissions:
+      contents: read
       pull-requests: write
       issues: write
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 获取版本信息
         id: info
@@ -706,7 +702,7 @@ jobs:
           fi
 
       - name: 创建 PR 评论
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const setupResult = '${{ needs.setup.result }}';
@@ -744,7 +740,7 @@ jobs:
             body += `| :---: | :--- | :---: | :--- |\n`;
             body += `| 🚀 | **环境准备** | ${statusEmoji(setupResult)} | 缓存与产物配置 |\n`;
             body += `| 🔍 | **代码检查** | ${statusEmoji(lintResult)} | TypeScript + ESLint + Prettier |\n`;
-            body += `| 🧪 | **单元测试** | ${statusEmoji(testResult)} | Node.js ${{ env.NODE_VERSION }} 测试 |\n`;
+            body += `| 🧪 | **单元测试** | ${statusEmoji(testResult)} | Node.js ${{ needs.setup.outputs.node_version }} 测试 |\n`;
             body += `| 🛡️ | **安全扫描** | ${statusEmoji(securityResult)} | 密钥泄露 + 依赖审计 |\n`;
             body += `| 📦 | **扩展构建** | ${statusEmoji(buildResult)} | WXT 生产构建 |\n`;
             body += `| 🎭 | **E2E 测试** | ${statusEmoji(e2eResult)} | Playwright 浏览器测试 |\n\n`;
@@ -788,12 +784,33 @@ jobs:
               }
             }
 
-            github.rest.issues.createComment({
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: body
+              per_page: 100
             });
+
+            const botComment = comments.find(comment =>
+              comment.user.login === 'github-actions[bot]' &&
+              comment.body.includes('## 🛠️ 扩展构建仪表盘')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
 
   notify-failure:
     name: 失败通知
@@ -801,6 +818,8 @@ jobs:
     timeout-minutes: 5
     needs: [setup, lint, test, security, build, e2e]
     if: failure() && github.event_name != 'pull_request'
+    permissions:
+      contents: read
     steps:
       - name: 创建失败摘要
         run: |
@@ -816,334 +835,6 @@ jobs:
           echo "| 🎭 | E2E 测试 | ${{ needs.e2e.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "请查看 [工作流日志](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) 了解详情。" >> $GITHUB_STEP_SUMMARY
-
-  release:
-    name: 创建发布
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [setup, lint, test, security, build, e2e]
-    permissions:
-      contents: write
-    if: |
-      needs.lint.result == 'success' &&
-      needs.test.result == 'success' &&
-      needs.security.result == 'success' &&
-      needs.build.result == 'success' &&
-      needs.e2e.result == 'success' &&
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.create_release == 'true' &&
-      github.event.inputs.skip_tests != 'true'
-    steps:
-      - name: 检出仓库
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 设置 Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: 获取版本信息
-        id: version
-        run: |
-          VERSION=$(jq -r '.version' package.json)
-          NAME=$(jq -r '.name' package.json)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "name=$NAME" >> $GITHUB_OUTPUT
-
-      - name: 下载构建产物
-        uses: actions/download-artifact@v8
-        with:
-          name: extension-zip
-          path: .output/
-          merge-multiple: true
-
-      - name: 验证 zip 文件存在
-        run: |
-          echo "📁 下载的构建产物内容:"
-          ls -la .output/
-
-          if ! find .output -name "*.zip" -type f | grep -q .; then
-            echo "❌ 未找到 zip 文件"
-            exit 1
-          fi
-          echo "✅ 找到 zip 文件"
-
-      - name: 获取发布 zip 文件路径
-        id: release-zip
-        run: |
-          eval "$GET_ZIP_PATH"
-          get_zip_path "zip_path"
-
-      - name: 生成完整发布内容
-        id: final_notes
-        uses: actions/github-script@v8
-        env:
-          CURRENT_VERSION: ${{ steps.version.outputs.version }}
-        with:
-          script: |
-            const currentVersion = process.env.CURRENT_VERSION;
-
-            let previousTag = '';
-            const currentTag = 'v' + currentVersion;
-
-            try {
-              const { data: tagsList } = await github.rest.repos.listTags({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                per_page: 100,
-              });
-              
-              core.info('📋 获取到的标签列表: ' + tagsList.map(t => t.name).join(', '));
-              
-              const tagNames = tagsList.map(tag => tag.name).sort((a, b) => {
-                const aParts = a.replace('v', '').split('.').map(Number);
-                const bParts = b.replace('v', '').split('.').map(Number);
-                for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-                  const diff = (aParts[i] || 0) - (bParts[i] || 0);
-                  if (diff !== 0) return diff;
-                }
-                return 0;
-              });
-              
-              core.info('📋 排序后的标签列表: ' + tagNames.join(', '));
-              core.info('📋 当前版本标签: ' + currentTag);
-              
-              const existingTags = tagNames.filter(tag => tag !== currentTag);
-              core.info('📋 排除当前版本后的标签列表: ' + existingTags.join(', '));
-              
-              if (existingTags.length > 0) {
-                for (let i = existingTags.length - 1; i >= 0; i--) {
-                  const candidateTag = existingTags[i];
-                  try {
-                    const { data: compare } = await github.rest.repos.compareCommits({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      base: candidateTag,
-                      head: context.sha,
-                    });
-                    
-                    if (compare.status === 'ahead' || compare.status === 'identical') {
-                      previousTag = candidateTag;
-                      core.info('📋 找到可达的基线标签: ' + previousTag);
-                      break;
-                    } else {
-                      core.info('📋 标签 ' + candidateTag + ' 不可达 (status: ' + compare.status + ')，跳过');
-                    }
-                  } catch (err) {
-                    core.info('📋 标签 ' + candidateTag + ' 比较失败: ' + err.message + '，跳过');
-                  }
-                }
-                
-                if (!previousTag) {
-                  core.warning('⚠️ 未找到可达的基线标签，将使用 generateReleaseNotes 作为备选方案');
-                }
-              }
-            } catch (error) {
-              core.error('⚠️ 获取标签列表失败: ' + error.message);
-            }
-
-            const lines = [];
-
-            let changelogContent = '';
-            try {
-              if (previousTag) {
-                core.info('📋 正在比较 ' + previousTag + ' 和 ' + context.sha.substring(0, 7));
-                
-                const { data: commits } = await github.rest.repos.compareCommits({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  base: previousTag,
-                  head: context.sha,
-                });
-                
-                core.info('📋 获取到的提交数量: ' + (commits.commits ? commits.commits.length : 0));
-                
-                if (commits && commits.commits && commits.commits.length > 0) {
-                  const categories = {
-                    '🚀 新功能': { prefix: 'feat', commits: [] },
-                    '🐛 Bug 修复': { prefix: 'fix', commits: [] },
-                    '♻️ 重构': { prefix: 'refactor', commits: [] },
-                    '✨ 性能优化': { prefix: 'perf', commits: [] },
-                    '📚 文档': { prefix: 'docs', commits: [] },
-                    '🎨 样式': { prefix: 'style', commits: [] },
-                    '✅ 测试': { prefix: 'test', commits: [] },
-                    '🔧 构建/CI': { prefix: ['build', 'ci'], commits: [] },
-                    '🔨 杂项': { prefix: 'chore', commits: [] },
-                    '📦 其他': { prefix: null, commits: [] },
-                  };
-                  
-                  const escapeMarkdown = (text) => {
-                    return text
-                      .replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;')
-                      .replace(/`/g, '\\`')
-                      .replace(/\[/g, '\\[')
-                      .replace(/\]/g, '\\]')
-                      .replace(/\|/g, '\\|');
-                  };
-                  
-                  const seenMessages = new Set();
-                  
-                  commits.commits.forEach(commit => {
-                    const message = commit.commit.message.split('\n')[0];
-                    const sha = commit.sha.substring(0, 7);
-                    
-                    const match = message.match(/^(feat|fix|refactor|perf|docs|style|test|build|ci|chore)(\([^)]+\))?(!)?:\s*(.+)$/i);
-                    
-                    const rawDesc = match ? match[4] : message;
-                    const typeKey = match ? match[1].toLowerCase() : 'other';
-                    const scopeKey = match && match[2]
-                      ? match[2].replace(/[()]/g, '').toLowerCase()
-                      : '';
-                    const normalizedDesc = rawDesc.toLowerCase().trim().replace(/\s+/g, ' ');
-                    const dedupeKey = `${typeKey}:${scopeKey}:${normalizedDesc}`;
-                    
-                    if (seenMessages.has(dedupeKey)) {
-                      core.info('📋 跳过重复提交: ' + message.substring(0, 50));
-                      return;
-                    }
-                    seenMessages.add(dedupeKey);
-                    
-                    let category = categories['📦 其他'];
-                    if (match) {
-                      const type = match[1].toLowerCase();
-                      const scope = match[2] || '';
-                      const isBreaking = match[3] === '!';
-                      const desc = escapeMarkdown(match[4]);
-                      
-                      for (const [catName, catData] of Object.entries(categories)) {
-                        if (Array.isArray(catData.prefix)) {
-                          if (catData.prefix.includes(type)) {
-                            category = catData;
-                            break;
-                          }
-                        } else if (catData.prefix === type) {
-                          category = catData;
-                          break;
-                        }
-                      }
-                      
-                      category.commits.push({
-                        message: isBreaking ? `💥 ${desc}` : desc,
-                        scope: escapeMarkdown(scope.replace(/[()]/g, '')),
-                        sha,
-                        url: commit.html_url
-                      });
-                    } else {
-                      category.commits.push({
-                        message: escapeMarkdown(message),
-                        scope: '',
-                        sha,
-                        url: commit.html_url
-                      });
-                    }
-                  });
-                  
-                  const changelogLines = [];
-                  for (const [catName, catData] of Object.entries(categories)) {
-                    if (catData.commits.length > 0 && catName !== '📦 其他') {
-                      changelogLines.push(`<details>`);
-                      changelogLines.push(`<summary>${catName} (${catData.commits.length})</summary>`);
-                      changelogLines.push('');
-                      catData.commits.forEach(c => {
-                        const scopeText = c.scope ? `**${c.scope}**: ` : '';
-                        changelogLines.push(`- ${scopeText}${c.message} ([${c.sha}](${c.url}))`);
-                      });
-                      changelogLines.push('');
-                      changelogLines.push(`</details>`);
-                      changelogLines.push('');
-                    }
-                  }
-                  
-                  if (categories['📦 其他'].commits.length > 0) {
-                    changelogLines.push(`<details>`);
-                    changelogLines.push(`<summary>📦 其他 (${categories['📦 其他'].commits.length})</summary>`);
-                    changelogLines.push('');
-                    categories['📦 其他'].commits.forEach(c => {
-                      changelogLines.push(`- ${c.message} ([${c.sha}](${c.url}))`);
-                    });
-                    changelogLines.push('');
-                    changelogLines.push(`</details>`);
-                    changelogLines.push('');
-                  }
-                  
-                  changelogContent = changelogLines.join('\n');
-                  core.info('📋 生成的更新内容长度: ' + changelogContent.length);
-                }
-              } else {
-                core.warning('⚠️ 没有找到上一个版本标签');
-              }
-              
-              if (!changelogContent) {
-                core.info('📋 使用 generateReleaseNotes 作为备选方案');
-                const { data: notes } = await github.rest.repos.generateReleaseNotes({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  tag_name: 'v' + currentVersion,
-                  target_commitish: context.sha,
-                  previous_tag_name: previousTag || undefined,
-                });
-                changelogContent = notes.body || '';
-              }
-            } catch (error) {
-              core.error('⚠️ 获取提交历史失败: ' + error.message);
-              core.error('⚠️ 错误堆栈: ' + error.stack);
-              changelogContent = '';
-            }
-
-            if (changelogContent && changelogContent !== 'null') {
-              lines.push(changelogContent);
-            } else {
-              lines.push('- 🔄 版本更新至 ' + currentVersion);
-            }
-
-            const finalContent = lines.join('\n');
-            core.info('📋 最终内容长度: ' + finalContent.length);
-            core.info('📋 最终内容前 500 字符: ' + finalContent.substring(0, 500));
-
-            require('fs').writeFileSync('release-notes.md', finalContent);
-            core.info('✅ 已将发布内容写入 release-notes.md');
-
-      - name: 检查标签是否存在
-        id: check_tag
-        run: |
-          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: 创建发布版本
-        if: steps.check_tag.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: 发布 v${{ steps.version.outputs.version }}
-          body_path: release-notes.md
-          files: ${{ steps.release-zip.outputs.zip_path }}
-          draft: false
-          prerelease: ${{ github.ref != 'refs/heads/main' }}
-          generate_release_notes: false
-
-      - name: 发布摘要
-        run: |
-          echo "## 🎉 发布已创建" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
-          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **版本** | \`v${{ steps.version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **类型** | ${{ github.ref == 'refs/heads/main' && '正式版' || '预发布版' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 发布资源:" >> $GITHUB_STEP_SUMMARY
-          find .output -name "*.zip" -type f -exec ls -la {} \; >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "未找到 zip 文件" >> $GITHUB_STEP_SUMMARY
 
   dependabot-notify:
     name: Dependabot通知
@@ -1163,7 +854,7 @@ jobs:
       issues: write
     steps:
       - name: 添加待审核标签
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             await github.rest.issues.addLabels({
