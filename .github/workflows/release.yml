@@ -182,8 +182,8 @@ jobs:
 
           const rawCommits = run(
             previousTag
-              ? `git log ${previousTag}..HEAD --no-merges --format=%s%x00`
-              : 'git log HEAD --no-merges --format=%s%x00 -n 50',
+              ? `git log -z ${previousTag}..HEAD --no-merges --format=%s`
+              : 'git log -z HEAD --no-merges --format=%s -n 50',
           );
 
           const categories = [
@@ -197,7 +197,7 @@ jobs:
           const seen = new Set();
           let commitCount = 0;
 
-          for (const rawSubject of rawCommits.split('\x00').filter(Boolean)) {
+          for (const rawSubject of rawCommits.split('\0').filter(Boolean)) {
             const subject = normalizeWhitespace(rawSubject);
             if (!subject || /^merge pull request/i.test(subject)) {
               continue;
