@@ -350,7 +350,6 @@ jobs:
             --rule 'no-implied-eval: error' \
             --rule 'no-new-func: error' \
             --rule 'react/no-danger: error' \
-            --format compact \
             'src/**/*.{ts,tsx}' 2>&1) || ESLINT_EXIT_CODE=$?
 
           if [ $ESLINT_EXIT_CODE -ne 0 ]; then
