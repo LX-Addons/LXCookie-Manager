@@ -181,8 +181,8 @@ jobs:
 
           const rawCommitsBuffer = runRaw(
             previousTag
-              ? `git log ${previousTag}..HEAD --no-merges --format=%s---COMMIT_SEP---`
-              : 'git log HEAD --no-merges --format=%s---COMMIT_SEP--- -n 50',
+              ? `git log ${previousTag}..HEAD --no-merges --format=%B---COMMIT_SEP---`
+              : 'git log HEAD --no-merges --format=%B---COMMIT_SEP--- -n 50',
           );
 
           const categories = [
@@ -196,11 +196,15 @@ jobs:
           const seen = new Set();
           let commitCount = 0;
 
-          const commitSubjects = rawCommitsBuffer
+          const commitBodies = rawCommitsBuffer
             .toString('utf8')
             .split('---COMMIT_SEP---')
             .map((s) => s.trim())
             .filter(Boolean);
+
+          const commitSubjects = commitBodies.flatMap((body) =>
+            body.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+          );
 
           for (const rawSubject of commitSubjects) {
             const subject = normalizeWhitespace(rawSubject);
