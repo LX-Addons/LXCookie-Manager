@@ -13,21 +13,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  GET_ZIP_PATH: |
-    get_zip_path() {
-      local output_var="${1:-zip_path}"
-      mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
-      if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
-        echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
-        printf '%s\n' "${ZIP_FILES[@]}"
-        return 1
-      fi
-      local ZIP_PATH="${ZIP_FILES[0]}"
-      echo "${output_var}=$ZIP_PATH" >> "$GITHUB_OUTPUT"
-      echo "✅ zip 文件路径：$ZIP_PATH"
-    }
-
 jobs:
   get-env:
     name: 获取环境配置
@@ -68,10 +53,8 @@ jobs:
         id: version
         run: |
           VERSION=$(jq -r '.version' package.json)
-          NAME=$(jq -r '.name' package.json)
           DISPLAY_NAME=$(jq -r '.displayName // .name' package.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
 
       - name: 检查标签是否存在
@@ -115,24 +98,18 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false'
         run: pnpm run zip
 
-      - name: 验证 zip 文件存在
+      - name: 获取 zip 文件路径
         if: steps.check_tag.outputs.exists == 'false'
+        id: release-zip
         run: |
-          echo "📁 构建产物内容:"
-          ls -la .output/
-
-          if ! find .output -name "*.zip" -type f | grep -q .; then
-            echo "❌ 未找到 zip 文件"
+          mapfile -t ZIP_FILES < <(find .output -name "*.zip" -type f | sort)
+          if [ "${#ZIP_FILES[@]}" -ne 1 ]; then
+            echo "❌ 期望恰好找到 1 个 zip 文件，实际为 ${#ZIP_FILES[@]}"
+            printf '%s\n' "${ZIP_FILES[@]}"
             exit 1
           fi
-          echo "✅ 找到 zip 文件"
-
-      - name: 获取发布 zip 文件路径
-        id: release-zip
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          eval "$GET_ZIP_PATH"
-          get_zip_path "zip_path"
+          echo "zip_path=${ZIP_FILES[0]}" >> $GITHUB_OUTPUT
+          echo "✅ zip 文件路径：${ZIP_FILES[0]}"
 
       - name: 生成发布说明
         if: steps.check_tag.outputs.exists == 'false'
@@ -164,120 +141,117 @@ jobs:
             }
           };
 
-          const escapeMarkdown = (value) =>
-            value
-              .replace(/\\/g, '\\\\')
-              .replace(/`/g, '\\`')
-              .replace(/\[/g, '\\[')
-              .replace(/\]/g, '\\]')
-              .replace(/\*/g, '\\*')
-              .replace(/_/g, '\\_')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;');
-
           const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
+
+          const prettify = (text) => {
+            const cleaned = normalizeWhitespace(text)
+              .replace(/\s*\(#\d+\)\s*$/g, '')
+              .replace(/^(add|update|improve|optimize|refactor|fix)\b/i, (word) => {
+                const map = {
+                  add: '新增',
+                  update: '更新',
+                  improve: '改进',
+                  optimize: '优化',
+                  refactor: '重构',
+                  fix: '修复',
+                };
+                return map[word.toLowerCase()] ?? word;
+              });
+
+            return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+          };
 
           const rawCommits = run(
             previousTag
-              ? `git log ${previousTag}..HEAD --no-merges --format=%H%x09%s`
-              : 'git log HEAD --no-merges --format=%H%x09%s -n 50',
+              ? `git log ${previousTag}..HEAD --no-merges --format=%s`
+              : 'git log HEAD --no-merges --format=%s -n 50',
           );
 
           const categories = [
-            { title: '✨ 新功能', types: ['feat'] },
-            { title: '🐛 修复改进', types: ['fix', 'hotfix'] },
-            { title: '♻️ 重构优化', types: ['refactor', 'perf'] },
-            { title: '🎨 界面与体验', types: ['style', 'ui'] },
-            { title: '🧪 测试与质量', types: ['test'] },
-            { title: '📝 文档更新', types: ['docs'] },
-            { title: '🔧 构建与依赖', types: ['build', 'ci', 'chore', 'deps'] },
-            { title: '📦 其他更新', types: [] },
-          ].map((category) => ({ ...category, items: [] }));
+            { title: '核心功能升级', intro: '本次版本带来以下重点能力与体验增强：', types: ['feat'], items: [] },
+            { title: '体验与界面优化', intro: '围绕使用流畅度与界面表现做了进一步打磨：', types: ['style', 'ui'], items: [] },
+            { title: '稳定性与问题修复', intro: '针对已知问题和边缘场景进行了修复与增强：', types: ['fix', 'hotfix'], items: [] },
+            { title: '工程与质量改进', intro: '在代码结构、测试、构建与依赖层面持续优化：', types: ['refactor', 'perf', 'test', 'docs', 'build', 'ci', 'chore', 'deps'], items: [] },
+            { title: '其他更新', intro: '此外还包含以下补充调整：', types: [], items: [] },
+          ];
 
+          const highlights = [];
           const seen = new Set();
-          const commits = [];
+          let commitCount = 0;
 
-          for (const line of rawCommits.split(/\r?\n/).filter(Boolean)) {
-            const [fullSha, ...subjectParts] = line.split('\t');
-            const subject = normalizeWhitespace(subjectParts.join('\t'));
+          for (const rawSubject of rawCommits.split(/\r?\n/).filter(Boolean)) {
+            const subject = normalizeWhitespace(rawSubject);
             if (!subject || /^merge pull request/i.test(subject)) {
               continue;
             }
 
+            commitCount += 1;
             const match = subject.match(/^(?<type>[a-z]+)(\((?<scope>[^)]+)\))?(?<breaking>!)?:\s*(?<description>.+)$/i);
             const type = match?.groups?.type?.toLowerCase() ?? 'other';
-            const scope = normalizeWhitespace(match?.groups?.scope ?? '');
-            const description = normalizeWhitespace(
-              (match?.groups?.description ?? subject).replace(/\s*\(#\d+\)\s*$/g, ''),
-            );
-            const key = `${type}:${scope}:${description.toLowerCase()}`;
+            const description = prettify(match?.groups?.description ?? subject);
+            const key = `${type}:${description.toLowerCase()}`;
 
-            if (!description || seen.has(key)) {
+            if (seen.has(key)) {
               continue;
             }
             seen.add(key);
 
-            commits.push({
-              sha: fullSha.slice(0, 7),
-              type,
-              scope,
-              description,
-              breaking: Boolean(match?.groups?.breaking),
-            });
-          }
+            const target = categories.find((category) => category.types.includes(type)) ?? categories[categories.length - 1];
+            target.items.push(description);
 
-          for (const commit of commits) {
-            const target =
-              categories.find((category) => category.types.includes(commit.type)) ??
-              categories[categories.length - 1];
-            target.items.push(commit);
+            if ((type === 'feat' || type === 'fix') && highlights.length < 3) {
+              highlights.push(description);
+            }
           }
 
           const nonEmptyCategories = categories.filter((category) => category.items.length > 0);
-          const overviewLines = nonEmptyCategories.map(
-            (category) => `- ${category.title.replace(/^[^ ]+\s/, '')}: ${category.items.length} 项`,
-          );
+          const summary = highlights.length > 0
+            ? highlights.map((item) => `- ${item}`)
+            : ['- 本次版本主要聚焦于整体稳定性、体验细节与工程质量提升。'];
 
-          const sections = nonEmptyCategories
-            .map((category) => {
-              const items = category.items.map((commit) => {
-                const scopeText = commit.scope ? `**${escapeMarkdown(commit.scope)}**: ` : '';
-                const breakingText = commit.breaking ? '（破坏性变更）' : '';
-                return `- ${scopeText}${escapeMarkdown(commit.description)}${breakingText} (\`${commit.sha}\`)`;
-              });
-              return [`## ${category.title}`, '', ...items].join('\n');
-            })
-            .join('\n\n');
+          const sections = nonEmptyCategories.length > 0
+            ? nonEmptyCategories.map((category) => [
+                `## ${category.title}`,
+                '',
+                category.intro,
+                '',
+                ...category.items.map((item) => `- ${item}`),
+              ].join('\n')).join('\n\n')
+            : [
+                '## 更新内容',
+                '',
+                '本次版本主要聚焦于稳定性、体验细节与工程质量优化。',
+              ].join('\n');
 
-          const compareLine = previousTag
-            ? `- 完整对比: [${previousTag}...${currentTag}](${repoUrl}/compare/${previousTag}...${process.env.GITHUB_SHA})`
-            : '- 完整对比: 首次发布';
-
-          const body = [
-            `# ${escapeMarkdown(displayName)} ${currentTag}`,
-            '',
-            `> ${releaseKind} · 自动构建发布`,
-            '',
-            '## 概览',
-            '',
+          const metadata = [
             `- 版本号: \`${currentTag}\``,
             `- 发布类型: ${releaseKind}`,
             previousTag ? `- 对比基线: \`${previousTag}\`` : '- 对比基线: 首次发布',
-            `- 提交数量: ${commits.length}`,
-            compareLine,
+            `- 涉及提交: ${commitCount} 项`,
+            previousTag
+              ? `- 变更对比: [查看完整差异](${repoUrl}/compare/${previousTag}...${process.env.GITHUB_SHA})`
+              : '- 变更对比: 首次发布',
+          ];
+
+          const body = [
+            `# ${displayName} ${currentTag}`,
             '',
-            '## 更新概览',
+            `> ${releaseKind} · 为更稳定、更顺手的 Cookie 管理体验而更新。`,
             '',
-            ...(overviewLines.length > 0 ? overviewLines : ['- 本次发布主要包含常规维护与工程优化']),
+            '## 本次亮点',
             '',
-            ...(sections
-              ? [sections]
-              : ['## 📦 更新内容', '', '- 本次版本主要包含常规维护与工程优化。']),
+            ...summary,
             '',
-            '## 安装说明',
+            '## 发布信息',
+            '',
+            ...metadata,
+            '',
+            sections,
+            '',
+            '## 获取与安装',
             '',
             '- 下载本页附件中的 Chrome 扩展压缩包。',
-            '- 在浏览器扩展管理页开启开发者模式后加载解压后的扩展，或按你的分发方式安装。',
+            '- 进入浏览器扩展管理页，开启开发者模式后加载解压后的扩展，或按既有分发方式安装。',
             '',
           ].join('\n');
 
@@ -315,4 +289,4 @@ jobs:
           echo "| **对比基线** | \`${{ steps.previous-tag.outputs.tag || '首次发布' }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📦 发布资源:" >> $GITHUB_STEP_SUMMARY
-          find .output -name "*.zip" -type f -exec ls -la {} \; >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "未找到 zip 文件" >> $GITHUB_STEP_SUMMARY
+          ls -la "${{ steps.release-zip.outputs.zip_path }}" >> $GITHUB_STEP_SUMMARY

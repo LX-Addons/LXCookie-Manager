@@ -1,5 +1,9 @@
 name: 设置构建环境
 
+# GitHub Actions 的统一环境配置入口。
+# 如需升级 Node.js、pnpm 或扩展体积限制，请只修改此文件。
+# 其他工作流通过 workflow_call 读取这里的输出，避免多处手动同步。
+
 on:
   workflow_call:
     outputs:
