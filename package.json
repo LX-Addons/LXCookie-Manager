@@ -55,10 +55,13 @@
     "vite": "^8.0.1",
     "vitest": "4.1.0"
   },
-  "overrides": {
-    "msgpackr": "1.11.8",
-    "content-security-policy-parser": "0.6.0",
-    "svelte": "4.2.19",
-    "esbuild": "0.25.0"
+  "pnpm": {
+    "overrides": {
+      "msgpackr": "1.11.8",
+      "content-security-policy-parser": "0.6.0",
+      "svelte": "4.2.19",
+      "esbuild": "0.25.0",
+      "flatted": ">=3.4.2"
+    }
   }
 }
