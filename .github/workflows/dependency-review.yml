@@ -66,7 +66,7 @@ jobs:
               echo "<details><summary>错误详情</summary>" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
-              echo "$AUDIT_OUTPUT" | head -50 >> $GITHUB_STEP_SUMMARY
+              printf '%s\n' "$AUDIT_OUTPUT" | sed -n '1,50p' >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               echo "</details>" >> $GITHUB_STEP_SUMMARY
               echo "::error::安全审计失败：无法连接到包注册表，请重试"
@@ -74,7 +74,7 @@ jobs:
             else
               echo "⚠️ 发现漏洞：" >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
-              echo "$AUDIT_OUTPUT" | head -50 >> $GITHUB_STEP_SUMMARY
+              printf '%s\n' "$AUDIT_OUTPUT" | sed -n '1,50p' >> $GITHUB_STEP_SUMMARY
               echo '```' >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "::error::发现安全漏洞，请查看审计报告并修复"
@@ -106,7 +106,7 @@ jobs:
             echo "❌ **检测到许可证违规！**" >> $GITHUB_STEP_SUMMARY
             echo "以下包使用了受限许可证（GPL/AGPL/LGPL），与隐私优先策略冲突：" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            printf '%s\n' "$LICENSE_OUTPUT" | head -30 >> $GITHUB_STEP_SUMMARY
+            printf '%s\n' "$LICENSE_OUTPUT" | sed -n '1,30p' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "license_status=violation" >> $GITHUB_OUTPUT
             echo ""

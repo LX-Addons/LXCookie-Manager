@@ -122,6 +122,7 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t("domainManager.domainPlaceholder")}
+            aria-label={t("domainManager.addDomain")}
             className="rule-input"
             data-testid="rule-input"
           />
@@ -140,6 +141,7 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
               onClick={handleAddCurrentDomain}
               className="btn btn-secondary btn-sm"
               disabled={!!isCurrentDomainInList}
+              aria-label={`${t("domainManager.addCurrentWebsite")}: ${currentDomain}`}
             >
               {currentDomain}
             </button>

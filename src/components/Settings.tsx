@@ -264,64 +264,74 @@ export const Settings = ({ onMessage }: Props) => {
             <h4 className="settings-subsection-title">{t("settings.customTheme")}</h4>
             <div className="color-inputs">
               <div className="color-input">
-                <label>{t("settings.primaryColor")}</label>
+                <label htmlFor="custom-theme-primary">{t("settings.primaryColor")}</label>
                 <input
+                  id="custom-theme-primary"
                   type="color"
                   value={settings.customTheme?.primary ?? DEFAULT_CUSTOM_THEME.primary}
                   onChange={(e) => updateCustomTheme("primary", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.successColor")}</label>
+                <label htmlFor="custom-theme-success">{t("settings.successColor")}</label>
                 <input
+                  id="custom-theme-success"
                   type="color"
                   value={settings.customTheme?.success ?? DEFAULT_CUSTOM_THEME.success}
                   onChange={(e) => updateCustomTheme("success", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.warningColor")}</label>
+                <label htmlFor="custom-theme-warning">{t("settings.warningColor")}</label>
                 <input
+                  id="custom-theme-warning"
                   type="color"
                   value={settings.customTheme?.warning ?? DEFAULT_CUSTOM_THEME.warning}
                   onChange={(e) => updateCustomTheme("warning", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.dangerColor")}</label>
+                <label htmlFor="custom-theme-danger">{t("settings.dangerColor")}</label>
                 <input
+                  id="custom-theme-danger"
                   type="color"
                   value={settings.customTheme?.danger ?? DEFAULT_CUSTOM_THEME.danger}
                   onChange={(e) => updateCustomTheme("danger", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.bgPrimaryColor")}</label>
+                <label htmlFor="custom-theme-bg-primary">{t("settings.bgPrimaryColor")}</label>
                 <input
+                  id="custom-theme-bg-primary"
                   type="color"
                   value={settings.customTheme?.bgPrimary ?? DEFAULT_CUSTOM_THEME.bgPrimary}
                   onChange={(e) => updateCustomTheme("bgPrimary", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.bgSecondaryColor")}</label>
+                <label htmlFor="custom-theme-bg-secondary">{t("settings.bgSecondaryColor")}</label>
                 <input
+                  id="custom-theme-bg-secondary"
                   type="color"
                   value={settings.customTheme?.bgSecondary ?? DEFAULT_CUSTOM_THEME.bgSecondary}
                   onChange={(e) => updateCustomTheme("bgSecondary", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.textPrimaryColor")}</label>
+                <label htmlFor="custom-theme-text-primary">{t("settings.textPrimaryColor")}</label>
                 <input
+                  id="custom-theme-text-primary"
                   type="color"
                   value={settings.customTheme?.textPrimary ?? DEFAULT_CUSTOM_THEME.textPrimary}
                   onChange={(e) => updateCustomTheme("textPrimary", e.target.value)}
                 />
               </div>
               <div className="color-input">
-                <label>{t("settings.textSecondaryColor")}</label>
+                <label htmlFor="custom-theme-text-secondary">
+                  {t("settings.textSecondaryColor")}
+                </label>
                 <input
+                  id="custom-theme-text-secondary"
                   type="color"
                   value={settings.customTheme?.textSecondary ?? DEFAULT_CUSTOM_THEME.textSecondary}
                   onChange={(e) => updateCustomTheme("textSecondary", e.target.value)}

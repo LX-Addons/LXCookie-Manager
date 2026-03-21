@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useId } from "react";
 
 interface OptionWithOnChange {
   checked: boolean;
@@ -30,6 +30,7 @@ type Props = PropsWithIndividualOnChange | PropsWithUnifiedOnChange;
 
 export const CheckboxGroup = memo(({ options, onChange }: Props) => {
   const isUnifiedApi = options.length > 0 && "value" in options[0];
+  const groupId = useId();
 
   if (isUnifiedApi && onChange) {
     const unifiedOptions = options as OptionWithValue[];
@@ -49,8 +50,8 @@ export const CheckboxGroup = memo(({ options, onChange }: Props) => {
 
     return (
       <fieldset className="checkbox-group">
-        {unifiedOptions.map((option) => {
-          const id = `checkbox-${option.value}`;
+        {unifiedOptions.map((option, index) => {
+          const id = `${groupId}-${index}`;
           return (
             <label
               key={option.value}
@@ -83,8 +84,8 @@ export const CheckboxGroup = memo(({ options, onChange }: Props) => {
 
   return (
     <fieldset className="checkbox-group">
-      {individualOptions.map((option) => {
-        const id = `checkbox-${option.label}`;
+      {individualOptions.map((option, index) => {
+        const id = `${groupId}-${index}`;
         return (
           <label
             key={option.label}

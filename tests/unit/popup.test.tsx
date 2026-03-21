@@ -308,20 +308,58 @@ const testTabSwitching = (tabTestId: string) => {
   }
 };
 
-const testQuickAddButton = (listType: "whitelist" | "blacklist", initialList: string[]) => {
-  setupMockStorage({ [listType]: initialList });
+const testQuickAddButton = async (listType: "whitelist" | "blacklist", initialList: string[]) => {
+  const mockSetList = vi.fn();
+  const mode = listType === "whitelist" ? "whitelist" : "blacklist";
+
+  const { isInList } = await import("@/utils");
+  vi.mocked(isInList).mockImplementation((domain: string, list: string[]) => {
+    return list.some((item) => domain === item || domain.endsWith("." + item));
+  });
+
+  (storageHook.useStorage as Mock).mockImplementation((key: string, defaultValue: unknown) => {
+    if (key === `local:${listType}`) {
+      return [initialList, mockSetList];
+    }
+    if (key === "local:settings") {
+      return [{ ...DEFAULT_SETTINGS, mode }, vi.fn()];
+    }
+    if (key === "local:clearLog") {
+      return [[], vi.fn()];
+    }
+    return [defaultValue, vi.fn()];
+  });
+
   const { container } = render(<IndexPopup />);
 
+  await waitFor(() => {
+    const siteTitle = container.querySelector(".site-title");
+    expect(siteTitle?.textContent).not.toBe("");
+  });
+
+  const quickActions = container.querySelector('[data-testid="quick-actions"]');
+  if (!quickActions) {
+    throw new Error("Quick actions not found");
+  }
+
+  const buttons = quickActions.querySelectorAll("button");
+  if (buttons.length < 2) {
+    throw new Error("Quick add button not found");
+  }
+  fireEvent.click(buttons[1]);
+
   return waitFor(() => {
-    const quickActions = container.querySelector('[data-testid="quick-actions"]');
-    if (quickActions) {
-      const buttons = quickActions.querySelectorAll("button");
-      if (buttons.length > 1) {
-        fireEvent.click(buttons[1]);
-      }
-    }
     const toastMessage = container.querySelector('[data-testid="toast-message"]');
-    expect(toastMessage).toBeTruthy();
+    expect(toastMessage?.textContent?.trim()).not.toBe("");
+
+    if (initialList.includes("example.com")) {
+      const expectedKey = listType === "whitelist" ? "alreadyInWhitelist" : "alreadyInBlacklist";
+      expect(toastMessage?.textContent).toContain(expectedKey);
+    } else {
+      expect(mockSetList).toHaveBeenCalled();
+      const expectedKey = listType === "whitelist" ? "addedToWhitelist" : "addedToBlacklist";
+      expect(toastMessage?.textContent).toContain(expectedKey);
+    }
   });
 };
 
@@ -453,7 +491,8 @@ describe("IndexPopup", () => {
 
     await waitFor(() => {
       const toastMessage = getByTestId("toast-message");
-      expect(toastMessage).toBeTruthy();
+      expect(toastMessage.getAttribute("role")).toBe("alert");
+      expect(toastMessage.textContent?.trim()).not.toBe("");
     });
   });
 

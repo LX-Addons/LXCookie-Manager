@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useId } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
 
 interface ConfirmDialogProps {
@@ -39,35 +39,46 @@ export function ConfirmDialog({
   variant = "warning",
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
-
-  const handleOverlayClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) {
-        onCancel();
-      }
-    },
-    [onCancel]
-  );
+  const titleId = useId();
+  const bodyId = useId();
 
   useEffect(() => {
-    if (isOpen && confirmBtnRef.current) {
-      confirmBtnRef.current.focus();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen) {
+      dialog.showModal();
+      confirmBtnRef.current?.focus();
+    } else {
+      dialog.close();
     }
   }, [isOpen]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if (e.key === "Escape") {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleClose = () => {
+      if (isOpen) {
         onCancel();
       }
     };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onCancel]);
 
-  if (!isOpen) return null;
+    const handleClick = (e: MouseEvent) => {
+      if (e.target === dialog) {
+        onCancel();
+      }
+    };
+
+    dialog.addEventListener("close", handleClose);
+    dialog.addEventListener("click", handleClick);
+    return () => {
+      dialog.removeEventListener("close", handleClose);
+      dialog.removeEventListener("click", handleClick);
+    };
+  }, [isOpen, onCancel]);
 
   const getConfirmButtonClass = () => {
     switch (variant) {
@@ -84,46 +95,40 @@ export function ConfirmDialog({
   };
 
   return (
-    <div
-      className="overlay-backdrop"
-      onClick={handleOverlayClick}
-      onKeyDown={(e) => e.key === "Escape" && onCancel()}
-      role="presentation"
+    <dialog
+      ref={dialogRef}
+      className="confirm-modal"
+      aria-labelledby={titleId}
+      aria-describedby={bodyId}
     >
-      <div
-        className="modal-shell"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-        aria-describedby="modal-body"
-      >
-        <div className="modal-header">
-          <div className={`modal-icon ${variant}`}>{getIconForVariant(variant)}</div>
-          <div className="modal-title-section">
-            <h3 id="modal-title" className="modal-title">
-              {title}
-            </h3>
-            {description && <p className="modal-description">{description}</p>}
-          </div>
+      <div className="modal-header">
+        <div className={`modal-icon ${variant}`} aria-hidden="true">
+          {getIconForVariant(variant)}
         </div>
-        <div className="modal-body">
-          <p id="modal-body" className="modal-body-text">
-            {message}
-          </p>
-        </div>
-        <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onCancel}>
-            {cancelText ?? t("common.cancel")}
-          </button>
-          <button
-            ref={confirmBtnRef}
-            className={`btn ${getConfirmButtonClass()}`}
-            onClick={onConfirm}
-          >
-            {confirmText ?? t("common.confirm")}
-          </button>
+        <div className="modal-title-section">
+          <h3 id={titleId} className="modal-title">
+            {title}
+          </h3>
+          {description && <p className="modal-description">{description}</p>}
         </div>
       </div>
-    </div>
+      <div className="modal-body">
+        <p id={bodyId} className="modal-body-text">
+          {message}
+        </p>
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onCancel}>
+          {cancelText ?? t("common.cancel")}
+        </button>
+        <button
+          ref={confirmBtnRef}
+          className={`btn ${getConfirmButtonClass()}`}
+          onClick={onConfirm}
+        >
+          {confirmText ?? t("common.confirm")}
+        </button>
+      </div>
+    </dialog>
   );
 }

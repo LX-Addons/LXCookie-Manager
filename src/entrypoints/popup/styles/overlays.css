@@ -59,10 +59,10 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn var(--transition-normal) var(--ease-out);
+  animation: fade-in var(--transition-normal) var(--ease-out);
 }
 
-@keyframes fadeIn {
+@keyframes fade-in {
   from {
     opacity: 0;
   }
@@ -78,11 +78,11 @@
   max-width: 300px;
   width: 90%;
   box-shadow: var(--shadow-5);
-  animation: slideUp var(--transition-slow) var(--ease-out);
+  animation: slide-up var(--transition-slow) var(--ease-out);
   border: 1px solid var(--border-light);
 }
 
-@keyframes slideUp {
+@keyframes slide-up {
   from {
     transform: translateY(16px) scale(0.96);
     opacity: 0;
@@ -190,30 +190,33 @@
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.overlay-backdrop {
+.confirm-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn var(--transition-normal) var(--ease-out);
-}
-
-.modal-shell {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: var(--bg-card);
   border-radius: var(--radius-4);
   max-width: 320px;
   width: 90%;
   box-shadow: var(--shadow-5);
-  animation: slideUp var(--transition-slow) var(--ease-out);
   border: 1px solid var(--border-light);
   overflow: hidden;
+  padding: 0;
+  color: inherit;
+}
+
+.confirm-modal::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.confirm-modal[open] {
+  animation: slide-up var(--transition-slow) var(--ease-out);
+}
+
+.confirm-modal[open]::backdrop {
+  animation: fade-in var(--transition-normal) var(--ease-out);
 }
 
 .modal-header {

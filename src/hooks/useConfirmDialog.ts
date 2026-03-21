@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
 
+export type ConfirmVariant = "danger" | "warning" | "info" | "success";
+
 interface ConfirmState {
   isOpen: boolean;
   title: string;
@@ -7,7 +9,7 @@ interface ConfirmState {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant: "danger" | "warning" | "info" | "success";
+  variant: ConfirmVariant;
   onConfirm: () => void;
 }
 
@@ -16,7 +18,7 @@ interface UseConfirmDialogReturn {
   showConfirm: (
     title: string,
     message: string,
-    variant: "danger" | "warning" | "info" | "success",
+    variant: ConfirmVariant,
     onConfirm: () => void,
     options?: {
       description?: string;
@@ -41,7 +43,7 @@ export const useConfirmDialog = (): UseConfirmDialogReturn => {
     (
       title: string,
       message: string,
-      variant: "danger" | "warning" | "info" | "success",
+      variant: ConfirmVariant,
       onConfirm: () => void,
       options?: {
         description?: string;

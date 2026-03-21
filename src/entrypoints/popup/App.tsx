@@ -46,6 +46,7 @@ function IndexPopup() {
   });
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const { confirmState, showConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
@@ -103,23 +104,30 @@ function IndexPopup() {
   const handleTabKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const currentIndex = tabs.findIndex((tab) => tab.id === activeTab);
+      let newTabId: string | null = null;
+
       if (e.key === "ArrowRight") {
         e.preventDefault();
         const nextIndex = (currentIndex + 1) % tabs.length;
-        setActiveTab(tabs[nextIndex].id);
+        newTabId = tabs[nextIndex].id;
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-        setActiveTab(tabs[prevIndex].id);
+        newTabId = tabs[prevIndex].id;
       } else if (e.key === "Home") {
         e.preventDefault();
-        setActiveTab(tabs[0].id);
+        newTabId = tabs[0].id;
       } else if (e.key === "End") {
         e.preventDefault();
         const lastTab = tabs.at(-1);
         if (lastTab) {
-          setActiveTab(lastTab.id);
+          newTabId = lastTab.id;
         }
+      }
+
+      if (newTabId && newTabId !== activeTab) {
+        setActiveTab(newTabId);
+        tabRefs.current[newTabId]?.focus();
       }
     },
     [activeTab, tabs]
@@ -433,6 +441,9 @@ function IndexPopup() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              ref={(el) => {
+                tabRefs.current[tab.id] = el;
+              }}
               data-testid={`tab-${tab.id}`}
               className={`tab-btn ${activeTab === tab.id ? "active" : ""}`}
               onClick={() => setActiveTab(tab.id)}
@@ -496,11 +507,19 @@ function IndexPopup() {
                 <h3>{t("popup.quickManage")}</h3>
               </div>
               <div className="action-cluster">
-                <button onClick={quickClearCurrent} className="btn btn-primary btn-block">
+                <button
+                  onClick={quickClearCurrent}
+                  className="btn btn-primary btn-block"
+                  disabled={!currentDomain}
+                >
                   {t("popup.clearCurrent")}
                 </button>
                 <div className="action-row">
-                  <button onClick={quickAddToRule} className="btn btn-secondary">
+                  <button
+                    onClick={quickAddToRule}
+                    className="btn btn-secondary"
+                    disabled={!currentDomain}
+                  >
                     {settings.mode === ModeType.WHITELIST
                       ? t("popup.addToWhitelist")
                       : t("popup.addToBlacklist")}

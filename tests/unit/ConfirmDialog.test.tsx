@@ -25,7 +25,7 @@ describe("ConfirmDialog", () => {
     vi.clearAllMocks();
   });
 
-  it("should not render when isOpen is false", () => {
+  it("should not be open when isOpen is false", () => {
     render(
       <ConfirmDialog
         isOpen={false}
@@ -36,7 +36,9 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    expect(screen.queryByText("Test Title")).toBeNull();
+    const dialog = document.querySelector(".confirm-modal") as HTMLDialogElement;
+    expect(dialog).not.toBeNull();
+    expect(dialog.open).toBe(false);
   });
 
   it("should render with default props", () => {
@@ -114,11 +116,10 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    const overlay = document.querySelector(".overlay-backdrop");
-    if (overlay) {
-      fireEvent.click(overlay);
-      expect(mockOnCancel).toHaveBeenCalledOnce();
-    }
+    const dialog = document.querySelector(".confirm-modal");
+    expect(dialog).not.toBeNull();
+    fireEvent.click(dialog as HTMLDivElement);
+    expect(mockOnCancel).toHaveBeenCalledOnce();
   });
 
   it("should not call onCancel when dialog content is clicked", () => {
@@ -132,14 +133,13 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    const dialog = document.querySelector(".modal-shell");
-    if (dialog) {
-      fireEvent.click(dialog);
-      expect(mockOnCancel).not.toHaveBeenCalled();
-    }
+    const modalBody = document.querySelector(".modal-body");
+    expect(modalBody).not.toBeNull();
+    fireEvent.click(modalBody as HTMLDivElement);
+    expect(mockOnCancel).not.toHaveBeenCalled();
   });
 
-  it("should call onCancel when Escape key is pressed", () => {
+  it("should call onCancel when dialog is closed via Escape", () => {
     render(
       <ConfirmDialog
         isOpen={true}
@@ -150,7 +150,11 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    const dialog = document.querySelector(".confirm-modal") as HTMLDialogElement;
+    expect(dialog).not.toBeNull();
+    expect(dialog.open).toBe(true);
+
+    fireEvent(dialog, new Event("close"));
     expect(mockOnCancel).toHaveBeenCalledOnce();
   });
 

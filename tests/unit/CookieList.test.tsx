@@ -241,39 +241,59 @@ const renderAndExpandCookieList = <P extends Record<string, unknown>>(
 
 const expandDomainGroup = (domain: string) => {
   const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
-  const domainGroup = screen.queryByTestId(`cookie-domain-group-${normalizedDomain}`);
-  if (domainGroup) {
-    const headerButton = domainGroup.querySelector(".domain-group-header");
-    if (headerButton) {
-      fireEvent.click(headerButton);
-    }
+  const domainGroup = screen.getByTestId(`cookie-domain-group-${normalizedDomain}`);
+  const headerButton = domainGroup.querySelector(".domain-group-header");
+  if (!headerButton) {
+    throw new Error(`Domain group header not found for: ${normalizedDomain}`);
   }
+  fireEvent.click(headerButton);
 };
 
-const clickCookieAction = (index: number, action: "edit" | "delete") => {
-  const domainGroup = screen.getByTestId("cookie-domain-group-example.com");
+const clickCookieAction = (index: number, action: "edit" | "delete", domain = "example.com") => {
+  const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
+  const domainGroup = screen.getByTestId(`cookie-domain-group-${normalizedDomain}`);
   const cookieCards = domainGroup.querySelectorAll(".cookie-card");
   const targetCard = cookieCards[index];
-  if (targetCard) {
-    const actionButtons = targetCard.querySelectorAll(".action-btn");
-    if (action === "edit") {
-      fireEvent.click(actionButtons[1]);
-    } else {
-      fireEvent.click(actionButtons[2]);
-    }
+  if (!targetCard) {
+    throw new Error(`Cookie card at index ${index} not found`);
   }
+  const actionButtons = targetCard.querySelectorAll(".action-btn");
+  const buttonIndex = action === "edit" ? 1 : 2;
+  const targetButton = actionButtons[buttonIndex];
+  if (!targetButton) {
+    throw new Error(`Action button "${action}" not found at index ${buttonIndex}`);
+  }
+  fireEvent.click(targetButton);
 };
 
-const clickValueToggle = (index: number) => {
-  const domainGroup = screen.getByTestId("cookie-domain-group-example.com");
+const clickValueToggle = (index: number, domain = "example.com") => {
+  const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
+  const domainGroup = screen.getByTestId(`cookie-domain-group-${normalizedDomain}`);
   const cookieCards = domainGroup.querySelectorAll(".cookie-card");
   const targetCard = cookieCards[index];
-  if (targetCard) {
-    const valueToggleBtn = targetCard.querySelector(".value-toggle-btn");
-    if (valueToggleBtn) {
-      fireEvent.click(valueToggleBtn);
-    }
+  if (!targetCard) {
+    throw new Error(`Cookie card at index ${index} not found`);
   }
+  const valueToggleBtn = targetCard.querySelector(".value-toggle-btn");
+  if (!valueToggleBtn) {
+    throw new Error(`Value toggle button not found at index ${index}`);
+  }
+  fireEvent.click(valueToggleBtn);
+};
+
+const expandCookieCard = (index: number, domain = "example.com") => {
+  const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
+  const domainGroup = screen.getByTestId(`cookie-domain-group-${normalizedDomain}`);
+  const cookieCards = domainGroup.querySelectorAll(".cookie-card");
+  const targetCard = cookieCards[index];
+  if (!targetCard) {
+    throw new Error(`Cookie card at index ${index} not found`);
+  }
+  const expandButton = targetCard.querySelector(".action-btn");
+  if (!expandButton) {
+    throw new Error(`Expand button not found at index ${index}`);
+  }
+  fireEvent.click(expandButton);
 };
 
 describe("hasDomainInText", () => {
@@ -384,6 +404,7 @@ describe("CookieList", () => {
   it("should toggle cookie value visibility", () => {
     renderAndExpandCookieList(CookieList, { cookies: mockCookies, currentDomain: "example.com" });
     expandDomainGroup("example.com");
+    expandCookieCard(0);
     clickValueToggle(0);
   });
 

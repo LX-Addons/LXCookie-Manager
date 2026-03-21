@@ -271,6 +271,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    outputs:
+      audit_status: ${{ steps.audit.outputs.audit_status }}
     env:
       NODE_VERSION: ${{ needs.setup.outputs.node_version }}
       PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
@@ -529,7 +531,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: extension-build-${{ steps.version.outputs.version }}-${{ github.run_id }}
+          name: extension-build-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: .output/chrome-mv3/
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
           if-no-files-found: error
@@ -547,7 +549,7 @@ jobs:
       - name: 上传打包产物
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: extension-zip-${{ steps.version.outputs.version }}-${{ github.run_id }}
+          name: extension-zip-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ steps.zip-info.outputs.zip_path }}
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
           if-no-files-found: error
@@ -591,7 +593,7 @@ jobs:
       - name: 下载构建产物
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: extension-build-${{ needs.build.outputs.version }}-${{ github.run_id }}
+          name: extension-build-${{ needs.build.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: .output/chrome-mv3/
 
       - name: 准备测试扩展
@@ -625,7 +627,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: playwright-report/
           retention-days: ${{ needs.setup.outputs.artifact_retention }}
 
@@ -669,6 +671,7 @@ jobs:
             const lintResult = '${{ needs.lint.result }}';
             const testResult = '${{ needs.test.result }}';
             const securityResult = '${{ needs.security.result }}';
+            const auditStatus = '${{ needs.security.outputs.audit_status }}';
             const buildResult = '${{ needs.build.result }}';
             const e2eResult = '${{ needs.e2e.result }}';
             const version = '${{ steps.info.outputs.version }}';
@@ -692,6 +695,12 @@ jobs:
               return `![${label}](https://img.shields.io/badge/${encodeURIComponent(label)}-${result}-${color}?style=flat-square)`;
             };
 
+            const getSecurityStatusText = () => {
+              if (securityResult === 'failure') return '发现漏洞';
+              if (auditStatus === 'registry_error') return '审计中断（网络问题）';
+              return '密钥泄露 + 依赖审计';
+            };
+
             let body = `## 🛠️ 扩展构建仪表盘\n\n`;
             body += `> **版本:** \`${version}\` | **分支:** \`${{ github.ref_name }}\` | **运行 ID:** [#${{ github.run_number }}](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})\n\n`;
 
@@ -701,7 +710,7 @@ jobs:
             body += `| 🚀 | **环境准备** | ${statusEmoji(setupResult)} | 缓存与产物配置 |\n`;
             body += `| 🔍 | **代码检查** | ${statusEmoji(lintResult)} | TypeScript + ESLint + Prettier |\n`;
             body += `| 🧪 | **单元测试** | ${statusEmoji(testResult)} | Node.js ${{ needs.setup.outputs.node_version }} 测试 |\n`;
-            body += `| 🛡️ | **安全扫描** | ${statusEmoji(securityResult)} | 密钥泄露 + 依赖审计 |\n`;
+            body += `| 🛡️ | **安全扫描** | ${statusEmoji(securityResult)} | ${getSecurityStatusText()} |\n`;
             body += `| 📦 | **扩展构建** | ${statusEmoji(buildResult)} | WXT 生产构建 |\n`;
             body += `| 🎭 | **E2E 测试** | ${statusEmoji(e2eResult)} | Playwright 浏览器测试 |\n\n`;
 
@@ -720,9 +729,12 @@ jobs:
               results[r] === 'success'
             );
             const e2eSuccess = e2eResult === 'success' || e2eResult === 'skipped';
+            const auditIncomplete = auditStatus === 'registry_error';
 
-            if (allSuccess && e2eSuccess) {
+            if (allSuccess && e2eSuccess && !auditIncomplete) {
               body += `> 🎉 **所有检查已通过！** 代码已准备好合并。\n\n`;
+            } else if (auditIncomplete) {
+              body += `> ⚠️ **安全审计未完成**：无法连接到包注册表，请重试或人工确认依赖安全。\n\n`;
             } else {
               body += `> ⚠️ **部分检查未通过**，请查看上方详情或检查日志。\n\n`;
             }
@@ -736,9 +748,11 @@ jobs:
             if (isDependabot) {
               body += `---\n\n`;
               body += `### 🤖 Dependabot 依赖更新\n\n`;
-              if (allSuccess && e2eSuccess) {
+              if (allSuccess && e2eSuccess && !auditIncomplete) {
                 body += `✅ 所有关键检查已通过，已添加 \`待审核\` 标签。\n\n`;
                 body += `⚠️ **需要人工审核后才能合并到主分支！**\n`;
+              } else if (auditIncomplete) {
+                body += `⚠️ 安全审计未完成，需要人工确认依赖安全后再合并。\n`;
               } else {
                 body += `⚠️ 部分检查未通过，需要人工审核。\n`;
               }
@@ -751,18 +765,34 @@ jobs:
               per_page: 100
             });
 
-            const botComment = comments.find(comment =>
+            const botComments = comments.filter(comment =>
               comment.user.login === 'github-actions[bot]' &&
               comment.body.includes('## 🛠️ 扩展构建仪表盘')
             );
 
-            if (botComment) {
+            if (botComments.length > 0) {
+              botComments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              const [latestComment, ...oldComments] = botComments;
+
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                comment_id: botComment.id,
+                comment_id: latestComment.id,
                 body: body
               });
+
+              for (const oldComment of oldComments) {
+                try {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: oldComment.id
+                  });
+                  core.info(`Deleted old comment ${oldComment.id}`);
+                } catch (error) {
+                  core.warning(`Failed to delete old comment ${oldComment.id}: ${error.message}`);
+                }
+              }
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -807,6 +837,7 @@ jobs:
       needs.lint.result == 'success' &&
       needs.test.result == 'success' &&
       needs.security.result == 'success' &&
+      needs.security.outputs.audit_status != 'registry_error' &&
       needs.build.result == 'success' &&
       (needs.e2e.result == 'success' || needs.e2e.result == 'skipped')
     permissions:

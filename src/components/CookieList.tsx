@@ -66,6 +66,15 @@ export const CookieListContent = memo(
 
     const { t } = useTranslation();
 
+    const cookieRiskMap = useMemo(() => {
+      const map = new Map<string, ReturnType<typeof assessCookieRisk>>();
+      for (const cookie of cookies) {
+        const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
+        map.set(key, assessCookieRisk(cookie, currentDomain, t));
+      }
+      return map;
+    }, [cookies, currentDomain, t]);
+
     const filteredCookies = useMemo(() => {
       let result = [...cookies];
 
@@ -81,7 +90,8 @@ export const CookieListContent = memo(
 
       if (riskFilter !== "all") {
         result = result.filter((cookie) => {
-          const risk = assessCookieRisk(cookie, currentDomain, t);
+          const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
+          const risk = cookieRiskMap.get(key);
           return risk?.level === riskFilter;
         });
       }
@@ -106,7 +116,15 @@ export const CookieListContent = memo(
       }
 
       return result;
-    }, [cookies, searchText, riskFilter, typeFilter, domainScopeFilter, currentDomain, t]);
+    }, [
+      cookies,
+      searchText,
+      riskFilter,
+      typeFilter,
+      domainScopeFilter,
+      currentDomain,
+      cookieRiskMap,
+    ]);
 
     const selectAll = useMemo(() => {
       if (filteredCookies.length === 0) return false;
@@ -122,6 +140,8 @@ export const CookieListContent = memo(
         )
       );
       setSelectedCookies((prev) => new Set([...prev].filter((key) => validKeys.has(key))));
+      setExpandedCookies((prev) => new Set([...prev].filter((key) => validKeys.has(key))));
+      setVisibleValues((prev) => new Set([...prev].filter((key) => validKeys.has(key))));
     }, [cookies]);
 
     const filteredGroupedCookies = useMemo(() => {
@@ -580,9 +600,7 @@ export const CookieListContent = memo(
                                   ? cookie.value
                                   : maskCookieValue(cookie.value, COOKIE_VALUE_MASK);
                                 const risk =
-                                  (showCookieRisk ?? true)
-                                    ? assessCookieRisk(cookie, currentDomain, t)
-                                    : null;
+                                  (showCookieRisk ?? true) ? cookieRiskMap.get(key) : null;
                                 const isSelected = selectedCookies.has(key);
                                 const sensitive = isSensitiveCookie(cookie);
 

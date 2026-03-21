@@ -57,6 +57,25 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
 
+      - name: 校验版本号与发布通道匹配
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="${{ github.ref }}"
+
+          if [ "$BRANCH" = "refs/heads/main" ]; then
+            if [[ "$VERSION" == *-* ]]; then
+              echo "❌ main 分支只能发布正式版本号，当前版本号 \`$VERSION\` 包含预发布后缀"
+              exit 1
+            fi
+            echo "✅ main 分支发布正式版本: $VERSION"
+          else
+            if [[ "$VERSION" != *-* ]]; then
+              echo "❌ beta/release 分支必须使用预发布版本号（如 1.2.3-beta.1），当前版本号 \`$VERSION\` 为正式版本号"
+              exit 1
+            fi
+            echo "✅ 预发布分支使用预发布版本号: $VERSION"
+          fi
+
       - name: 检查标签是否存在
         id: check_tag
         run: |

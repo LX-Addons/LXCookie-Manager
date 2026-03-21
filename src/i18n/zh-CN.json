@@ -144,8 +144,6 @@
     "showCookieRiskDesc": "在 Cookie 列表中显示每个 Cookie 的风险等级评估",
     "advancedCleanup": "高级清理",
     "advancedCleanupDesc": "除了 Cookie 外，还可以清理其他可能存储您数据的浏览器存储",
-    "clearLocalStorage": "清理本地存储",
-    "clearIndexedDB": "清理索引数据库",
     "clearCache": "清理缓存",
     "clearCacheDesc": "清理浏览器缓存数据",
     "clearLocalStorage": "清理本地存储",

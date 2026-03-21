@@ -54,7 +54,7 @@ body {
     color var(--transition-slow);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  text-rendering: optimizelegibility;
 }
 
 #root {
@@ -65,7 +65,7 @@ body {
   overflow: hidden;
 }
 
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+@media (min-resolution: 192dpi), (-webkit-min-device-pixel-ratio: 2) {
   html {
     -webkit-font-smoothing: antialiased;
   }

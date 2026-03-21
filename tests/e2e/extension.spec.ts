@@ -54,16 +54,12 @@ test.describe("Cookie Operations", () => {
     const popup = await openPopup(context, extensionId);
 
     await expect(
-      popup.locator(".section").filter({ hasText: /Cookie统计|Cookie Stats/ })
+      popup.locator(".cookie-overview-panel").filter({ hasText: /Cookie 概览|Cookie Overview/ })
     ).toBeVisible();
 
     const statLabels = popup.locator(".stat-label");
-    await expect(statLabels.nth(0)).toContainText(/(总数|Total)/);
-    await expect(statLabels.nth(1)).toContainText(/(当前网站|Current)/);
-    await expect(statLabels.nth(2)).toContainText(/(会话|Session)/);
-    await expect(statLabels.nth(3)).toContainText(/(持久|Persistent)/);
-    await expect(statLabels.nth(4)).toContainText(/(第三方|Third Party)/);
-    await expect(statLabels.nth(5)).toContainText(/(追踪|Tracking)/);
+    await expect(statLabels.nth(0)).toContainText(/(会话|Session)/);
+    await expect(statLabels.nth(1)).toContainText(/(持久|Persistent)/);
 
     await popup.close();
   });
@@ -71,16 +67,10 @@ test.describe("Cookie Operations", () => {
   test("should display quick action buttons", async ({ context, extensionId }) => {
     const popup = await openPopup(context, extensionId);
 
-    await expect(
-      popup.getByRole("button", { name: /添加到白名单|Add to Whitelist/ })
-    ).toBeVisible();
-    await expect(
-      popup.getByRole("button", { name: /添加到黑名单|Add to Blacklist/ })
-    ).toBeVisible();
-    await expect(popup.getByRole("button", { name: /清除当前网站|Clear Current/ })).toBeVisible();
-    await expect(
-      popup.getByRole("button", { name: /清除所有Cookie|Clear All Cookies/ })
-    ).toBeVisible();
+    await expect(popup.getByRole("button", { name: /加入白名单|Add to Whitelist/ })).toBeVisible();
+    await expect(popup.getByRole("button", { name: /加入黑名单|Add to Blacklist/ })).toBeVisible();
+    await expect(popup.getByRole("button", { name: /清除当前|Clear Current/ })).toBeVisible();
+    await expect(popup.getByRole("button", { name: /清除全部|Clear All/ })).toBeVisible();
 
     await popup.close();
   });
