@@ -1,0 +1,32 @@
+name: Setup pnpm workspace
+description: Set up Node.js, pnpm, and install dependencies
+
+inputs:
+  node-version:
+    description: Node.js version to use
+    required: true
+  pnpm-version:
+    description: pnpm version to use
+    required: true
+  install-args:
+    description: Additional arguments passed to pnpm install
+    required: false
+    default: --frozen-lockfile
+
+runs:
+  using: composite
+  steps:
+    - name: 安装 pnpm
+      uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: 配置 Node.js
+      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+
+    - name: 安装依赖
+      shell: bash
+      run: pnpm install ${{ inputs.install-args }}
