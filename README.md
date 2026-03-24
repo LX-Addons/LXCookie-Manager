@@ -18,6 +18,9 @@
     <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/actions/workflows/build-and-check.yml">
       <img src="https://github.com/LX-Addons/Cookie_Manager_Pro/actions/workflows/build-and-check.yml/badge.svg" alt="Build Status" />
     </a>
+    <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/releases">
+      <img src="https://img.shields.io/github/v/release/LX-Addons/Cookie_Manager_Pro" alt="Release" />
+    </a>
     <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/issues">
       <img src="https://img.shields.io/github/issues/LX-Addons/Cookie_Manager_Pro" alt="Issues" />
     </a>
@@ -56,7 +59,8 @@
 
 ### 🎨 个性化体验
 
-- **三主题支持**：跟随系统 / 亮色模式 / 暗色模式
+- **四主题支持**：跟随系统 / 亮色模式 / 暗色模式 / 自定义主题
+- **自定义颜色**：主色调、成功色、警告色、危险色、背景色、文字色完全可定制
 - **清理日志**：完整记录清理历史，支持按时间筛选
 - **操作反馈**：即时消息提示，操作结果清晰可见
 
@@ -66,7 +70,7 @@
 
 ```
 Cookie_Manager_Pro/
-│
+
 ├── 📂 public/
 │   └── 🖼️ icon.png                    # 扩展图标资源
 │
@@ -76,7 +80,6 @@ Cookie_Manager_Pro/
 │   │   ├── ⬜ CheckboxGroup.tsx        # 复选框组组件
 │   │   ├── 📋 ClearLog.tsx             # 清理日志组件
 │   │   ├── ⚠️ ConfirmDialog.tsx        # 确认对话框
-│   │   ├── ⚠️ ConfirmDialogWrapper.tsx # 对话框包装器
 │   │   ├── ✏️ CookieEditor.tsx         # Cookie 编辑器
 │   │   ├── 📜 CookieList.tsx           # Cookie 列表
 │   │   ├── 🌐 DomainManager.tsx        # 域名管理器
@@ -90,11 +93,43 @@ Cookie_Manager_Pro/
 │   │   │   ├── App.tsx                 # 主应用组件
 │   │   │   ├── index.html              # HTML 模板
 │   │   │   ├── main.tsx                # 入口文件
-│   │   │   └── style.css               # 样式文件
-│   │   └── 📄 background.ts            # Service Worker
+│   │   │   ├── style.css               # 主样式文件
+│   │   │   └── 📂 styles/              # 样式模块
+│   │   │       ├── tokens.css          # CSS 变量定义
+│   │   │       ├── layout.css          # 布局样式
+│   │   │       ├── components.css      # 组件样式
+│   │   │       ├── overlays.css        # 覆盖层样式
+│   │   │       ├── utilities.css       # 工具类样式
+│   │   │       └── base.css            # 基础样式
+│   │   └── 📂 background/              # Service Worker
+│   │       ├── index.ts                # 入口文件
+│   │       ├── runtime/
+│   │       │   └── bootstrap.ts        # 启动引导
+│   │       ├── handlers/               # 消息处理器
+│   │       │   ├── cleanup.ts          # 清理处理
+│   │       │   ├── cookies.ts          # Cookie 处理
+│   │       │   └── settings.ts         # 设置处理
+│   │       └── services/               # 后台服务
+│   │           ├── cookie-creator.ts   # Cookie 创建服务
+│   │           ├── cookie-mutations.ts # Cookie 变更服务
+│   │           ├── cookie-remover.ts   # Cookie 删除服务
+│   │           ├── cookie-updater.ts   # Cookie 更新服务
+│   │           ├── error-reporting.ts  # 错误报告服务
+│   │           ├── expired-cookie-service.ts # 过期 Cookie 服务
+│   │           ├── log-export-service.ts     # 日志导出服务
+│   │           ├── log-service.ts            # 日志服务
+│   │           ├── message-router.ts         # 消息路由服务
+│   │           ├── metrics.ts                # 指标统计服务
+│   │           ├── scheduled-cleanup-service.ts  # 定时清理服务
+│   │           ├── settings-migrator.ts          # 设置迁移服务
+│   │           ├── startup-cleanup-service.ts    # 启动清理服务
+│   │           ├── startup-service.ts            # 启动服务
+│   │           ├── storage-initializer.ts        # 存储初始化服务
+│   │           ├── tab-event-cleanup-service.ts  # 标签页事件清理服务
+│   │           ├── tab-management-service.ts     # 标签页管理服务
+│   │           └── tab-url-manager.ts            # 标签页 URL 管理服务
 │   │
 │   ├── 📂 hooks/                       # 🪝 React Hooks
-│   │   ├── useClearLog.ts              # 清理日志 Hook
 │   │   ├── useConfirmDialog.ts         # 对话框 Hook
 │   │   ├── useStorage.ts               # 存储 Hook
 │   │   └── useTranslation.ts           # 国际化 Hook
@@ -106,29 +141,35 @@ Cookie_Manager_Pro/
 │   │   └── types.ts                    # 类型定义
 │   │
 │   ├── 📂 lib/                         # 📚 核心库
+│   │   ├── background-service.ts       # 后台通信服务
 │   │   ├── constants.ts                # 常量定义
 │   │   └── store.ts                    # 状态存储
 │   │
 │   ├── 📂 types/                       # 📝 TypeScript 类型
+│   │   ├── global.d.ts                 # 全局类型声明
 │   │   └── index.ts                    # 类型定义入口
 │   │
 │   └── 📂 utils/                       # 🔧 工具函数
-│       ├── cleanup.ts                  # Cookie 清理逻辑
-│       └── index.ts                    # 工具函数入口
-│
-├── 📂 tests/                           # 🧪 测试文件
-│   ├── 📂 unit/                        # 单元测试
-│   ├── 📂 utils/                       # 测试工具函数
-│   └── setup.ts                        # 测试配置
+│       ├── 📂 cleanup/                 # Cookie 清理工具
+│       │   ├── cleanup-runner.ts       # 清理执行器
+│       │   ├── cookie-ops.ts           # Cookie 操作
+│       │   ├── domain-policy.ts        # 域名策略
+│       │   ├── index.ts                # 清理工具入口
+│       │   ├── schedule-utils.ts       # 调度工具
+│       │   └── site-data-ops.ts        # 站点数据操作
+│       ├── cookie-risk.ts              # Cookie 风险评估
+│       ├── domain.ts                   # 域名工具
+│       ├── format.ts                   # 格式化工具
+│       ├── index.ts                    # 工具函数入口
+│       └── theme.ts                    # 主题工具
 │
 ├── 📂 .github/                         # ⚡ GitHub 配置
 │   ├── 📂 workflows/                   # CI/CD 工作流
-│   └── dependabot.yml                  # 依赖更新配置
+│   └── 📄 dependabot.yml                  # 依赖更新配置
 │
 ├── 📄 package.json                     # 项目依赖配置
 ├── 📄 tsconfig.json                    # TypeScript 配置
 ├── 📄 wxt.config.ts                    # WXT 框架配置
-├── 📄 vitest.config.ts                 # Vitest 测试配置
 ├── 📄 eslint.config.js                 # ESLint 规则配置
 ├── 📄 .prettierrc.json                 # Prettier 格式化配置
 └── 📄 README.md                        # 项目说明文档
@@ -141,13 +182,13 @@ Cookie_Manager_Pro/
 |:----:|:----:|:---------|
 | `public/` | 静态资源 | 扩展图标 |
 | `src/components/` | UI 组件 | React 可复用组件 |
-| `src/entrypoints/` | 扩展入口 | Popup、Background |
+| `src/entrypoints/popup/` | 弹出窗口 | Popup UI 及样式 |
+| `src/entrypoints/background/` | 后台服务 | Service Worker 及消息处理 |
 | `src/hooks/` | 自定义 Hooks | 状态管理、国际化 |
 | `src/i18n/` | 国际化 | 多语言支持 |
-| `src/lib/` | 核心库 | 常量、存储 |
+| `src/lib/` | 核心库 | 后台通信、常量、存储 |
 | `src/types/` | 类型定义 | TypeScript 类型 |
-| `src/utils/` | 工具函数 | 清理逻辑等 |
-| `tests/` | 测试文件 | 单元测试 |
+| `src/utils/` | 工具函数 | 清理逻辑、域名工具、主题等 |
 | `.github/` | CI/CD | 自动化工作流 |
 
 </details>
@@ -162,8 +203,8 @@ Cookie_Manager_Pro/
 |         **React**         | 19.2.4  | 前端 UI 框架       |
 |      **TypeScript**       |  5.9.3  | 类型安全开发       |
 | **@wxt-dev/module-react** |  1.2.2  | WXT React 模块     |
-|       **Manifest**        |   V3    | Chrome 扩展规范    |
-|        **Vitest**         |  4.1.0  | 单元测试框架       |
+|        **Manifest**        |   V3    | Chrome 扩展规范    |
+|         **pnpm**          | 10.32.1 | 包管理器           |
 
 ---
 
@@ -177,6 +218,7 @@ Cookie_Manager_Pro/
 |   `storage`    | 存储设置和名单数据      |
 |     `tabs`     | 获取当前标签页信息      |
 | `browsingData` | 清理浏览器缓存数据      |
+|    `alarms`    | 定时任务调度            |
 
 ### 主机权限
 

@@ -36,6 +36,56 @@ function hasValidRequestType(request: unknown): request is BackgroundRequest & {
   );
 }
 
+function hasPayload(
+  request: BackgroundRequest
+): request is BackgroundRequest & { payload: object } {
+  return "payload" in request && typeof request.payload === "object" && request.payload !== null;
+}
+
+function validateCreateCookiePayload(
+  payload: unknown
+): payload is { name: string; domain: string; path: string } {
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as Record<string, unknown>;
+  return typeof p.name === "string" && typeof p.domain === "string" && typeof p.path === "string";
+}
+
+function validateUpdateCookiePayload(
+  payload: unknown
+): payload is { original: { name: string; domain: string }; updates: object } | null {
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as Record<string, unknown>;
+  if (typeof p.original !== "object" || p.original === null) return false;
+  const orig = p.original as Record<string, unknown>;
+  if (typeof orig.name !== "string" || typeof orig.domain !== "string") return false;
+  if (typeof p.updates !== "object" || p.updates === null) return false;
+  return true;
+}
+
+function validateDeleteCookiePayload(
+  payload: unknown
+): payload is { name: string; domain: string } {
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as Record<string, unknown>;
+  return typeof p.name === "string" && typeof p.domain === "string";
+}
+
+function validateCleanupByDomainPayload(
+  payload: unknown
+): payload is { domain: string; trigger: string } {
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as Record<string, unknown>;
+  return typeof p.domain === "string" && typeof p.trigger === "string";
+}
+
+function validateCleanupWithFilterPayload(
+  payload: unknown
+): payload is { filterType: string; trigger: string } {
+  if (typeof payload !== "object" || payload === null) return false;
+  const p = payload as Record<string, unknown>;
+  return typeof p.filterType === "string" && typeof p.trigger === "string";
+}
+
 export const handleMessage = async (request: unknown): Promise<ApiResponse> => {
   if (!hasValidRequestType(request)) {
     return createErrorResponse(ErrorCode.INVALID_PARAMETERS, "Invalid request format");
@@ -51,18 +101,42 @@ export const handleMessage = async (request: unknown): Promise<ApiResponse> => {
       return await getCookiesHandler().getStats(request.domain);
     }
     case "createCookie": {
+      if (!hasPayload(request) || !validateCreateCookiePayload(request.payload)) {
+        return createErrorResponse(
+          ErrorCode.INVALID_PARAMETERS,
+          "Invalid payload for createCookie: name, domain, and path are required"
+        );
+      }
       return await getCookiesHandler().createCookie(request.payload);
     }
     case "updateCookie": {
+      if (!hasPayload(request) || !validateUpdateCookiePayload(request.payload)) {
+        return createErrorResponse(
+          ErrorCode.INVALID_PARAMETERS,
+          "Invalid payload for updateCookie: original (with name, domain) and updates are required"
+        );
+      }
       return await getCookiesHandler().updateCookie(
         request.payload.original,
         request.payload.updates
       );
     }
     case "deleteCookie": {
+      if (!hasPayload(request) || !validateDeleteCookiePayload(request.payload)) {
+        return createErrorResponse(
+          ErrorCode.INVALID_PARAMETERS,
+          "Invalid payload for deleteCookie: name and domain are required"
+        );
+      }
       return await getCookiesHandler().deleteCookie(request.payload);
     }
     case "cleanupByDomain": {
+      if (!hasPayload(request) || !validateCleanupByDomainPayload(request.payload)) {
+        return createErrorResponse(
+          ErrorCode.INVALID_PARAMETERS,
+          "Invalid payload for cleanupByDomain: domain and trigger are required"
+        );
+      }
       return await getCleanupHandler().cleanupByDomain(
         request.payload.domain,
         request.payload.trigger,
@@ -75,6 +149,12 @@ export const handleMessage = async (request: unknown): Promise<ApiResponse> => {
       );
     }
     case "cleanupWithFilter": {
+      if (!hasPayload(request) || !validateCleanupWithFilterPayload(request.payload)) {
+        return createErrorResponse(
+          ErrorCode.INVALID_PARAMETERS,
+          "Invalid payload for cleanupWithFilter: filterType and trigger are required"
+        );
+      }
       return await getCleanupHandler().cleanupWithFilter(
         request.payload.filterType,
         request.payload.filterValue,

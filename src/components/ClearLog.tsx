@@ -91,7 +91,7 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
   const sortedLogs = useMemo(() => [...logs].sort((a, b) => b.timestamp - a.timestamp), [logs]);
 
   const getDomainDisplay = (domains: string[] | undefined, domain: string | undefined): string => {
-    if (!domains) {
+    if (!domains || domains.length === 0) {
       return domain ?? "";
     }
     if (domains.length > 2) {

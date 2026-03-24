@@ -30,7 +30,7 @@ export const buildNonEmptyOrigins = (domains: Set<string>): [string, ...string[]
 type BrowsingDataType = "cache" | "localStorage" | "indexedDB";
 
 const BROWSING_DATA_OPTIONS: Record<BrowsingDataType, chrome.browsingData.DataTypeSet> = {
-  cache: { cacheStorage: true, fileSystems: true, serviceWorkers: true },
+  cache: { cache: true, cacheStorage: true, fileSystems: true, serviceWorkers: true },
   localStorage: { localStorage: true },
   indexedDB: { indexedDB: true },
 };

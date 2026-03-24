@@ -8,6 +8,7 @@ import { ExpiredCookieService } from "../services/expired-cookie-service";
 import { StorageInitializer } from "../services/storage-initializer";
 import { TabManagementService } from "../services/tab-management-service";
 import { StartupService } from "../services/startup-service";
+import { SettingsMigrator } from "../services/settings-migrator";
 import { handleMessage, createErrorResponse } from "../services/message-router";
 import { storage, SETTINGS_KEY } from "@/lib/store";
 
@@ -19,6 +20,7 @@ export class BackgroundBootstrap {
   private readonly expiredCookieService: ExpiredCookieService;
   private readonly storageInitializer: StorageInitializer;
   private readonly tabManagementService: TabManagementService;
+  private readonly settingsMigrator: SettingsMigrator;
   private readonly startupService: StartupService;
 
   constructor() {
@@ -28,6 +30,7 @@ export class BackgroundBootstrap {
     this.tabEventCleanupService = new TabEventCleanupService();
     this.expiredCookieService = new ExpiredCookieService();
     this.storageInitializer = new StorageInitializer();
+    this.settingsMigrator = new SettingsMigrator();
     this.tabManagementService = new TabManagementService(
       this.tabUrlManager,
       this.startupCleanupService,
@@ -38,7 +41,8 @@ export class BackgroundBootstrap {
       this.scheduledCleanupService,
       this.startupCleanupService,
       this.expiredCookieService,
-      this.storageInitializer
+      this.storageInitializer,
+      this.settingsMigrator
     );
   }
 

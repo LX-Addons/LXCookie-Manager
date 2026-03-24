@@ -1,4 +1,4 @@
-import type { CleanupExecutionResult, CleanupTrigger } from "@/types";
+import type { CleanupExecutionResult, CleanupTrigger, Settings } from "@/types";
 import { CookieClearType, ModeType, CleanupError, CleanupStage, ErrorCode } from "@/types";
 import { getCleanupSettings, shouldCleanupDomain } from "./domain-policy";
 import { clearCookies, ClearCookiesOptions, ClearCookiesResult } from "./cookie-ops";
@@ -131,12 +131,28 @@ const handleCookieClearError = (domain?: string, error?: unknown): never => {
   throw new CleanupError(ErrorCode.COOKIE_REMOVE_FAILED, CleanupStage.COOKIES, message);
 };
 
+const handleStorageError = (error: unknown): never => {
+  if (error instanceof CleanupError) {
+    throw error;
+  }
+  const message = error instanceof Error ? error.message : "Unknown error";
+  throw new CleanupError(ErrorCode.STORAGE_READ_FAILED, CleanupStage.STORAGE, message);
+};
+
 export const runCleanup = async (options: CleanupOptions): Promise<CleanupExecutionResult> => {
   const startTime = Date.now();
   const result = createInitialResult(options, startTime);
 
+  let settingsData: { settings: Settings; whitelist: string[]; blacklist: string[] };
   try {
-    const { settings, whitelist, blacklist } = await getCleanupSettings();
+    settingsData = await getCleanupSettings();
+  } catch (e) {
+    throw handleStorageError(e);
+  }
+
+  const { settings, whitelist, blacklist } = settingsData;
+
+  try {
     const clearType = options.clearType ?? settings.clearType;
     const clearOptions = getClearOptions(options, settings);
 
@@ -160,13 +176,10 @@ export const runCleanup = async (options: CleanupOptions): Promise<CleanupExecut
     result.cookiesRemoved = cookieResult.count;
     result.matchedDomains = Array.from(cookieResult.clearedDomains);
 
-    if (cookieResult.clearedDomains.size > 0) {
-      await handleBrowserDataClear(
-        result,
-        cookieResult.clearedDomains,
-        clearOptions,
-        options.domain
-      );
+    const domainsToClean = options.domain ? new Set([options.domain]) : cookieResult.clearedDomains;
+
+    if (domainsToClean.size > 0) {
+      await handleBrowserDataClear(result, domainsToClean, clearOptions, options.domain);
     }
 
     result.success = true;
@@ -180,13 +193,22 @@ export const runCleanup = async (options: CleanupOptions): Promise<CleanupExecut
 
 export const runCleanupWithFilter = async (
   filterFn: (domain: string) => boolean,
-  options: Omit<CleanupOptions, "domain"> & Partial<Pick<CleanupOptions, "domain">>
+  options: Omit<CleanupOptions, "domain"> & Partial<Pick<CleanupOptions, "domain">>,
+  targetDomains?: string[]
 ): Promise<CleanupExecutionResult> => {
   const startTime = Date.now();
   const result = createInitialResult(options, startTime);
 
+  let settingsData: { settings: Settings; whitelist: string[]; blacklist: string[] };
   try {
-    const { settings, whitelist, blacklist } = await getCleanupSettings();
+    settingsData = await getCleanupSettings();
+  } catch (e) {
+    throw handleStorageError(e);
+  }
+
+  const { settings, whitelist, blacklist } = settingsData;
+
+  try {
     const clearType = options.clearType ?? settings.clearType;
     const clearOptions = getClearOptions(options, settings);
 
@@ -201,13 +223,13 @@ export const runCleanupWithFilter = async (
     result.cookiesRemoved = cookieResult.count;
     result.matchedDomains = Array.from(cookieResult.clearedDomains);
 
-    if (cookieResult.clearedDomains.size > 0) {
-      await handleBrowserDataClear(
-        result,
-        cookieResult.clearedDomains,
-        clearOptions,
-        options.domain
-      );
+    const domainsToClean =
+      targetDomains && targetDomains.length > 0
+        ? new Set(targetDomains)
+        : cookieResult.clearedDomains;
+
+    if (domainsToClean.size > 0) {
+      await handleBrowserDataClear(result, domainsToClean, clearOptions, options.domain);
     }
 
     result.success = true;

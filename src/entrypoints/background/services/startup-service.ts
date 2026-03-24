@@ -5,7 +5,7 @@ import { ScheduledCleanupService } from "./scheduled-cleanup-service";
 import { StartupCleanupService } from "./startup-cleanup-service";
 import { ExpiredCookieService } from "./expired-cookie-service";
 import { StorageInitializer } from "./storage-initializer";
-import { storage, SETTINGS_KEY } from "@/lib/store";
+import { SettingsMigrator } from "./settings-migrator";
 
 export class StartupService {
   private readonly tabUrlManager: TabUrlManager;
@@ -13,19 +13,22 @@ export class StartupService {
   private readonly startupCleanupService: StartupCleanupService;
   private readonly expiredCookieService: ExpiredCookieService;
   private readonly storageInitializer: StorageInitializer;
+  private readonly settingsMigrator: SettingsMigrator;
 
   constructor(
     tabUrlManager: TabUrlManager,
     scheduledCleanupService: ScheduledCleanupService,
     startupCleanupService: StartupCleanupService,
     expiredCookieService: ExpiredCookieService,
-    storageInitializer: StorageInitializer
+    storageInitializer: StorageInitializer,
+    settingsMigrator: SettingsMigrator
   ) {
     this.tabUrlManager = tabUrlManager;
     this.scheduledCleanupService = scheduledCleanupService;
     this.startupCleanupService = startupCleanupService;
     this.expiredCookieService = expiredCookieService;
     this.storageInitializer = storageInitializer;
+    this.settingsMigrator = settingsMigrator;
   }
 
   async handleInstalled(): Promise<void> {
@@ -42,8 +45,7 @@ export class StartupService {
       periodInMinutes: ALARM_INTERVAL_MINUTES,
     });
 
-    const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-    if (!settings) return;
+    const settings = await this.settingsMigrator.getSettings();
 
     await this.tabUrlManager.initializeFromTabs();
     await this.startupCleanupService.runStartupTasks(settings, this.tabUrlManager.getUrls());
@@ -52,8 +54,7 @@ export class StartupService {
 
   async handleAlarm(alarm: chrome.alarms.Alarm): Promise<void> {
     if (alarm.name === "scheduled-cleanup") {
-      const settings = await storage.getItem<Settings>(SETTINGS_KEY);
-      if (!settings) return;
+      const settings = await this.settingsMigrator.getSettings();
 
       await this.scheduledCleanupService.runScheduledCleanup();
       await this.expiredCookieService.runExpiredCookiesCleanup(settings, true, Date.now());

@@ -139,7 +139,8 @@ class MetricsService {
   }
 
   getRecentMetrics(limit: number = 50): BackgroundMetric[] {
-    return this.metrics.toArray().slice(-limit);
+    const safeLimit = Math.max(0, limit);
+    return this.metrics.toArray().slice(-safeLimit);
   }
 
   getSummary(): MetricsSummary {

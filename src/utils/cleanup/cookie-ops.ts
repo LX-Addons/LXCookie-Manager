@@ -142,7 +142,7 @@ export const createCookie = async (
 export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
-): Promise<boolean> => {
+): Promise<chrome.cookies.Cookie | null> => {
   try {
     const safeUpdates: Partial<chrome.cookies.Cookie> = {};
 
@@ -179,14 +179,14 @@ export const editCookie = async (
 
     const result = buildCookieSetDetails(nextCookie);
     if (!result.success) {
-      return false;
+      return null;
     }
 
-    await chrome.cookies.set(result.setDetails);
-    return true;
+    const updatedCookie = await chrome.cookies.set(result.setDetails);
+    return updatedCookie ?? null;
   } catch (e) {
     console.warn("Failed to edit cookie:", e);
-    return false;
+    return null;
   }
 };
 

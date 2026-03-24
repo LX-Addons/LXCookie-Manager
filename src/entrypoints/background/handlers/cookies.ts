@@ -17,18 +17,18 @@ import {
 
 export class CookiesHandler {
   async getCurrentTabCookies(): Promise<ApiResponse<{ cookies: Cookie[]; domain: string }>> {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    let domain = "";
-    if (tab?.url) {
-      try {
-        const url = new URL(tab.url);
-        domain = url.hostname;
-      } catch {
-        domain = "";
-      }
-    }
-
     try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let domain = "";
+      if (tab?.url) {
+        try {
+          const url = new URL(tab.url);
+          domain = url.hostname;
+        } catch {
+          domain = "";
+        }
+      }
+
       const allCookies = await getAllCookies();
       const currentCookiesList = domain
         ? allCookies.filter((c) => isDomainMatch(c.domain, domain))
@@ -57,7 +57,6 @@ export class CookiesHandler {
       const message = error instanceof Error ? error.message : String(error);
       if (isPermissionDeniedError(error)) {
         reportBackgroundError(ErrorCode.INSUFFICIENT_PERMISSIONS, "getCurrentTabCookies", message, {
-          domain,
           recoverable: false,
           originalError: error,
         });
@@ -67,7 +66,6 @@ export class CookiesHandler {
         };
       }
       reportBackgroundError(ErrorCode.INTERNAL_ERROR, "getCurrentTabCookies", message, {
-        domain,
         recoverable: true,
         originalError: error,
       });
@@ -81,22 +79,22 @@ export class CookiesHandler {
   async getStats(domain?: string): Promise<ApiResponse<CookieStats>> {
     try {
       const allCookies = await getAllCookies();
-      const currentCookiesList = domain
+      const targetCookies = domain
         ? allCookies.filter((c) => isDomainMatch(c.domain, domain))
-        : [];
+        : allCookies;
 
-      const sessionCookies = currentCookiesList.filter((c) => !c.expirationDate);
-      const persistentCookies = currentCookiesList.filter((c) => c.expirationDate);
+      const sessionCookies = targetCookies.filter((c) => !c.expirationDate);
+      const persistentCookies = targetCookies.filter((c) => c.expirationDate);
       const thirdPartyCookies = domain
-        ? currentCookiesList.filter((c) => isThirdPartyCookie(c.domain, domain))
+        ? targetCookies.filter((c) => isThirdPartyCookie(c.domain, domain))
         : [];
-      const trackingCookies = currentCookiesList.filter((c) => isTrackingCookie(c));
+      const trackingCookies = targetCookies.filter((c) => isTrackingCookie(c));
 
       return {
         success: true,
         data: {
           total: allCookies.length,
-          current: currentCookiesList.length,
+          current: targetCookies.length,
           session: sessionCookies.length,
           persistent: persistentCookies.length,
           thirdParty: thirdPartyCookies.length,
@@ -177,15 +175,31 @@ export class CookiesHandler {
     updates: Partial<Cookie>
   ): Promise<ApiResponse<{ cookie: Cookie }>> {
     try {
-      const success = await editCookie(
+      const updatedCookie = await editCookie(
         original as unknown as chrome.cookies.Cookie,
         updates as Partial<chrome.cookies.Cookie>
       );
-      if (success) {
-        const updatedCookie = { ...original, ...updates };
+      if (updatedCookie) {
         const domain = original.domain.replace(/^\./, "");
         await logService.logEdit(domain, 1, "Cookie updated");
-        return { success: true, data: { cookie: updatedCookie } };
+        return {
+          success: true,
+          data: {
+            cookie: {
+              name: updatedCookie.name,
+              value: updatedCookie.value,
+              domain: updatedCookie.domain,
+              path: updatedCookie.path,
+              secure: updatedCookie.secure,
+              httpOnly: updatedCookie.httpOnly,
+              sameSite: updatedCookie.sameSite as Cookie["sameSite"],
+              expirationDate: updatedCookie.expirationDate,
+              storeId: updatedCookie.storeId,
+              partitionKey: updatedCookie.partitionKey,
+              firstPartyDomain: updatedCookie.firstPartyDomain,
+            },
+          },
+        };
       }
       reportBackgroundError(
         ErrorCode.COOKIE_UPDATE_FAILED,

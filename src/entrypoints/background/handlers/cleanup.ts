@@ -24,6 +24,22 @@ const getCleanupOperation = (error: unknown, baseOperation: string): string => {
 };
 
 export class CleanupHandler {
+  private safeRecordCleanup(...args: Parameters<typeof metricsService.recordCleanup>): void {
+    try {
+      metricsService.recordCleanup(...args);
+    } catch {
+      // best-effort: do not fail cleanup flow
+    }
+  }
+
+  private async safeLogCleanup(...args: Parameters<typeof logService.logCleanup>): Promise<void> {
+    try {
+      await logService.logCleanup(...args);
+    } catch {
+      // best-effort: do not fail cleanup flow
+    }
+  }
+
   async cleanupByDomain(
     domain: string,
     trigger: CleanupTrigger,
@@ -42,7 +58,7 @@ export class CleanupHandler {
         ...options,
       });
 
-      metricsService.recordCleanup("cleanupByDomain", result.success, result.durationMs, {
+      this.safeRecordCleanup("cleanupByDomain", result.success, result.durationMs, {
         domain,
         trigger,
         metadata: {
@@ -52,7 +68,7 @@ export class CleanupHandler {
       });
 
       if (result.success && result.cookiesRemoved > 0) {
-        await logService.logCleanup(
+        await this.safeLogCleanup(
           domain,
           options?.clearType || CookieClearType.ALL,
           result.cookiesRemoved,
@@ -65,7 +81,7 @@ export class CleanupHandler {
       const durationMs = Date.now() - startTime;
       const operation = getCleanupOperation(e, "cleanupByDomain");
       const errorReport = classifyError(e, operation, { domain, trigger });
-      metricsService.recordCleanup("cleanupByDomain", false, durationMs, {
+      this.safeRecordCleanup("cleanupByDomain", false, durationMs, {
         domain,
         trigger,
         metadata: {
@@ -100,11 +116,28 @@ export class CleanupHandler {
         filterFn = () => true;
         break;
       case "domain":
-        filterFn = (domain) => (filterValue ? isDomainMatch(domain, filterValue) : false);
+        if (!filterValue?.trim()) {
+          return {
+            success: false,
+            error: {
+              code: ErrorCode.INVALID_PARAMETERS,
+              message: "filterValue is required when filterType is 'domain'",
+            },
+          };
+        }
+        filterFn = (domain) => isDomainMatch(domain, filterValue);
         break;
       case "domain-list":
-        filterFn = (domain) =>
-          domainList ? domainList.some((listDomain) => isDomainMatch(domain, listDomain)) : false;
+        if (!domainList?.length) {
+          return {
+            success: false,
+            error: {
+              code: ErrorCode.INVALID_PARAMETERS,
+              message: "domainList is required when filterType is 'domain-list'",
+            },
+          };
+        }
+        filterFn = (domain) => domainList.some((listDomain) => isDomainMatch(domain, listDomain));
         break;
       default:
         return {
@@ -117,12 +150,23 @@ export class CleanupHandler {
     }
 
     try {
-      const result = await runCleanupWithFilter(filterFn, {
-        trigger,
-        ...options,
-      });
+      let targetDomains: string[] | undefined;
+      if (filterType === "domain" && filterValue) {
+        targetDomains = [filterValue];
+      } else if (filterType === "domain-list" && domainList) {
+        targetDomains = domainList;
+      }
 
-      metricsService.recordCleanup("cleanupWithFilter", result.success, result.durationMs, {
+      const result = await runCleanupWithFilter(
+        filterFn,
+        {
+          trigger,
+          ...options,
+        },
+        targetDomains
+      );
+
+      this.safeRecordCleanup("cleanupWithFilter", result.success, result.durationMs, {
         trigger,
         metadata: {
           filterType,
@@ -132,7 +176,7 @@ export class CleanupHandler {
       });
 
       if (result.success && result.cookiesRemoved > 0) {
-        await logService.logCleanup(
+        await this.safeLogCleanup(
           result.matchedDomains,
           options?.clearType || CookieClearType.ALL,
           result.cookiesRemoved,
@@ -145,7 +189,7 @@ export class CleanupHandler {
       const durationMs = Date.now() - startTime;
       const operation = getCleanupOperation(e, "cleanupWithFilter");
       const errorReport = classifyError(e, operation, { trigger });
-      metricsService.recordCleanup("cleanupWithFilter", false, durationMs, {
+      this.safeRecordCleanup("cleanupWithFilter", false, durationMs, {
         trigger,
         metadata: {
           filterType,
