@@ -153,8 +153,8 @@ export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
 ): Promise<CookieCreateResult> => {
-  const supportedFields = ["value", "httpOnly", "secure", "sameSite", "expirationDate"];
-  const unsupportedKeys = Object.keys(updates).filter((key) => !supportedFields.includes(key));
+  const supportedFields = new Set(["value", "httpOnly", "secure", "sameSite", "expirationDate"]);
+  const unsupportedKeys = Object.keys(updates).filter((key) => !supportedFields.has(key));
   if (unsupportedKeys.length > 0) {
     return {
       success: false,

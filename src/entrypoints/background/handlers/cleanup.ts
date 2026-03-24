@@ -4,7 +4,7 @@ import { cleanupExecutor, type CleanupOptions } from "../services/cleanup-execut
 import { SettingsMigrator } from "../services/settings-migrator";
 
 export class CleanupHandler {
-  private settingsMigrator: SettingsMigrator;
+  private readonly settingsMigrator: SettingsMigrator;
 
   constructor(settingsMigrator: SettingsMigrator) {
     this.settingsMigrator = settingsMigrator;
@@ -34,7 +34,7 @@ export class CleanupHandler {
     return {
       success: false,
       error: {
-        code: result.error?.code as ErrorCode,
+        code: result.error?.code || ErrorCode.INTERNAL_ERROR,
         message: result.error?.message || "Unknown error",
       },
     };
@@ -68,7 +68,7 @@ export class CleanupHandler {
     return {
       success: false,
       error: {
-        code: result.error?.code as ErrorCode,
+        code: result.error?.code || ErrorCode.INTERNAL_ERROR,
         message: result.error?.message || "Unknown error",
       },
     };

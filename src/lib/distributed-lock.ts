@@ -15,13 +15,12 @@ interface LockData {
 export class DistributedLock {
   private readonly lockKey: StorageKey;
   private readonly timeoutMs: number;
-  private readonly lockId: string;
+  private currentLockId: string | null = null;
   private releasePromise: Promise<boolean> | null = null;
 
   constructor(name: string, timeoutMs: number = DEFAULT_LOCK_TIMEOUT_MS) {
     this.lockKey = `local:lock:${name}` as StorageKey;
     this.timeoutMs = timeoutMs;
-    this.lockId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 
   private isLockExpired(lock: { expiresAt: number }): boolean {
@@ -45,18 +44,25 @@ export class DistributedLock {
       return false;
     }
 
+    const lockId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    this.currentLockId = lockId;
+
     const lockData: LockData = {
-      lockId: this.lockId,
+      lockId: lockId,
       acquiredAt: now,
       expiresAt: now + this.timeoutMs,
     };
 
-    memoryLocks.set(this.lockKey, {
-      lockId: this.lockId,
-      expiresAt: lockData.expiresAt,
-    });
-
-    await storage.setItem(this.lockKey, lockData);
+    try {
+      await storage.setItem(this.lockKey, lockData);
+      memoryLocks.set(this.lockKey, {
+        lockId: lockId,
+        expiresAt: lockData.expiresAt,
+      });
+    } catch {
+      this.currentLockId = null;
+      return false;
+    }
 
     return true;
   }
@@ -64,12 +70,17 @@ export class DistributedLock {
   async release(): Promise<boolean> {
     const memoryLock = memoryLocks.get(this.lockKey);
 
-    if (!memoryLock || memoryLock.lockId !== this.lockId) {
+    if (this.currentLockId === null || memoryLock?.lockId !== this.currentLockId) {
       return false;
     }
 
-    memoryLocks.delete(this.lockKey);
-    await storage.removeItem(this.lockKey);
+    try {
+      await storage.removeItem(this.lockKey);
+      memoryLocks.delete(this.lockKey);
+      this.currentLockId = null;
+    } catch {
+      return false;
+    }
     return true;
   }
 

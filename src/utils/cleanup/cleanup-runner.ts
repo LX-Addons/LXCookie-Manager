@@ -3,7 +3,7 @@ import { CookieClearType, ModeType, CleanupError, CleanupStage, ErrorCode } from
 import { getCleanupSettings, shouldCleanupDomain } from "./domain-policy";
 import { clearCookies, ClearCookiesOptions, ClearCookiesResult } from "./cookie-ops";
 import { clearBrowserData, ClearBrowserDataOptions } from "./site-data-ops";
-import { isDomainMatch } from "@/utils/domain";
+import { isCookieDomainMatch } from "@/utils/domain";
 
 export interface CleanupOptions {
   domain?: string;
@@ -40,7 +40,7 @@ const createCookieResult = async (
     const domain = options.domain;
     const cookieOptions: ClearCookiesOptions = {
       clearType,
-      filterFn: (cookieDomain) => isDomainMatch(cookieDomain, domain),
+      filterFn: (cookieDomain) => isCookieDomainMatch(cookieDomain, domain),
     };
     return clearCookies(cookieOptions);
   }

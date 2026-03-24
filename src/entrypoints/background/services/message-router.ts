@@ -1,4 +1,4 @@
-import type { BackgroundRequest, ApiResponse } from "@/types";
+import type { BackgroundRequest, ApiResponse, CleanupTrigger, Cookie } from "@/types";
 import { ErrorCode, CookieClearType } from "@/types";
 import { CookiesHandler } from "../handlers/cookies";
 import { CleanupHandler } from "../handlers/cleanup";
@@ -118,6 +118,12 @@ function validateCleanupByDomainPayload(payload: unknown): payload is {
   return true;
 }
 
+function validateDomainList(domainList: unknown): domainList is string[] {
+  if (domainList === undefined) return true;
+  if (!Array.isArray(domainList)) return false;
+  return domainList.every((d) => typeof d === "string");
+}
+
 function validateCleanupWithFilterPayload(payload: unknown): payload is {
   filterType: string;
   trigger: string;
@@ -132,10 +138,7 @@ function validateCleanupWithFilterPayload(payload: unknown): payload is {
   const p = payload as Record<string, unknown>;
   if (typeof p.filterType !== "string" || typeof p.trigger !== "string") return false;
   if (p.filterValue !== undefined && typeof p.filterValue !== "string") return false;
-  if (p.domainList !== undefined) {
-    if (!Array.isArray(p.domainList)) return false;
-    if (!p.domainList.every((d) => typeof d === "string")) return false;
-  }
+  if (!validateDomainList(p.domainList)) return false;
   if (p.clearType !== undefined && !VALID_CLEAR_TYPES.has(p.clearType as CookieClearType)) {
     return false;
   }
@@ -145,107 +148,136 @@ function validateCleanupWithFilterPayload(payload: unknown): payload is {
   return true;
 }
 
+type MessageHandler = (request: BackgroundRequest) => Promise<ApiResponse>;
+
+const handleGetCurrentTabCookies: MessageHandler = async () => {
+  return await getCookiesHandler().getCurrentTabCookies();
+};
+
+const handleGetStats: MessageHandler = async (request) => {
+  if ("domain" in request && request.domain !== undefined && typeof request.domain !== "string") {
+    return createErrorResponse(ErrorCode.INVALID_PARAMETERS, "Invalid domain for getStats");
+  }
+  return await getCookiesHandler().getStats(
+    "domain" in request ? (request as { domain?: string }).domain : undefined
+  );
+};
+
+const handleCreateCookie: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateCreateCookiePayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for createCookie: name, domain, and value are required"
+    );
+  }
+  return await getCookiesHandler().createCookie(request.payload);
+};
+
+const handleUpdateCookie: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateUpdateCookiePayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for updateCookie: original (with name, domain, path, value, secure) and updates are required"
+    );
+  }
+  return await getCookiesHandler().updateCookie(
+    request.payload.original as Cookie,
+    request.payload.updates
+  );
+};
+
+const handleDeleteCookie: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateDeleteCookiePayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for deleteCookie: name, domain, path, and secure are required"
+    );
+  }
+  return await getCookiesHandler().deleteCookie(request.payload as Cookie);
+};
+
+const handleCleanupByDomain: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateCleanupByDomainPayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for cleanupByDomain: domain and trigger are required"
+    );
+  }
+  const settings = await getSettingsMigrator().getSettings();
+  return await getCleanupHandler().cleanupByDomain(
+    request.payload.domain,
+    request.payload.trigger as CleanupTrigger,
+    settings,
+    {
+      clearType: request.payload.clearType,
+      clearCache: request.payload.clearCache,
+      clearLocalStorage: request.payload.clearLocalStorage,
+      clearIndexedDB: request.payload.clearIndexedDB,
+    }
+  );
+};
+
+const handleCleanupWithFilter: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateCleanupWithFilterPayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for cleanupWithFilter: filterType and trigger are required"
+    );
+  }
+  const settings = await getSettingsMigrator().getSettings();
+  return await getCleanupHandler().cleanupWithFilter(
+    request.payload.filterType as "all" | "domain" | "domain-list",
+    request.payload.filterValue,
+    request.payload.domainList,
+    request.payload.trigger as CleanupTrigger,
+    settings,
+    {
+      clearType: request.payload.clearType,
+      clearCache: request.payload.clearCache,
+      clearLocalStorage: request.payload.clearLocalStorage,
+      clearIndexedDB: request.payload.clearIndexedDB,
+    }
+  );
+};
+
+const handleExportLogs: MessageHandler = async (request) => {
+  const payload =
+    "payload" in request && typeof request.payload === "object" && request.payload !== null
+      ? request.payload
+      : {};
+  const options =
+    "options" in payload
+      ? (payload as { options?: { sanitize?: boolean; includeMetadata?: boolean } }).options
+      : undefined;
+  const result = await logExportService.exportLogs(options);
+  if (result.success && result.data) {
+    return createSuccessResponse(result.data);
+  }
+  return createErrorResponse(ErrorCode.INTERNAL_ERROR, result.error || "Export failed");
+};
+
+const messageHandlers: Record<string, MessageHandler> = {
+  getCurrentTabCookies: handleGetCurrentTabCookies,
+  getStats: handleGetStats,
+  createCookie: handleCreateCookie,
+  updateCookie: handleUpdateCookie,
+  deleteCookie: handleDeleteCookie,
+  cleanupByDomain: handleCleanupByDomain,
+  cleanupWithFilter: handleCleanupWithFilter,
+  exportLogs: handleExportLogs,
+};
+
 export const handleMessage = async (request: unknown): Promise<ApiResponse> => {
   if (!hasValidRequestType(request)) {
     return createErrorResponse(ErrorCode.INVALID_PARAMETERS, "Invalid request format");
   }
 
   const { type } = request;
+  const handler = messageHandlers[type];
 
-  switch (type) {
-    case "getCurrentTabCookies": {
-      return await getCookiesHandler().getCurrentTabCookies();
-    }
-    case "getStats": {
-      if (
-        "domain" in request &&
-        request.domain !== undefined &&
-        typeof request.domain !== "string"
-      ) {
-        return createErrorResponse(ErrorCode.INVALID_PARAMETERS, "Invalid domain for getStats");
-      }
-      return await getCookiesHandler().getStats(request.domain);
-    }
-    case "createCookie": {
-      if (!hasPayload(request) || !validateCreateCookiePayload(request.payload)) {
-        return createErrorResponse(
-          ErrorCode.INVALID_PARAMETERS,
-          "Invalid payload for createCookie: name, domain, and value are required"
-        );
-      }
-      return await getCookiesHandler().createCookie(request.payload);
-    }
-    case "updateCookie": {
-      if (!hasPayload(request) || !validateUpdateCookiePayload(request.payload)) {
-        return createErrorResponse(
-          ErrorCode.INVALID_PARAMETERS,
-          "Invalid payload for updateCookie: original (with name, domain, path, value, secure) and updates are required"
-        );
-      }
-      return await getCookiesHandler().updateCookie(
-        request.payload.original,
-        request.payload.updates
-      );
-    }
-    case "deleteCookie": {
-      if (!hasPayload(request) || !validateDeleteCookiePayload(request.payload)) {
-        return createErrorResponse(
-          ErrorCode.INVALID_PARAMETERS,
-          "Invalid payload for deleteCookie: name, domain, path, and secure are required"
-        );
-      }
-      return await getCookiesHandler().deleteCookie(request.payload);
-    }
-    case "cleanupByDomain": {
-      if (!hasPayload(request) || !validateCleanupByDomainPayload(request.payload)) {
-        return createErrorResponse(
-          ErrorCode.INVALID_PARAMETERS,
-          "Invalid payload for cleanupByDomain: domain and trigger are required"
-        );
-      }
-      const settings = await getSettingsMigrator().getSettings();
-      return await getCleanupHandler().cleanupByDomain(
-        request.payload.domain,
-        request.payload.trigger,
-        settings,
-        {
-          clearType: request.payload.clearType,
-          clearCache: request.payload.clearCache,
-          clearLocalStorage: request.payload.clearLocalStorage,
-          clearIndexedDB: request.payload.clearIndexedDB,
-        }
-      );
-    }
-    case "cleanupWithFilter": {
-      if (!hasPayload(request) || !validateCleanupWithFilterPayload(request.payload)) {
-        return createErrorResponse(
-          ErrorCode.INVALID_PARAMETERS,
-          "Invalid payload for cleanupWithFilter: filterType and trigger are required"
-        );
-      }
-      const settings = await getSettingsMigrator().getSettings();
-      return await getCleanupHandler().cleanupWithFilter(
-        request.payload.filterType,
-        request.payload.filterValue,
-        request.payload.domainList,
-        request.payload.trigger,
-        settings,
-        {
-          clearType: request.payload.clearType,
-          clearCache: request.payload.clearCache,
-          clearLocalStorage: request.payload.clearLocalStorage,
-          clearIndexedDB: request.payload.clearIndexedDB,
-        }
-      );
-    }
-    case "exportLogs": {
-      const result = await logExportService.exportLogs(request.payload?.options);
-      if (result.success && result.data) {
-        return createSuccessResponse(result.data);
-      }
-      return createErrorResponse(ErrorCode.INTERNAL_ERROR, result.error || "Export failed");
-    }
-    default:
-      return createErrorResponse(ErrorCode.INVALID_PARAMETERS, `Unknown message type: ${type}`);
+  if (handler) {
+    return await handler(request);
   }
+
+  return createErrorResponse(ErrorCode.INVALID_PARAMETERS, `Unknown message type: ${type}`);
 };

@@ -35,14 +35,19 @@ export class StartupCleanupService {
     const failedDomains: string[] = [];
 
     for (const domain of domainsToClean) {
-      const trigger = "browser-close-recovery" as const;
-      const result = await cleanupExecutor.executeByDomain(
-        domain,
-        trigger,
-        settings,
-        this.getCleanupOptions(settings)
-      );
-      if (!result.success || !result.data?.success) {
+      try {
+        const trigger = "browser-close-recovery" as const;
+        const result = await cleanupExecutor.executeByDomain(
+          domain,
+          trigger,
+          settings,
+          this.getCleanupOptions(settings)
+        );
+        if (!result.success || !result.data?.success) {
+          failedDomains.push(domain);
+        }
+      } catch (e) {
+        console.error(`Failed to cleanup domain ${domain}:`, e);
         failedDomains.push(domain);
       }
     }

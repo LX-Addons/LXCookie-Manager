@@ -1,7 +1,7 @@
 import type { CleanupExecutionResult, CleanupTrigger, Settings } from "@/types";
-import { CookieClearType, CleanupError, CleanupStage } from "@/types";
+import { CookieClearType, CleanupError, CleanupStage, ErrorCode } from "@/types";
 import { runCleanup, runCleanupWithFilter } from "@/utils/cleanup/cleanup-runner";
-import { isDomainMatch } from "@/utils/domain";
+import { isCookieDomainMatch } from "@/utils/domain";
 import { metricsService } from "@/entrypoints/background/services/metrics";
 import { logService } from "@/entrypoints/background/services/log-service";
 import { classifyError } from "@/entrypoints/background/services/error-reporting";
@@ -16,7 +16,7 @@ export interface CleanupOptions {
 export interface CleanupResult {
   success: boolean;
   data?: CleanupExecutionResult;
-  error?: { code: string; message: string };
+  error?: { code: ErrorCode; message: string };
   durationMs: number;
 }
 
@@ -101,7 +101,7 @@ class CleanupExecutorImpl {
       });
       return {
         success: false,
-        error: { code: errorReport.code, message: errorReport.message },
+        error: { code: errorReport.code as ErrorCode, message: errorReport.message },
         durationMs,
       };
     }
@@ -128,31 +128,35 @@ class CleanupExecutorImpl {
           return {
             success: false,
             error: {
-              code: "INVALID_PARAMETERS",
+              code: ErrorCode.INVALID_PARAMETERS,
               message: "filterValue is required when filterType is 'domain'",
             },
             durationMs: 0,
           };
         }
-        filterFn = (domain) => isDomainMatch(domain, filterValue);
+        filterFn = (domain) => isCookieDomainMatch(domain, filterValue);
         break;
       case "domain-list":
         if (!domainList?.length) {
           return {
             success: false,
             error: {
-              code: "INVALID_PARAMETERS",
+              code: ErrorCode.INVALID_PARAMETERS,
               message: "domainList is required when filterType is 'domain-list'",
             },
             durationMs: 0,
           };
         }
-        filterFn = (domain) => domainList.some((listDomain) => isDomainMatch(domain, listDomain));
+        filterFn = (domain) =>
+          domainList.some((listDomain) => isCookieDomainMatch(domain, listDomain));
         break;
       default:
         return {
           success: false,
-          error: { code: "INVALID_PARAMETERS", message: `Invalid filterType: ${filterType}` },
+          error: {
+            code: ErrorCode.INVALID_PARAMETERS,
+            message: `Invalid filterType: ${filterType}`,
+          },
           durationMs: 0,
         };
     }
@@ -207,7 +211,7 @@ class CleanupExecutorImpl {
       });
       return {
         success: false,
-        error: { code: errorReport.code, message: errorReport.message },
+        error: { code: errorReport.code as ErrorCode, message: errorReport.message },
         durationMs,
       };
     }

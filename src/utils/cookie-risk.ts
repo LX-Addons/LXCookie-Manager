@@ -4,7 +4,7 @@ import {
   THIRD_PARTY_TRACKERS,
   SENSITIVE_COOKIE_KEYWORDS,
 } from "@/lib/constants";
-import { isDomainMatch, normalizeDomain } from "./domain";
+import { isCookieDomainMatch, normalizeDomain } from "./domain";
 
 export const isTrackingCookie = (cookie: { name: string; domain: string }): boolean => {
   const lowerName = cookie.name.toLowerCase();
@@ -30,7 +30,7 @@ export const isThirdPartyCookie = (cookieDomain: string, currentDomain?: string)
   if (!currentDomain) return false;
   const normalizedCookie = normalizeDomain(cookieDomain);
   const normalizedCurrent = normalizeDomain(currentDomain);
-  return !isDomainMatch(normalizedCookie, normalizedCurrent);
+  return !isCookieDomainMatch(normalizedCookie, normalizedCurrent);
 };
 
 const buildRiskReason = (t?: (key: string) => string): ((reasonKey: string) => string) => {
