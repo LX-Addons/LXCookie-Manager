@@ -102,7 +102,10 @@ function validateCleanupWithFilterPayload(payload: unknown): payload is {
   const p = payload as Record<string, unknown>;
   if (typeof p.filterType !== "string" || typeof p.trigger !== "string") return false;
   if (p.filterValue !== undefined && typeof p.filterValue !== "string") return false;
-  if (p.domainList !== undefined && !Array.isArray(p.domainList)) return false;
+  if (p.domainList !== undefined) {
+    if (!Array.isArray(p.domainList)) return false;
+    if (!p.domainList.every((d) => typeof d === "string")) return false;
+  }
   if (p.clearType !== undefined && typeof p.clearType !== "string") return false;
   if (p.clearCache !== undefined && typeof p.clearCache !== "boolean") return false;
   if (p.clearLocalStorage !== undefined && typeof p.clearLocalStorage !== "boolean") return false;

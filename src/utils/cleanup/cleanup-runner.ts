@@ -63,9 +63,9 @@ const createInitialResult = (
   matchedDomains: [],
   cookiesRemoved: 0,
   browserDataCleared: {
-    cache: { success: false },
-    localStorage: { success: false },
-    indexedDB: { success: false },
+    cache: { success: true, attempted: false },
+    localStorage: { success: true, attempted: false },
+    indexedDB: { success: true, attempted: false },
   },
   partialFailures: [],
   durationMs: 0,

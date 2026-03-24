@@ -22,9 +22,7 @@ export class ExpiredCookieService {
       if (count > 0) {
         console.log(`Cleaned up ${count} expired cookies${checkTimeWindow ? "" : " on startup"}`);
       }
-      if (checkTimeWindow && now !== undefined) {
-        await updateExpiredCookieCleanupTimestamp(now);
-      }
+      await updateExpiredCookieCleanupTimestamp(now ?? Date.now());
     } catch (e) {
       console.error("Failed to cleanup expired cookies:", e);
     }

@@ -33,11 +33,12 @@ export class StartupService {
 
   async handleInstalled(): Promise<void> {
     await this.storageInitializer.initialize();
+    const settings = await this.settingsMigrator.getSettings();
     await this.tabUrlManager.initializeFromTabs();
     await chrome.alarms.create("scheduled-cleanup", {
       periodInMinutes: ALARM_INTERVAL_MINUTES,
     });
-    await this.scheduledCleanupService.runScheduledCleanup();
+    await this.scheduledCleanupService.runScheduledCleanup(settings);
   }
 
   async handleStartup(): Promise<void> {
@@ -56,7 +57,7 @@ export class StartupService {
     if (alarm.name === "scheduled-cleanup") {
       const settings = await this.settingsMigrator.getSettings();
 
-      await this.scheduledCleanupService.runScheduledCleanup();
+      await this.scheduledCleanupService.runScheduledCleanup(settings);
       await this.expiredCookieService.runExpiredCookiesCleanup(settings, true, Date.now());
     }
   }

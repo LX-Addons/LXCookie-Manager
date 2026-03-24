@@ -34,7 +34,8 @@ export class BackgroundBootstrap {
     this.tabManagementService = new TabManagementService(
       this.tabUrlManager,
       this.startupCleanupService,
-      this.tabEventCleanupService
+      this.tabEventCleanupService,
+      this.settingsMigrator
     );
     this.startupService = new StartupService(
       this.tabUrlManager,

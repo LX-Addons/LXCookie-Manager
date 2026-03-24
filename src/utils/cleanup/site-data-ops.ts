@@ -37,13 +37,17 @@ const clearSingleDataType = async (
   dataType: BrowsingDataType
 ): Promise<DataClearResult> => {
   if (!origins) {
-    return { success: true };
+    return { success: true, attempted: true };
   }
   try {
     await chrome.browsingData.remove({ origins }, BROWSING_DATA_OPTIONS[dataType]);
-    return { success: true };
+    return { success: true, attempted: true };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Unknown error" };
+    return {
+      success: false,
+      attempted: true,
+      error: e instanceof Error ? e.message : "Unknown error",
+    };
   }
 };
 
@@ -54,12 +58,14 @@ export const clearBrowserData = async (
   const origins = buildNonEmptyOrigins(domains);
 
   return {
-    cache: options.clearCache ? await clearSingleDataType(origins, "cache") : { success: true },
+    cache: options.clearCache
+      ? await clearSingleDataType(origins, "cache")
+      : { success: true, attempted: false },
     localStorage: options.clearLocalStorage
       ? await clearSingleDataType(origins, "localStorage")
-      : { success: true },
+      : { success: true, attempted: false },
     indexedDB: options.clearIndexedDB
       ? await clearSingleDataType(origins, "indexedDB")
-      : { success: true },
+      : { success: true, attempted: false },
   };
 };

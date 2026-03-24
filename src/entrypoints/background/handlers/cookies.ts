@@ -49,6 +49,7 @@ export class CookiesHandler {
             storeId: c.storeId,
             partitionKey: c.partitionKey,
             firstPartyDomain: c.firstPartyDomain,
+            hostOnly: c.hostOnly,
           })),
           domain,
         },
@@ -138,6 +139,7 @@ export class CookiesHandler {
               storeId: createdCookie.storeId,
               partitionKey: createdCookie.partitionKey,
               firstPartyDomain: createdCookie.firstPartyDomain,
+              hostOnly: createdCookie.hostOnly,
             },
           },
         };
@@ -186,7 +188,11 @@ export class CookiesHandler {
       );
       if (updatedCookie) {
         const domain = normalizeDomain(original.domain);
-        await logService.logEdit(domain, 1, "Cookie updated");
+        try {
+          await logService.logEdit(domain, 1, "Cookie updated");
+        } catch (logError) {
+          console.warn("Failed to write edit log:", logError);
+        }
         return {
           success: true,
           data: {
@@ -202,6 +208,7 @@ export class CookiesHandler {
               storeId: updatedCookie.storeId,
               partitionKey: updatedCookie.partitionKey,
               firstPartyDomain: updatedCookie.firstPartyDomain,
+              hostOnly: updatedCookie.hostOnly,
             },
           },
         };
@@ -247,7 +254,11 @@ export class CookiesHandler {
         cleanedDomain
       );
       if (success) {
-        await logService.logDelete(cleanedDomain, 1, "Cookie deleted");
+        try {
+          await logService.logDelete(cleanedDomain, 1, "Cookie deleted");
+        } catch (logError) {
+          console.warn("Failed to write delete log:", logError);
+        }
         return { success: true };
       }
       reportBackgroundError(

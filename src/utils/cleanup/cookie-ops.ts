@@ -55,7 +55,10 @@ export const clearSingleCookie = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (removeDetails as any).partitionKey = cookie.partitionKey;
     }
-    await chrome.cookies.remove(removeDetails);
+    const removed = await chrome.cookies.remove(removeDetails);
+    if (!removed) {
+      return { success: false, error: "Cookie not found" };
+    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : String(e) };
@@ -81,11 +84,14 @@ const buildCookieSetDetails = (
     url,
     name: cookie.name,
     value: cookie.value,
-    domain: cookie.domain,
     path: normalizedPath,
     secure,
     httpOnly: cookie.httpOnly ?? false,
   };
+
+  if (!cookie.hostOnly) {
+    setDetails.domain = cookie.domain;
+  }
 
   if (sameSiteForChrome !== undefined) {
     setDetails.sameSite = sameSiteForChrome;

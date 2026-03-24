@@ -14,6 +14,7 @@ export interface Cookie {
   storeId?: string;
   partitionKey?: chrome.cookies.CookiePartitionKey;
   firstPartyDomain?: string;
+  hostOnly?: boolean;
 }
 
 export interface CookieStats {
@@ -129,6 +130,7 @@ export type CleanupTrigger =
 
 export interface DataClearResult {
   success: boolean;
+  attempted: boolean;
   error?: string;
 }
 
