@@ -1,7 +1,7 @@
 {
-  "name": "cookie-manager-pro",
-  "displayName": "Cookie Manager Pro",
-  "version": "1.1.6",
+  "name": "lxcookie-manager",
+  "displayName": "LXCookie Manager",
+  "version": "1.2.0",
   "description": "高级Cookie管理，支持白名单/黑名单功能和选择性Cookie清除",
   "type": "module",
   "packageManager": "pnpm@10.32.1",

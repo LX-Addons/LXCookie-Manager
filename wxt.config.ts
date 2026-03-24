@@ -12,13 +12,13 @@ export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifestVersion: 3,
   manifest: {
-    name: "Cookie Manager Pro",
+    name: "LXCookie Manager",
     description: "高级 Cookie 管理，支持白名单/黑名单功能和选择性 Cookie 清除",
     permissions: ["cookies", "storage", "tabs", "browsingData", "alarms"],
     host_permissions: ["https://*/*", "http://*/*"],
     action: {
       default_icon: icons,
-      default_title: "Cookie Manager Pro",
+      default_title: "LXCookie Manager",
     },
     icons,
     content_security_policy: {

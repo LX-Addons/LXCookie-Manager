@@ -18,7 +18,7 @@
     "unknownError": "Unknown error",
     "listSeparator": ", "
   },
-  "app": { "title": "Cookie Manager Pro", "subtitle": "Your Site Cookie Expert" },
+  "app": { "title": "LXCookie Manager", "subtitle": "Your Site Cookie Expert" },
   "tabs": {
     "manage": "Manage",
     "whitelist": "Whitelist",

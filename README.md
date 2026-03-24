@@ -1,7 +1,7 @@
-# 🍪 Cookie Manager Pro
+# 🍪 LXCookie Manager
 
 <div align="center">
-  <img src="./public/icon.png" alt="Cookie Manager Pro" width="120" height="120" />
+  <img src="./public/icon.png" alt="LXCookie Manager" width="120" height="120" />
 
   <h3 align="center">
     <strong>高级 Cookie 管理扩展</strong>
@@ -12,17 +12,17 @@
   </p>
 
   <p align="center">
-    <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/blob/main/LICENSE">
+    <a href="https://github.com/LX-Addons/LXCookie_Manager/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
     </a>
-    <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/actions/workflows/build-and-check.yml">
-      <img src="https://github.com/LX-Addons/Cookie_Manager_Pro/actions/workflows/build-and-check.yml/badge.svg" alt="Build Status" />
+    <a href="https://github.com/LX-Addons/LXCookie_Manager/actions/workflows/build-and-check.yml">
+      <img src="https://github.com/LX-Addons/LXCookie_Manager/actions/workflows/build-and-check.yml/badge.svg" alt="Build Status" />
     </a>
-    <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/releases">
-      <img src="https://img.shields.io/github/v/release/LX-Addons/Cookie_Manager_Pro" alt="Release" />
+    <a href="https://github.com/LX-Addons/LXCookie_Manager/releases">
+      <img src="https://img.shields.io/github/v/release/LX-Addons/LXCookie_Manager" alt="Release" />
     </a>
-    <a href="https://github.com/LX-Addons/Cookie_Manager_Pro/issues">
-      <img src="https://img.shields.io/github/issues/LX-Addons/Cookie_Manager_Pro" alt="Issues" />
+    <a href="https://github.com/LX-Addons/LXCookie_Manager/issues">
+      <img src="https://img.shields.io/github/issues/LX-Addons/LXCookie_Manager" alt="Issues" />
     </a>
   </p>
 </div>
@@ -69,7 +69,7 @@
 ## 📁 项目结构
 
 ```
-Cookie_Manager_Pro/
+LXCookie_Manager/
 
 ├── 📂 public/
 │   └── 🖼️ icon.png                    # 扩展图标资源
@@ -239,7 +239,7 @@ Cookie_Manager_Pro/
 
 ## 📄 许可证
 
-本项目采用 [MIT License](https://github.com/LX-Addons/Cookie_Manager_Pro/blob/main/LICENSE) 开源。
+本项目采用 [MIT License](https://github.com/LX-Addons/LXCookie_Manager/blob/main/LICENSE) 开源。
 
 ---
 
@@ -248,6 +248,6 @@ Cookie_Manager_Pro/
     <strong>Made with ❤️ for privacy-conscious users</strong>
   </p>
   <p>
-    <sub>Copyright © 2026 Cookie Manager Pro. All rights reserved.</sub>
+    <sub>Copyright © 2026 LXCookie Manager. All rights reserved.</sub>
   </p>
 </div>

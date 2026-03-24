@@ -18,7 +18,7 @@
     "unknownError": "未知错误",
     "listSeparator": "、"
   },
-  "app": { "title": "Cookie Manager Pro", "subtitle": "站点 Cookie 管理专家" },
+  "app": { "title": "LXCookie Manager", "subtitle": "站点 Cookie 管理专家" },
   "tabs": {
     "manage": "管理",
     "whitelist": "白名单",
