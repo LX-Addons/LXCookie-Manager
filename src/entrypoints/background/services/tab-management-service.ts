@@ -3,6 +3,10 @@ import { StartupCleanupService } from "./startup-cleanup-service";
 import { TabEventCleanupService } from "./tab-event-cleanup-service";
 import { SettingsMigrator } from "./settings-migrator";
 
+const isValidHttpUrl = (url: URL): boolean => {
+  return (url.protocol === "http:" || url.protocol === "https:") && !!url.hostname;
+};
+
 export class TabManagementService {
   private readonly tabUrlManager: TabUrlManager;
   private readonly startupCleanupService: StartupCleanupService;
@@ -64,6 +68,7 @@ export class TabManagementService {
       if (!closedUrl) return;
 
       const url = new URL(closedUrl);
+      if (!isValidHttpUrl(url)) return;
 
       if (removeInfo.isWindowClosing && settings.cleanupOnBrowserClose) {
         await this.startupCleanupService.saveDomainForCleanup(url.hostname);

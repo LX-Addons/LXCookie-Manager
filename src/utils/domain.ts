@@ -18,6 +18,7 @@ export const isCookieDomainMatch = (cookieDomain: string, targetDomain: string):
   const normalizedTarget = normalizeDomain(targetDomain);
 
   if (normalizedCookie === normalizedTarget) return true;
+  if (normalizedTarget.endsWith("." + normalizedCookie)) return true;
   if (normalizedCookie.endsWith("." + normalizedTarget)) return true;
 
   return false;
