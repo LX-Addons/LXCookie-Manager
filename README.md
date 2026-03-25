@@ -80,6 +80,7 @@ LXCookie_Manager/
 │   │   ├── ⬜ CheckboxGroup.tsx        # 复选框组组件
 │   │   ├── 📋 ClearLog.tsx             # 清理日志组件
 │   │   ├── ⚠️ ConfirmDialog.tsx        # 确认对话框
+│   │   ├── ⚠️ ConfirmDialogWrapper.tsx # 确认对话框包装器
 │   │   ├── ✏️ CookieEditor.tsx         # Cookie 编辑器
 │   │   ├── 📜 CookieList.tsx           # Cookie 列表
 │   │   ├── 🌐 DomainManager.tsx        # 域名管理器
@@ -110,24 +111,25 @@ LXCookie_Manager/
 │   │       │   ├── cookies.ts          # Cookie 处理
 │   │       │   └── settings.ts         # 设置处理
 │   │       └── services/               # 后台服务
-│   │           ├── cookie-creator.ts   # Cookie 创建服务
-│   │           ├── cookie-mutations.ts # Cookie 变更服务
-│   │           ├── cookie-remover.ts   # Cookie 删除服务
-│   │           ├── cookie-updater.ts   # Cookie 更新服务
-│   │           ├── error-reporting.ts  # 错误报告服务
+│   │           ├── cleanup-executor.ts      # 清理执行服务
+│   │           ├── cookie-creator.ts        # Cookie 创建服务
+│   │           ├── cookie-mutations.ts      # Cookie 变更服务
+│   │           ├── cookie-remover.ts        # Cookie 删除服务
+│   │           ├── cookie-updater.ts        # Cookie 更新服务
+│   │           ├── error-reporting.ts       # 错误报告服务
 │   │           ├── expired-cookie-service.ts # 过期 Cookie 服务
-│   │           ├── log-export-service.ts     # 日志导出服务
-│   │           ├── log-service.ts            # 日志服务
-│   │           ├── message-router.ts         # 消息路由服务
-│   │           ├── metrics.ts                # 指标统计服务
+│   │           ├── log-export-service.ts    # 日志导出服务
+│   │           ├── log-service.ts           # 日志服务
+│   │           ├── message-router.ts        # 消息路由服务
+│   │           ├── metrics.ts               # 指标统计服务
 │   │           ├── scheduled-cleanup-service.ts  # 定时清理服务
-│   │           ├── settings-migrator.ts          # 设置迁移服务
-│   │           ├── startup-cleanup-service.ts    # 启动清理服务
-│   │           ├── startup-service.ts            # 启动服务
-│   │           ├── storage-initializer.ts        # 存储初始化服务
-│   │           ├── tab-event-cleanup-service.ts  # 标签页事件清理服务
-│   │           ├── tab-management-service.ts     # 标签页管理服务
-│   │           └── tab-url-manager.ts            # 标签页 URL 管理服务
+│   │           ├── settings-migrator.ts     # 设置迁移服务
+│   │           ├── startup-cleanup-service.ts   # 启动清理服务
+│   │           ├── startup-service.ts       # 启动服务
+│   │           ├── storage-initializer.ts   # 存储初始化服务
+│   │           ├── tab-event-cleanup-service.ts # 标签页事件清理服务
+│   │           ├── tab-management-service.ts    # 标签页管理服务
+│   │           └── tab-url-manager.ts      # 标签页 URL 管理服务
 │   │
 │   ├── 📂 hooks/                       # 🪝 React Hooks
 │   │   ├── useConfirmDialog.ts         # 对话框 Hook
@@ -143,6 +145,7 @@ LXCookie_Manager/
 │   ├── 📂 lib/                         # 📚 核心库
 │   │   ├── background-service.ts       # 后台通信服务
 │   │   ├── constants.ts                # 常量定义
+│   │   ├── distributed-lock.ts         # 分布式锁
 │   │   └── store.ts                    # 状态存储
 │   │
 │   ├── 📂 types/                       # 📝 TypeScript 类型
@@ -164,8 +167,19 @@ LXCookie_Manager/
 │       └── theme.ts                    # 主题工具
 │
 ├── 📂 .github/                         # ⚡ GitHub 配置
+│   ├── 📂 actions/                     # 自定义 Actions
+│   │   └── 📂 setup-pnpm/
+│   │       └── action.yml              # pnpm 环境设置
 │   ├── 📂 workflows/                   # CI/CD 工作流
-│   └── 📄 dependabot.yml                  # 依赖更新配置
+│   │   ├── build-and-check.yml         # 构建检查
+│   │   ├── clear-caches.yml            # 缓存清理
+│   │   ├── dependency-review.yml       # 依赖审查
+│   │   ├── release.yml                 # 发布流程
+│   │   ├── setup-env.yml               # 环境设置
+│   │   └── stale.yml                   # 过期 Issue 处理
+│   ├── CODEOWNERS                      # 代码所有者
+│   ├── codeql-config.yml               # CodeQL 配置
+│   └── dependabot.yml                  # 依赖更新配置
 │
 ├── 📄 package.json                     # 项目依赖配置
 ├── 📄 tsconfig.json                    # TypeScript 配置
@@ -204,7 +218,7 @@ LXCookie_Manager/
 |      **TypeScript**       |  5.9.3  | 类型安全开发       |
 | **@wxt-dev/module-react** |  1.2.2  | WXT React 模块     |
 |        **Manifest**        |   V3    | Chrome 扩展规范    |
-|         **pnpm**          | 10.32.1 | 包管理器           |
+|         **pnpm**          | 10.33.0 | 包管理器           |
 
 ---
 
