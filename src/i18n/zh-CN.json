@@ -312,7 +312,7 @@
     "expand": "展开",
     "collapse": "收起",
     "errorInsufficientPermissions": "权限不足，请先在设置中授予所有站点访问权限",
-    "partialDeleteFailed": "，{failed} 个失败 ({reason})",
+    "partialDeleteFailed": "，{failed} 个删除失败（{reason}）",
     "deleteFailedWithReason": "删除失败: {reason}",
     "errorInvalidParameters": "参数无效，请检查输入",
     "errorInternalError": "内部错误，请稍后重试",

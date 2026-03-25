@@ -62,8 +62,7 @@ export class DistributedLock {
     if (memoryLock && !this.isLockExpired(memoryLock)) {
       const storageLock = await storage.getItem<LockData>(this.lockKey);
       if (
-        storageLock &&
-        storageLock.lockId === memoryLock.lockId &&
+        storageLock?.lockId === memoryLock.lockId &&
         !this.isLockExpired({ expiresAt: storageLock.expiresAt })
       ) {
         return false;
@@ -102,7 +101,8 @@ export class DistributedLock {
         expiresAt: lockData.expiresAt,
       });
       return true;
-    } catch {
+    } catch (error) {
+      console.error(`[DistributedLock] Failed to acquire lock ${this.lockKey}:`, error);
       this.currentLockId = null;
       return false;
     }
@@ -116,6 +116,26 @@ export class DistributedLock {
     }
 
     try {
+      const storageLock = await storage.getItem<LockData>(this.lockKey);
+
+      if (!storageLock) {
+        memoryLocks.delete(this.lockKey);
+        this.currentLockId = null;
+        return true;
+      }
+
+      if (storageLock.lockId !== this.currentLockId) {
+        memoryLocks.delete(this.lockKey);
+        this.currentLockId = null;
+        return false;
+      }
+
+      if (this.isLockExpired({ expiresAt: storageLock.expiresAt })) {
+        memoryLocks.delete(this.lockKey);
+        this.currentLockId = null;
+        return false;
+      }
+
       await storage.removeItem(this.lockKey);
       memoryLocks.delete(this.lockKey);
       this.currentLockId = null;

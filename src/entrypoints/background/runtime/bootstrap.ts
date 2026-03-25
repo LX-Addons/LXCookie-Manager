@@ -69,33 +69,75 @@ export class BackgroundBootstrap {
   }
 
   private setupInstalledListener(): void {
-    chrome.runtime.onInstalled.addListener(() => this.startupService.handleInstalled());
+    chrome.runtime.onInstalled.addListener(() => {
+      (async () => {
+        try {
+          await this.startupService.handleInstalled();
+        } catch (error) {
+          console.error("Error in onInstalled:", error);
+        }
+      })();
+    });
   }
 
   private setupTabUpdateListener(): void {
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
-      this.tabManagementService.handleTabUpdated(tabId, changeInfo, tab)
-    );
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      (async () => {
+        try {
+          await this.tabManagementService.handleTabUpdated(tabId, changeInfo, tab);
+        } catch (error) {
+          console.error("Error in tabs.onUpdated:", error);
+        }
+      })();
+    });
   }
 
   private setupTabRemovedListener(): void {
-    chrome.tabs.onRemoved.addListener((tabId, removeInfo) =>
-      this.tabManagementService.handleTabRemoved(tabId, removeInfo)
-    );
+    chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+      (async () => {
+        try {
+          await this.tabManagementService.handleTabRemoved(tabId, removeInfo);
+        } catch (error) {
+          console.error("Error in tabs.onRemoved:", error);
+        }
+      })();
+    });
   }
 
   private setupStartupListener(): void {
-    chrome.runtime.onStartup.addListener(() => this.startupService.handleStartup());
+    chrome.runtime.onStartup.addListener(() => {
+      (async () => {
+        try {
+          await this.startupService.handleStartup();
+        } catch (error) {
+          console.error("Error in onStartup:", error);
+        }
+      })();
+    });
   }
 
   private setupAlarmListener(): void {
-    chrome.alarms.onAlarm.addListener((alarm) => this.startupService.handleAlarm(alarm));
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      (async () => {
+        try {
+          await this.startupService.handleAlarm(alarm);
+        } catch (error) {
+          console.error("Error in alarms.onAlarm:", error);
+        }
+      })();
+    });
   }
 
   private setupSettingsWatcher(): void {
-    storage.watch<Settings>(SETTINGS_KEY, (newSettings, oldSettings) =>
-      this.startupService.handleSettingsChange(newSettings, oldSettings)
-    );
+    storage.watch<Settings>(SETTINGS_KEY, (newSettings, oldSettings) => {
+      (async () => {
+        try {
+          await this.startupService.handleSettingsChange(newSettings, oldSettings);
+        } catch (error) {
+          console.error("Error in settings watcher:", error);
+        }
+      })();
+    });
   }
 
   public initialize(): void {
