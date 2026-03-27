@@ -45,14 +45,16 @@ export function ConfirmDialog({
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const iconName = iconNameMap[variant];
-  const confirmButtonClass =
-    variant === "danger"
-      ? "btn-danger"
-      : variant === "warning"
-        ? "btn-warning"
-        : variant === "success"
-          ? "btn-success"
-          : "btn-primary";
+  let confirmButtonClass: string;
+  if (variant === "danger") {
+    confirmButtonClass = "btn-danger";
+  } else if (variant === "warning") {
+    confirmButtonClass = "btn-warning";
+  } else if (variant === "success") {
+    confirmButtonClass = "btn-success";
+  } else {
+    confirmButtonClass = "btn-primary";
+  }
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;

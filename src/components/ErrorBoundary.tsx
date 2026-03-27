@@ -26,7 +26,7 @@ function ErrorBoundaryContent({
     return (
       <div className="error-panel panel" role="alert">
         <div className="error-icon-wrapper">
-          <Icon name="alertCircle" size={24} className="error-icon" aria-hidden="true" />
+          <Icon name="alertCircle" size={24} className="error-icon" />
         </div>
         <h3 className="error-title">{t("errorBoundary.error")}</h3>
         <p className="error-message">{error?.message || t("errorBoundary.errorMessage")}</p>

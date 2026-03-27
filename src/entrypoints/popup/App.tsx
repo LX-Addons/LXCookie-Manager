@@ -69,9 +69,9 @@ function IndexPopup() {
     (customTheme: typeof settings.customTheme) => {
       if (!customTheme) return false;
       const hex = customTheme.bgPrimary.replace("#", "");
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
+      const r = Number.parseInt(hex.substring(0, 2), 16);
+      const g = Number.parseInt(hex.substring(2, 4), 16);
+      const b = Number.parseInt(hex.substring(4, 6), 16);
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return luminance < 0.5;
     },
@@ -176,80 +176,80 @@ function IndexPopup() {
     );
   }, []);
 
+  const resetPermissionDeniedState = useCallback(() => {
+    setLoadingState("permission-denied");
+    setCurrentDomain("");
+    setStats({
+      total: 0,
+      current: 0,
+      session: 0,
+      persistent: 0,
+      thirdParty: 0,
+      tracking: 0,
+    });
+    setCurrentCookies([]);
+  }, []);
+
   const init = useCallback(async () => {
     try {
       setLoadingState("loading");
       const cookiesResponse = await BackgroundService.getCurrentTabCookies();
-      if (cookiesResponse.success && cookiesResponse.data) {
-        setCurrentDomain(cookiesResponse.data.domain);
-        setCurrentCookies(cookiesResponse.data.cookies);
 
+      if (cookiesResponse.success && cookiesResponse.data) {
         const statsResponse = await BackgroundService.getStats(cookiesResponse.data.domain);
+
         if (statsResponse.success && statsResponse.data) {
+          setCurrentDomain(cookiesResponse.data.domain);
+          setCurrentCookies(cookiesResponse.data.cookies);
           setStats(statsResponse.data);
+          setLoadingState("idle");
+        } else if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+          resetPermissionDeniedState();
+        } else {
+          setLoadingState("load-failed");
         }
-        setLoadingState("idle");
       } else if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
-        setLoadingState("permission-denied");
-        setCurrentDomain("");
-        setStats({
-          total: 0,
-          current: 0,
-          session: 0,
-          persistent: 0,
-          thirdParty: 0,
-          tracking: 0,
-        });
-        setCurrentCookies([]);
+        resetPermissionDeniedState();
       } else {
         setLoadingState("domain-unavailable");
         setCurrentDomain("");
       }
     } catch {
-      setLoadingState("domain-unavailable");
-      setCurrentDomain("");
+      setLoadingState("load-failed");
     }
-  }, []);
+  }, [resetPermissionDeniedState]);
 
   const updateStats = useCallback(async () => {
     try {
       setLoadingState("loading");
-      const statsResponse = await BackgroundService.getStats(currentDomain);
       const cookiesResponse = await BackgroundService.getCurrentTabCookies();
 
-      if (
-        statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS ||
-        cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS
-      ) {
-        setLoadingState("permission-denied");
-        setCurrentDomain("");
-        setStats({
-          total: 0,
-          current: 0,
-          session: 0,
-          persistent: 0,
-          thirdParty: 0,
-          tracking: 0,
-        });
-        setCurrentCookies([]);
-        return;
-      }
-
-      if (statsResponse.success && statsResponse.data) {
-        setStats(statsResponse.data);
-      }
-
       if (cookiesResponse.success && cookiesResponse.data) {
-        setCurrentCookies(cookiesResponse.data.cookies);
-      }
+        const statsResponse = await BackgroundService.getStats(cookiesResponse.data.domain);
 
-      setLoadingState("idle");
+        if (statsResponse.success && statsResponse.data) {
+          setCurrentDomain(cookiesResponse.data.domain);
+          setCurrentCookies(cookiesResponse.data.cookies);
+          setStats(statsResponse.data);
+          setLoadingState("idle");
+        } else if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+          resetPermissionDeniedState();
+        } else {
+          setLoadingState("load-failed");
+          showMessage(t("popup.updateStatsFailed"), true);
+        }
+      } else if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+        resetPermissionDeniedState();
+      } else {
+        setLoadingState("domain-unavailable");
+        setCurrentDomain("");
+      }
     } catch (e) {
       console.error("Failed to update stats:", { error: e, currentDomain });
       setLoadingState("load-failed");
       showMessage(t("popup.updateStatsFailed"), true);
     }
-  }, [currentDomain, showMessage, t]);
+  }, [showMessage, t, currentDomain, resetPermissionDeniedState]);
 
   const clearCookies = useCallback(
     async (
@@ -419,9 +419,9 @@ function IndexPopup() {
 
     const hexToRgba = (hex: string, alpha: number): string => {
       const rgb = hex.replace("#", "");
-      const r = parseInt(rgb.substring(0, 2), 16);
-      const g = parseInt(rgb.substring(2, 4), 16);
-      const b = parseInt(rgb.substring(4, 6), 16);
+      const r = Number.parseInt(rgb.substring(0, 2), 16);
+      const g = Number.parseInt(rgb.substring(2, 4), 16);
+      const b = Number.parseInt(rgb.substring(4, 6), 16);
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     };
 
@@ -632,7 +632,7 @@ function IndexPopup() {
                 <StatusPanel
                   variant="info"
                   title={t("popup.unableToGetDomain")}
-                  message={t("popup.domainUnavailableDesc") || "请打开一个网页以查看和管理 Cookie"}
+                  message={t("popup.domainUnavailableDesc")}
                 />
               </section>
             )}
@@ -641,7 +641,7 @@ function IndexPopup() {
                 <StatusPanel
                   variant="error"
                   title={t("popup.updateStatsFailed")}
-                  message={t("popup.loadFailedDesc") || "加载数据时出错，请重试"}
+                  message={t("popup.loadFailedDesc")}
                   action={
                     <button className="btn btn-primary" onClick={updateStats}>
                       <Icon name="refresh" size={14} />

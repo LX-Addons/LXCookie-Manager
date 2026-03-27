@@ -29,21 +29,35 @@ export function detectBrowserLocale(): Locale {
   return "en-US";
 }
 
-export function t(path: string, params?: Record<string, string | number>): string {
+const DEFAULT_LOCALE: Locale = "zh-CN";
+
+function getTranslationValue(locale: Locale, path: string): string | undefined {
   const keys = path.split(".");
-  let value: unknown = translations[currentLocale];
+  let value: unknown = translations[locale];
 
   for (const key of keys) {
     if (value && typeof value === "object" && key in (value as Record<string, unknown>)) {
       value = (value as Record<string, unknown>)[key];
     } else {
-      console.warn(`Translation key not found: ${path}`);
-      return path;
+      return undefined;
     }
   }
 
-  if (typeof value !== "string") {
-    console.warn(`Translation value is not a string: ${path}`);
+  return typeof value === "string" ? value : undefined;
+}
+
+export function t(path: string, params?: Record<string, string | number>): string {
+  let value = getTranslationValue(currentLocale, path);
+
+  if (value === undefined && currentLocale !== DEFAULT_LOCALE) {
+    console.warn(
+      `Translation key not found in ${currentLocale}, falling back to ${DEFAULT_LOCALE}: ${path}`
+    );
+    value = getTranslationValue(DEFAULT_LOCALE, path);
+  }
+
+  if (value === undefined) {
+    console.warn(`Translation key not found in any locale: ${path}`);
     return path;
   }
 

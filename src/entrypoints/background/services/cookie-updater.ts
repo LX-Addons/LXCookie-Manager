@@ -9,29 +9,18 @@ export const editCookie = async (
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
+  let result: chrome.cookies.Cookie | undefined;
 
   try {
-    const result = await editCookieUtil(originalCookie, updates);
+    result = await editCookieUtil(originalCookie, updates);
     success = true;
-
-    const durationMs = Date.now() - startTime;
-    try {
-      metricsService.recordCookieMutation("editCookie", success, durationMs, {
-        domain: originalCookie.domain,
-        errorCode,
-        metadata: { cookieName: originalCookie.name },
-      });
-    } catch (metricsError) {
-      console.warn("Failed to record editCookie metrics:", metricsError);
-    }
-
-    return result;
   } catch (e) {
     const report = classifyError(e, "cookie update", {
       domain: originalCookie.domain,
     });
     errorCode = report.code;
-
+    throw e;
+  } finally {
     const durationMs = Date.now() - startTime;
     try {
       metricsService.recordCookieMutation("editCookie", success, durationMs, {
@@ -42,7 +31,10 @@ export const editCookie = async (
     } catch (metricsError) {
       console.warn("Failed to record editCookie metrics:", metricsError);
     }
-
-    throw e;
   }
+
+  if (!result) {
+    throw new Error("Cookie update failed");
+  }
+  return result;
 };

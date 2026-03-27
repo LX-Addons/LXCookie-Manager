@@ -16,12 +16,6 @@ export interface CookieRemoveResult {
   error?: string;
 }
 
-export interface CookieCreateResult {
-  success: boolean;
-  cookie?: chrome.cookies.Cookie;
-  error?: string;
-}
-
 const shouldClearCookieByType = (
   cookie: chrome.cookies.Cookie,
   clearType: CookieClearType

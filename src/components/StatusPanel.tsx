@@ -4,12 +4,12 @@ import type { ReactNode } from "react";
 export type StatusPanelVariant = "error" | "warning" | "info" | "empty" | "loading";
 
 interface StatusPanelProps {
-  variant: StatusPanelVariant;
-  title?: string;
-  message?: string;
-  icon?: ReactNode;
-  action?: ReactNode;
-  className?: string;
+  readonly variant: StatusPanelVariant;
+  readonly title?: string;
+  readonly message?: string;
+  readonly icon?: ReactNode;
+  readonly action?: ReactNode;
+  readonly className?: string;
 }
 
 const variantConfig: Record<

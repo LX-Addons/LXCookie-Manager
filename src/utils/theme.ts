@@ -56,7 +56,16 @@ export const getLineSoftColor = (hex: string): string => {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
   const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
-  const amount = luminance > 0.7 ? 60 : luminance > 0.5 ? 45 : luminance > 0.3 ? -45 : -60;
+  let amount: number;
+  if (luminance > 0.7) {
+    amount = -60;
+  } else if (luminance > 0.5) {
+    amount = -45;
+  } else if (luminance > 0.3) {
+    amount = 45;
+  } else {
+    amount = 60;
+  }
   return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
 };
 
@@ -64,7 +73,16 @@ export const getLineStrongColor = (hex: string): string => {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
   const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
-  const amount = luminance > 0.7 ? 35 : luminance > 0.5 ? 25 : luminance > 0.3 ? -25 : -35;
+  let amount: number;
+  if (luminance > 0.7) {
+    amount = -35;
+  } else if (luminance > 0.5) {
+    amount = -25;
+  } else if (luminance > 0.3) {
+    amount = 25;
+  } else {
+    amount = 35;
+  }
   return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
 };
 
@@ -107,7 +125,9 @@ export const getContrastColor = (hex: string): string => {
   const rgb = hexToRgb(hex);
   if (!rgb) return "#ffffff";
   const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
-  return luminance > 0.5 ? "#1a202c" : "#ffffff";
+  const contrastWithWhite = (1.0 + 0.05) / (luminance + 0.05);
+  const contrastWithDark = (luminance + 0.05) / (0.0 + 0.05);
+  return contrastWithDark >= contrastWithWhite ? "#1a202c" : "#ffffff";
 };
 
 export const getMutedTextColor = (hex: string): string => {

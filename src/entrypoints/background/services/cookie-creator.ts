@@ -8,32 +8,32 @@ export const createCookie = async (
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
+  let created: chrome.cookies.Cookie | undefined;
 
   try {
-    const created = await createCookieUtil(cookie);
+    created = await createCookieUtil(cookie);
     success = true;
-
-    const durationMs = Date.now() - startTime;
-    metricsService.recordCookieMutation("createCookie", success, durationMs, {
-      domain: cookie.domain,
-      errorCode,
-      metadata: { cookieName: cookie.name },
-    });
-
-    return created;
   } catch (e) {
     const report = classifyError(e, "cookie create", {
       domain: cookie.domain,
     });
     errorCode = report.code;
-
-    const durationMs = Date.now() - startTime;
-    metricsService.recordCookieMutation("createCookie", success, durationMs, {
-      domain: cookie.domain,
-      errorCode,
-      metadata: { cookieName: cookie.name },
-    });
-
     throw e;
+  } finally {
+    const durationMs = Date.now() - startTime;
+    try {
+      metricsService.recordCookieMutation("createCookie", success, durationMs, {
+        domain: cookie.domain,
+        errorCode,
+        metadata: { cookieName: cookie.name },
+      });
+    } catch (metricsError) {
+      console.warn("Failed to record createCookie metrics:", metricsError);
+    }
   }
+
+  if (!created) {
+    throw new Error("Cookie creation failed");
+  }
+  return created;
 };

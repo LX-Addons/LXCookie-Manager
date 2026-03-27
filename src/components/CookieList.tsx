@@ -270,51 +270,53 @@ export const CookieListContent = memo(
       setShowEditor(true);
     };
 
+    const updateCookie = async (updatedCookie: Cookie): Promise<boolean> => {
+      if (!editingCookie) return false;
+      const supportedFields = [
+        "value",
+        "httpOnly",
+        "secure",
+        "sameSite",
+        "expirationDate",
+      ] as const;
+      const updates: Partial<Cookie> = {};
+      for (const field of supportedFields) {
+        if (field in updatedCookie) {
+          (updates as Record<string, unknown>)[field] = updatedCookie[field];
+        }
+      }
+      const response = await BackgroundService.updateCookie(editingCookie, updates);
+      if (response.success) {
+        onMessage?.(t("cookieList.cookieUpdated"));
+        onUpdate?.();
+        return true;
+      }
+      const errorMessage = getErrorMessage(
+        response.error?.code,
+        t("cookieList.updateCookieFailed")
+      );
+      onMessage?.(errorMessage, true);
+      return false;
+    };
+
+    const createCookie = async (updatedCookie: Cookie): Promise<boolean> => {
+      const response = await BackgroundService.createCookie(updatedCookie);
+      if (response.success) {
+        onMessage?.(t("cookieEditor.createSuccess"));
+        onUpdate?.();
+        return true;
+      }
+      const errorMessage = getErrorMessage(response.error?.code, t("cookieEditor.createFailed"));
+      onMessage?.(errorMessage, true);
+      return false;
+    };
+
     const handleSaveCookie = async (updatedCookie: Cookie): Promise<boolean> => {
       try {
-        let success = false;
         if (editingCookie) {
-          const supportedFields = [
-            "value",
-            "httpOnly",
-            "secure",
-            "sameSite",
-            "expirationDate",
-          ] as const;
-          const updates: Partial<Cookie> = {};
-          for (const field of supportedFields) {
-            if (field in updatedCookie) {
-              // 使用类型断言来处理类型兼容性问题
-              (updates as Record<string, unknown>)[field] = updatedCookie[field];
-            }
-          }
-          const response = await BackgroundService.updateCookie(editingCookie, updates);
-          if (response.success) {
-            onMessage?.(t("cookieList.cookieUpdated"));
-            onUpdate?.();
-            success = true;
-          } else {
-            const errorMessage = getErrorMessage(
-              response.error?.code,
-              t("cookieList.updateCookieFailed")
-            );
-            onMessage?.(errorMessage, true);
-          }
-        } else {
-          const response = await BackgroundService.createCookie(updatedCookie);
-          if (response.success) {
-            onMessage?.(t("cookieEditor.createSuccess"));
-            onUpdate?.();
-            success = true;
-          } else {
-            const errorMessage = getErrorMessage(
-              response.error?.code,
-              t("cookieEditor.createFailed")
-            );
-            onMessage?.(errorMessage, true);
-          }
+          return await updateCookie(updatedCookie);
         }
-        return success;
+        return await createCookie(updatedCookie);
       } catch (e) {
         console.error("Failed to save cookie:", e);
         onMessage?.(

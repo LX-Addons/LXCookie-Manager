@@ -46,6 +46,7 @@ import {
   FileUp,
   Eraser,
 } from "lucide-react";
+import type { ComponentPropsWithoutRef } from "react";
 
 export type IconName =
   | "alertCircle"
@@ -142,13 +143,25 @@ const iconMap: Record<IconName, LucideIcon> = {
   eraser: Eraser,
 };
 
-export interface IconProps {
-  name: IconName;
-  size?: number;
-  className?: string;
+export interface IconProps extends ComponentPropsWithoutRef<"svg"> {
+  readonly name: IconName;
+  readonly size?: number;
 }
 
-export function Icon({ name, size = 16, className }: IconProps) {
+export function Icon({
+  name,
+  size = 16,
+  className,
+  "aria-hidden": ariaHidden,
+  ...props
+}: IconProps) {
   const IconComponent = iconMap[name];
-  return <IconComponent size={size} className={className} />;
+  return (
+    <IconComponent
+      size={size}
+      className={className}
+      aria-hidden={ariaHidden !== undefined ? ariaHidden : true}
+      {...props}
+    />
+  );
 }

@@ -76,8 +76,6 @@
     "quickManage": "Quick Manage",
     "viewAllCookies": "View All Cookies",
     "riskSummary": "Risk Alert",
-    "modeSummaryWhitelist": "Whitelist Mode: Only whitelisted sites' cookies are protected",
-    "modeSummaryBlacklist": "Blacklist Mode: Only blacklisted sites' cookies will be cleared",
     "currentSiteCookies": "Current Site",
     "thirdPartyDetected": "{count} third-party cookies detected, please note privacy concerns",
     "trackingDetected": "{count} tracking cookies detected, please be aware of privacy risks",

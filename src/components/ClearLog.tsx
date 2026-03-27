@@ -120,17 +120,17 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
   const getActionIcon = (action: string) => {
     switch (action) {
       case "clear":
-        return <Icon name="eraser" size={14} />;
+        return <Icon name="eraser" size={14} aria-hidden="true" />;
       case "edit":
-        return <Icon name="edit" size={14} />;
+        return <Icon name="edit" size={14} aria-hidden="true" />;
       case "delete":
-        return <Icon name="trash" size={14} />;
+        return <Icon name="trash" size={14} aria-hidden="true" />;
       case "import":
-        return <Icon name="fileUp" size={14} />;
+        return <Icon name="fileUp" size={14} aria-hidden="true" />;
       case "export":
-        return <Icon name="fileDown" size={14} />;
+        return <Icon name="fileDown" size={14} aria-hidden="true" />;
       default:
-        return <Icon name="info" size={14} />;
+        return <Icon name="info" size={14} aria-hidden="true" />;
     }
   };
 
@@ -176,7 +176,7 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
       {filteredLogs.length === 0 ? (
         <section className="log-empty panel">
           <div className="log-empty-icon">
-            <Icon name="fileText" size={32} />
+            <Icon name="fileText" size={32} aria-hidden="true" />
           </div>
           <h4 className="log-empty-title">{t("clearLog.emptyLogs")}</h4>
           <p className="log-empty-hint">{t("clearLog.emptyLogsHint")}</p>

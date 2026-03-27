@@ -51,6 +51,7 @@ const CookieEditorContent = ({
   const titleId = useId();
   const isClosingRef = useRef(false);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
 
   const handleClose = useCallback(() => {
     if (isSaving || isClosingRef.current) return;
@@ -126,7 +127,9 @@ const CookieEditorContent = ({
   }, [handleClose]);
 
   useEffect(() => {
-    if (isOpen) {
+    const justOpened = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (justOpened) {
       if (cookie) {
         setFormData({
           ...cookie,
