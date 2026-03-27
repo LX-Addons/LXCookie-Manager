@@ -1,4 +1,5 @@
-import { useState, useEffect, memo, useMemo } from "react";
+import { useState, useEffect, memo, useMemo, useRef } from "react";
+import { Icon } from "@/components/Icon";
 import type { Cookie } from "@/types";
 import { ErrorCode } from "@/types";
 import { COOKIE_VALUE_MASK } from "@/lib/constants";
@@ -61,6 +62,8 @@ export const CookieListContent = memo(
     const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
     const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
     const [domainScopeFilter, setDomainScopeFilter] = useState<DomainScopeFilter>("all");
+    const [editorTriggerElement, setEditorTriggerElement] = useState<HTMLElement | null>(null);
+    const prevDomainRef = useRef<string | undefined>(undefined);
 
     const { t } = useTranslation();
 
@@ -88,7 +91,7 @@ export const CookieListContent = memo(
         );
       }
 
-      if (riskFilter !== "all") {
+      if (riskEnabled && riskFilter !== "all") {
         result = result.filter((cookie) => {
           const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
           const risk = cookieRiskMap.get(key);
@@ -120,6 +123,7 @@ export const CookieListContent = memo(
       domainScopeFilter,
       currentDomain,
       cookieRiskMap,
+      riskEnabled,
     ]);
 
     const selectAll = useMemo(() => {
@@ -141,10 +145,19 @@ export const CookieListContent = memo(
     }, [cookies]);
 
     useEffect(() => {
-      if (!riskEnabled && riskFilter !== "all") {
+      if (currentDomain && cookies.length > 0) {
+        if (prevDomainRef.current !== currentDomain) {
+          prevDomainRef.current = currentDomain;
+          setExpandedDomains(new Set());
+        }
+      }
+    }, [currentDomain, cookies]);
+
+    useEffect(() => {
+      if (!riskEnabled) {
         setRiskFilter("all");
       }
-    }, [riskEnabled, riskFilter]);
+    }, [riskEnabled]);
 
     const filteredGroupedCookies = useMemo(() => {
       const grouped = new Map<string, Cookie[]>();
@@ -232,7 +245,7 @@ export const CookieListContent = memo(
       }
     };
 
-    const handleDeleteCookie = (cookie: Cookie) => {
+    const handleDeleteCookie = (cookie: Cookie, triggerElement?: HTMLElement | null) => {
       const sensitive = isSensitiveCookie(cookie);
       const title = sensitive
         ? t("cookieList.deleteSensitiveCookie")
@@ -242,15 +255,17 @@ export const CookieListContent = memo(
         : t("cookieList.deleteMessage", { name: cookie.name });
       const variant = sensitive ? "danger" : "warning";
 
-      showConfirm(title, message, variant, () => performDeleteCookie(cookie));
+      showConfirm(title, message, variant, () => performDeleteCookie(cookie), { triggerElement });
     };
 
-    const handleEditCookie = (cookie: Cookie) => {
+    const handleEditCookie = (cookie: Cookie, triggerElement?: HTMLElement | null) => {
+      setEditorTriggerElement(triggerElement || null);
       setEditingCookie(cookie);
       setShowEditor(true);
     };
 
-    const handleCreateCookie = () => {
+    const handleCreateCookie = (triggerElement?: HTMLElement | null) => {
+      setEditorTriggerElement(triggerElement || null);
       setEditingCookie(null);
       setShowEditor(true);
     };
@@ -259,7 +274,21 @@ export const CookieListContent = memo(
       try {
         let success = false;
         if (editingCookie) {
-          const response = await BackgroundService.updateCookie(editingCookie, updatedCookie);
+          const supportedFields = [
+            "value",
+            "httpOnly",
+            "secure",
+            "sameSite",
+            "expirationDate",
+          ] as const;
+          const updates: Partial<Cookie> = {};
+          for (const field of supportedFields) {
+            if (field in updatedCookie) {
+              // 使用类型断言来处理类型兼容性问题
+              (updates as Record<string, unknown>)[field] = updatedCookie[field];
+            }
+          }
+          const response = await BackgroundService.updateCookie(editingCookie, updates);
           if (response.success) {
             onMessage?.(t("cookieList.cookieUpdated"));
             onUpdate?.();
@@ -338,7 +367,7 @@ export const CookieListContent = memo(
       }
     };
 
-    const handleDeleteSelected = () => {
+    const handleDeleteSelected = (triggerElement?: HTMLElement | null) => {
       const sensitiveCount = cookies
         .filter((c) => selectedCookies.has(getCookieKey(c.name, c.domain, c.path, c.storeId)))
         .filter((c) => isSensitiveCookie(c)).length;
@@ -356,7 +385,7 @@ export const CookieListContent = memo(
           : t("cookieList.deleteSelectedMessage", { selectedCount: selectedCookies.size });
       const variant = sensitiveCount > 0 ? "danger" : "warning";
 
-      showConfirm(title, message, variant, performDeleteSelected);
+      showConfirm(title, message, variant, performDeleteSelected, { triggerElement });
     };
 
     const getSelectedDomains = (): Set<string> => {
@@ -462,7 +491,11 @@ export const CookieListContent = memo(
         {cookies.length === 0 ? (
           <div className="cookie-list-empty">
             <p>{t("cookieList.noCookies")}</p>
-            <button type="button" onClick={handleCreateCookie} className="btn btn-primary">
+            <button
+              type="button"
+              onClick={(e) => handleCreateCookie(e.currentTarget)}
+              className="btn btn-primary"
+            >
               {t("cookieEditor.createCookie")}
             </button>
           </div>
@@ -478,7 +511,7 @@ export const CookieListContent = memo(
                 {t("cookieList.cookieDetails", { count: cookies.length })}
               </h3>
               <span className={`expand-icon ${isExpanded ? "expanded" : ""}`} aria-hidden="true">
-                ▼
+                <Icon name="chevronDown" size={16} />
               </span>
             </button>
 
@@ -548,33 +581,42 @@ export const CookieListContent = memo(
                   )}
                 </div>
 
-                <div className="batch-actions">
-                  {selectedCookies.size > 0 && (
+                <div
+                  className={`batch-actions ${selectedCookies.size > 0 ? "has-selection" : ""}`}
+                  data-testid="batch-actions"
+                >
+                  {selectedCookies.size > 0 ? (
                     <>
                       <span className="batch-count">
                         {t("cookieList.selected", { count: selectedCookies.size })}
                       </span>
                       <div className="batch-buttons">
-                        <button onClick={handleDeleteSelected} className="btn btn-danger btn-sm">
-                          {t("cookieList.deleteSelected")}
+                        <button
+                          onClick={(e) => handleDeleteSelected(e.currentTarget)}
+                          className="btn btn-danger btn-sm"
+                        >
+                          <Icon name="trash" size={14} />
+                          <span>{t("cookieList.deleteSelected")}</span>
                         </button>
-                        <button onClick={handleAddToWhitelist} className="btn btn-success btn-sm">
-                          {t("cookieList.addToWhitelist")}
+                        <button onClick={handleAddToWhitelist} className="btn btn-ghost btn-sm">
+                          <Icon name="shield" size={14} />
+                          <span>{t("cookieList.addToWhitelist")}</span>
                         </button>
-                        <button onClick={handleAddToBlacklist} className="btn btn-secondary btn-sm">
-                          {t("cookieList.addToBlacklist")}
+                        <button onClick={handleAddToBlacklist} className="btn btn-ghost btn-sm">
+                          <Icon name="shieldAlert" size={14} />
+                          <span>{t("cookieList.addToBlacklist")}</span>
                         </button>
                       </div>
                     </>
-                  )}
-                  {selectedCookies.size === 0 && (
+                  ) : (
                     <div className="batch-buttons ml-auto">
                       <button
                         type="button"
-                        onClick={handleCreateCookie}
+                        onClick={(e) => handleCreateCookie(e.currentTarget)}
                         className="btn btn-primary btn-sm"
                       >
-                        {t("cookieEditor.createCookie")}
+                        <Icon name="plus" size={14} />
+                        <span>{t("cookieEditor.createCookie")}</span>
                       </button>
                     </div>
                   )}
@@ -633,7 +675,7 @@ export const CookieListContent = memo(
                             <span
                               className={`expand-icon ${expandedDomains.has(domain) ? "expanded" : ""}`}
                             >
-                              ▼
+                              <Icon name="chevronDown" size={16} />
                             </span>
                           </button>
 
@@ -706,95 +748,113 @@ export const CookieListContent = memo(
                                               : t("cookieList.expand")
                                           }
                                         >
-                                          {isCookieExpanded ? "▲" : "▼"}
+                                          {isCookieExpanded ? (
+                                            <Icon name="chevronDown" size={14} />
+                                          ) : (
+                                            <Icon name="chevronRight" size={14} />
+                                          )}
                                         </button>
                                         <button
                                           type="button"
                                           className="action-btn"
-                                          onClick={() => handleEditCookie(cookie)}
+                                          onClick={(e) => handleEditCookie(cookie, e.currentTarget)}
                                           aria-label={t("cookieList.edit")}
                                         >
-                                          ✏️
+                                          <Icon name="edit" size={14} />
                                         </button>
                                         <button
                                           type="button"
                                           className="action-btn action-btn-danger"
-                                          onClick={() => handleDeleteCookie(cookie)}
+                                          onClick={(e) =>
+                                            handleDeleteCookie(cookie, e.currentTarget)
+                                          }
                                           aria-label={t("common.delete")}
                                         >
-                                          🗑️
+                                          <Icon name="trash" size={14} />
                                         </button>
                                       </div>
                                     </div>
 
                                     {isCookieExpanded && (
                                       <div className="cookie-details-expanded">
-                                        <div className="cookie-detail-row">
-                                          <span className="detail-label">
-                                            {t("cookieList.value")}
-                                          </span>
-                                          <span className="detail-value">
-                                            {displayValue}
-                                            <button
-                                              type="button"
-                                              className="value-toggle-btn"
-                                              onClick={() => toggleValueVisibility(key)}
-                                              aria-label={
-                                                isVisible
-                                                  ? t("cookieList.hide")
-                                                  : t("cookieList.show")
-                                              }
-                                            >
-                                              {isVisible ? "👁" : "👁‍🗨"}
-                                            </button>
-                                          </span>
-                                        </div>
-                                        <div className="cookie-detail-row">
-                                          <span className="detail-label">
-                                            {t("cookieList.domain")}
-                                          </span>
-                                          <span className="detail-value">{cookie.domain}</span>
-                                        </div>
-                                        <div className="cookie-detail-row">
-                                          <span className="detail-label">
-                                            {t("cookieList.path")}
-                                          </span>
-                                          <span className="detail-value">{cookie.path}</span>
-                                        </div>
-                                        <div className="cookie-detail-row">
-                                          <span className="detail-label">
-                                            {t("cookieList.secure")}
-                                          </span>
-                                          <span className="detail-value">
-                                            {cookie.secure ? t("common.yes") : t("common.no")}
-                                          </span>
-                                        </div>
-                                        <div className="cookie-detail-row">
-                                          <span className="detail-label">
-                                            {t("cookieList.httpOnly")}
-                                          </span>
-                                          <span className="detail-value">
-                                            {cookie.httpOnly ? t("common.yes") : t("common.no")}
-                                          </span>
-                                        </div>
-                                        <div className="cookie-detail-row">
-                                          <span className="detail-label">
-                                            {t("cookieList.sameSite")}
-                                          </span>
-                                          <span className="detail-value">
-                                            {formatCookieSameSite(cookie.sameSite, t)}
-                                          </span>
-                                        </div>
-                                        {cookie.expirationDate && (
+                                        <div className="cookie-detail-group">
                                           <div className="cookie-detail-row">
                                             <span className="detail-label">
-                                              {t("cookieList.expirationTime")}
+                                              {t("cookieList.value")}
                                             </span>
                                             <span className="detail-value">
-                                              {new Date(
-                                                cookie.expirationDate * 1000
-                                              ).toLocaleString()}
+                                              {displayValue}
+                                              <button
+                                                type="button"
+                                                className="value-toggle-btn"
+                                                onClick={() => toggleValueVisibility(key)}
+                                                aria-label={
+                                                  isVisible
+                                                    ? t("cookieList.hide")
+                                                    : t("cookieList.show")
+                                                }
+                                              >
+                                                {isVisible ? (
+                                                  <Icon name="eyeOff" size={14} />
+                                                ) : (
+                                                  <Icon name="eye" size={14} />
+                                                )}
+                                              </button>
                                             </span>
+                                          </div>
+                                        </div>
+                                        <div className="cookie-detail-group">
+                                          <div className="cookie-detail-row">
+                                            <span className="detail-label">
+                                              {t("cookieList.domain")}
+                                            </span>
+                                            <span className="detail-value">{cookie.domain}</span>
+                                          </div>
+                                          <div className="cookie-detail-row">
+                                            <span className="detail-label">
+                                              {t("cookieList.path")}
+                                            </span>
+                                            <span className="detail-value">{cookie.path}</span>
+                                          </div>
+                                        </div>
+                                        <div className="cookie-detail-group">
+                                          <div className="cookie-detail-row">
+                                            <span className="detail-label">
+                                              {t("cookieList.secure")}
+                                            </span>
+                                            <span className="detail-value">
+                                              {cookie.secure ? t("common.yes") : t("common.no")}
+                                            </span>
+                                          </div>
+                                          <div className="cookie-detail-row">
+                                            <span className="detail-label">
+                                              {t("cookieList.httpOnly")}
+                                            </span>
+                                            <span className="detail-value">
+                                              {cookie.httpOnly ? t("common.yes") : t("common.no")}
+                                            </span>
+                                          </div>
+                                          <div className="cookie-detail-row">
+                                            <span className="detail-label">
+                                              {t("cookieList.sameSite")}
+                                            </span>
+                                            <span className="detail-value">
+                                              {formatCookieSameSite(cookie.sameSite, t)}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {cookie.expirationDate && (
+                                          <div className="cookie-detail-group">
+                                            <div className="cookie-detail-row">
+                                              <span className="detail-label">
+                                                {t("cookieList.expirationTime")}
+                                              </span>
+                                              <span className="detail-value">
+                                                {new Date(
+                                                  cookie.expirationDate * 1000
+                                                ).toLocaleString()}
+                                              </span>
+                                            </div>
                                           </div>
                                         )}
                                       </div>
@@ -820,6 +880,7 @@ export const CookieListContent = memo(
           currentDomain={currentDomain}
           onClose={() => setShowEditor(false)}
           onSave={handleSaveCookie}
+          triggerElement={editorTriggerElement}
         />
       </div>
     );

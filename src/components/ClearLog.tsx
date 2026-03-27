@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { ConfirmDialogWrapper, type ShowConfirmFn } from "@/components/ConfirmDialogWrapper";
 import { useTranslation } from "@/hooks/useTranslation";
 import { BackgroundService } from "@/lib/background-service";
+import { Icon } from "@/components/Icon";
 
 type ActionFilter = "all" | "clear" | "edit" | "delete" | "import" | "export";
 
@@ -33,11 +34,17 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
     export: "clearLog.filterExport",
   };
 
-  const clearAllLogs = () => {
-    showConfirm(t("clearLog.clearLogs"), t("clearLog.confirmClearLogs"), "danger", () => {
-      setLogs([]);
-      onMessage(t("clearLog.logsCleared"));
-    });
+  const clearAllLogs = (triggerElement?: HTMLElement | null) => {
+    showConfirm(
+      t("clearLog.clearLogs"),
+      t("clearLog.confirmClearLogs"),
+      "danger",
+      () => {
+        setLogs([]);
+        onMessage(t("clearLog.logsCleared"));
+      },
+      { triggerElement }
+    );
   };
 
   const clearOldLogs = () => {
@@ -110,6 +117,23 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
     return sortedLogs.filter((log) => log.action === actionFilter);
   }, [sortedLogs, actionFilter]);
 
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case "clear":
+        return <Icon name="eraser" size={14} />;
+      case "edit":
+        return <Icon name="edit" size={14} />;
+      case "delete":
+        return <Icon name="trash" size={14} />;
+      case "import":
+        return <Icon name="fileUp" size={14} />;
+      case "export":
+        return <Icon name="fileDown" size={14} />;
+      default:
+        return <Icon name="info" size={14} />;
+    }
+  };
+
   return (
     <div className="log-container">
       <section className="log-summary-card panel">
@@ -143,7 +167,7 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
           <button onClick={exportLogs} className="btn btn-primary btn-sm">
             {t("clearLog.exportLogs")}
           </button>
-          <button onClick={clearAllLogs} className="btn btn-danger btn-sm">
+          <button onClick={(e) => clearAllLogs(e.currentTarget)} className="btn btn-danger btn-sm">
             {t("clearLog.clearAllLogs")}
           </button>
         </div>
@@ -151,7 +175,9 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
 
       {filteredLogs.length === 0 ? (
         <section className="log-empty panel">
-          <div className="log-empty-icon">≡</div>
+          <div className="log-empty-icon">
+            <Icon name="fileText" size={32} />
+          </div>
           <h4 className="log-empty-title">{t("clearLog.emptyLogs")}</h4>
           <p className="log-empty-hint">{t("clearLog.emptyLogsHint")}</p>
         </section>
@@ -166,7 +192,8 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
               <div className="log-entry-content">
                 <div className="log-entry-header">
                   <span className={`log-action-badge log-action-${log.action}`}>
-                    {getActionText(log.action, t)}
+                    {getActionIcon(log.action)}
+                    <span>{getActionText(log.action, t)}</span>
                   </span>
                   <span className="log-entry-time">
                     {formatLogTime(log.timestamp, settings.locale)}

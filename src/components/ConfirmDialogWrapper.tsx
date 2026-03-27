@@ -15,6 +15,7 @@ export type ShowConfirmFn = (
     description?: string;
     confirmText?: string;
     cancelText?: string;
+    triggerElement?: HTMLElement | null;
   }
 ) => void;
 
@@ -34,6 +35,7 @@ export const ConfirmDialogWrapper = ({ children }: ConfirmDialogWrapperProps) =>
         variant={confirmState.variant}
         onConfirm={handleConfirm}
         onCancel={closeConfirm}
+        triggerElement={confirmState.triggerElement}
       />
     </>
   );

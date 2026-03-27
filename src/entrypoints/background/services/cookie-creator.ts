@@ -4,37 +4,36 @@ import { metricsService } from "./metrics";
 
 export const createCookie = async (
   cookie: Partial<chrome.cookies.Cookie>
-): Promise<chrome.cookies.Cookie | null> => {
+): Promise<chrome.cookies.Cookie> => {
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
-  let created: chrome.cookies.Cookie | null = null;
 
   try {
-    const result = await createCookieUtil(cookie);
+    const created = await createCookieUtil(cookie);
+    success = true;
 
-    if (result.success) {
-      success = true;
-      created = result.cookie ?? null;
-    } else if (result.error) {
-      const report = classifyError(new Error(result.error), "cookie create", {
-        domain: cookie.domain,
-      });
-      errorCode = report.code;
-    }
+    const durationMs = Date.now() - startTime;
+    metricsService.recordCookieMutation("createCookie", success, durationMs, {
+      domain: cookie.domain,
+      errorCode,
+      metadata: { cookieName: cookie.name },
+    });
+
+    return created;
   } catch (e) {
     const report = classifyError(e, "cookie create", {
       domain: cookie.domain,
     });
     errorCode = report.code;
+
+    const durationMs = Date.now() - startTime;
+    metricsService.recordCookieMutation("createCookie", success, durationMs, {
+      domain: cookie.domain,
+      errorCode,
+      metadata: { cookieName: cookie.name },
+    });
+
+    throw e;
   }
-
-  const durationMs = Date.now() - startTime;
-  metricsService.recordCookieMutation("createCookie", success, durationMs, {
-    domain: cookie.domain,
-    errorCode,
-    metadata: { cookieName: cookie.name },
-  });
-
-  return created;
 };

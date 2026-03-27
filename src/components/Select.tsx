@@ -25,6 +25,7 @@ const SelectInner = <T extends string>({
   description,
 }: Props<T>) => {
   const id = `${name}-select`;
+
   return (
     <div className="select-wrapper">
       {label && (

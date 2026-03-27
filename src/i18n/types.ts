@@ -17,6 +17,7 @@ export interface Translations {
     allWebsites: string;
     unknownError: string;
     listSeparator: string;
+    close: string;
   };
   app: {
     title: string;
@@ -47,6 +48,7 @@ export interface Translations {
     updateStatsFailed: string;
     permissionDenied: string;
     permissionDeniedDesc: string;
+    openExtensionSettings: string;
     clearCookiesFailed: string;
     loading: string;
     domainUnavailableDesc: string;
@@ -67,6 +69,7 @@ export interface Translations {
     confirmClearAll: string;
     clearedBlacklist: string;
     noBlacklistCookies: string;
+    noCookiesCleared: string;
     siteStatus: string;
     protectedSite: string;
     priorityCleanupSite: string;
@@ -79,6 +82,8 @@ export interface Translations {
     currentSiteCookies: string;
     thirdPartyDetected: string;
     trackingDetected: string;
+    dangerZone: string;
+    dangerZoneDesc: string;
   };
   settings: {
     group: {
@@ -92,19 +97,8 @@ export interface Translations {
       appearanceDesc: string;
       languageLogs: string;
       languageLogsDesc: string;
-      permissions: string;
-      permissionsDesc: string;
     };
-    allHostsPermission: string;
-    allHostsPermissionDesc: string;
-    permissionGranted: string;
-    permissionNotGranted: string;
-    grantPermission: string;
-    revokePermission: string;
-    permissionWarning: string;
-    permissionGrantSuccess: string;
-    permissionRevokeSuccess: string;
-    permissionGrantFailed: string;
+    permissionsNote: string;
     workMode: string;
     workModeDesc: string;
     whitelistMode: string;
@@ -340,6 +334,7 @@ export interface Translations {
     none: string;
     secureOnly: string;
     httpOnlyOnly: string;
+    secureRequiredForNone: string;
     createSuccess: string;
     createFailed: string;
   };

@@ -16,7 +16,8 @@
     "domains": "{domain} 等 {count} 个域名",
     "allWebsites": "所有网站",
     "unknownError": "未知错误",
-    "listSeparator": "、"
+    "listSeparator": "、",
+    "close": "关闭"
   },
   "app": { "title": "LXCookie Manager", "subtitle": "站点 Cookie 管理专家" },
   "tabs": {
@@ -43,7 +44,8 @@
     "unableToGetDomain": "无法获取域名",
     "updateStatsFailed": "更新统计信息失败",
     "permissionDenied": "权限不足，无法访问 Cookie",
-    "permissionDeniedDesc": "请先在设置中授予所有主机权限，然后刷新扩展",
+    "permissionDeniedDesc": "请在浏览器扩展管理页面授予该扩展 \"访问所有网站上的数据\" 权限。",
+    "openExtensionSettings": "打开扩展设置",
     "clearCookiesFailed": "清除 Cookie 失败",
     "loading": "加载中...",
     "domainUnavailableDesc": "请打开一个网页以查看和管理 Cookie",
@@ -64,6 +66,7 @@
     "confirmClearAll": "确定要清除所有 Cookie 吗？（白名单除外）",
     "clearedBlacklist": "已清除黑名单网站的 {count} 个 Cookie",
     "noBlacklistCookies": "黑名单网站暂无 Cookie 可清除",
+    "noCookiesCleared": "暂无 Cookie 被清除",
     "siteStatus": "站点状态",
     "protectedSite": "受保护",
     "priorityCleanupSite": "优先清理",
@@ -75,32 +78,24 @@
     "riskSummary": "风险提示",
     "currentSiteCookies": "当前站点",
     "thirdPartyDetected": "检测到 {count} 个第三方 Cookie，请注意隐私",
-    "trackingDetected": "检测到 {count} 个追踪 Cookie，请关注隐私风险"
+    "trackingDetected": "检测到 {count} 个追踪 Cookie，请关注隐私风险",
+    "dangerZone": "危险操作",
+    "dangerZoneDesc": "以下操作不可撤销，请谨慎使用"
   },
   "settings": {
     "group": {
       "cleanupStrategy": "清理策略",
       "cleanupStrategyDesc": "配置 Cookie 清理的基本规则和高级选项",
       "automation": "自动化",
-      "automationDesc": "设置自动清理的触发条件和时间间隔",
+      "automationDesc": "设置自动清理的触发条件和时间间隔。部分功能需要浏览器扩展权限。",
       "privacyRisk": "隐私与风险",
       "privacyRiskDesc": "增强隐私保护，识别潜在的追踪风险",
       "appearance": "外观与显示",
       "appearanceDesc": "自定义界面主题和视觉风格",
       "languageLogs": "语言与日志",
-      "languageLogsDesc": "选择界面语言和日志保留时间",
-      "permissions": "权限管理",
-      "permissionsDesc": "管理扩展所需的访问权限，保护您的隐私"
+      "languageLogsDesc": "选择界面语言和日志保留时间"
     },
-    "allHostsPermission": "启用所有站点访问",
-    "allHostsPermissionDesc": "允许扩展访问和管理所有网站的 Cookie",
-    "permissionGranted": "已授权",
-    "permissionNotGranted": "未授权",
-    "grantPermission": "授权",
-    "revokePermission": "撤销授权",
-    "permissionGrantSuccess": "授权成功",
-    "permissionGrantFailed": "授权失败",
-    "permissionRevokeSuccess": "授权已撤销",
+    "permissionsNote": "注意：自动清理等功能需要浏览器扩展权限。请在浏览器扩展管理页面授予该扩展 \"访问所有网站上的数据\" 权限。",
     "workMode": "工作模式",
     "workModeDesc": "控制 Cookie 清理的应用范围，根据您的需求选择合适的保护策略",
     "whitelistMode": "白名单模式：仅白名单内网站不执行清理",
@@ -179,8 +174,7 @@
     "followBrowserDesc": "自动跟随系统主题设置",
     "lightDesc": "使用浅色主题",
     "darkDesc": "使用深色主题",
-    "customDesc": "自定义主题颜色",
-    "permissionWarning": "需要先授予所有站点访问权限才能使用自动清理功能"
+    "customDesc": "自定义主题颜色"
   },
   "domainManager": {
     "whitelistDomains": "白名单管理",
@@ -311,7 +305,7 @@
     "sessionCookie": "会话",
     "expand": "展开",
     "collapse": "收起",
-    "errorInsufficientPermissions": "权限不足，请先在设置中授予所有站点访问权限",
+    "errorInsufficientPermissions": "权限不足，请在浏览器扩展管理页面授予该扩展 \"访问所有网站上的数据\" 权限",
     "partialDeleteFailed": "，{failed} 个删除失败（{reason}）",
     "deleteFailedWithReason": "删除失败: {reason}",
     "errorInvalidParameters": "参数无效，请检查输入",
@@ -337,6 +331,7 @@
     "none": "None",
     "secureOnly": "Secure（仅 HTTPS）",
     "httpOnlyOnly": "HttpOnly（禁止 JavaScript 访问）",
+    "secureRequiredForNone": "SameSite=None 时必须启用",
     "createSuccess": "新建 Cookie 成功！",
     "createFailed": "新建 Cookie 失败！"
   },

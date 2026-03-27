@@ -1,5 +1,6 @@
-import { useEffect, useRef, useId } from "react";
+import { useEffect, useRef, useId, useCallback } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { Icon } from "./Icon";
 
 interface ConfirmDialogProps {
   readonly isOpen: boolean;
@@ -11,20 +12,14 @@ interface ConfirmDialogProps {
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
   readonly variant?: "danger" | "warning" | "info" | "success";
+  readonly triggerElement?: HTMLElement | null;
 }
 
-const getIconForVariant = (variant: string) => {
-  switch (variant) {
-    case "danger":
-      return "!";
-    case "warning":
-      return "!";
-    case "success":
-      return "✓";
-    case "info":
-    default:
-      return "i";
-  }
+const iconNameMap: Record<string, "alertCircle" | "alertTriangle" | "info" | "checkCircle"> = {
+  danger: "alertCircle",
+  warning: "alertTriangle",
+  info: "info",
+  success: "checkCircle",
 };
 
 export function ConfirmDialog({
@@ -37,28 +32,43 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = "warning",
+  triggerElement,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
   const bodyId = useId();
-  const describedBy = description ? `${descriptionId} ${bodyId}` : bodyId;
+  const isClosingRef = useRef(false);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  const iconName = iconNameMap[variant];
+  const confirmButtonClass =
+    variant === "danger"
+      ? "btn-danger"
+      : variant === "warning"
+        ? "btn-warning"
+        : variant === "success"
+          ? "btn-success"
+          : "btn-primary";
+
+  const handleClose = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    onCancel();
+  }, [onCancel]);
+
+  const handleConfirm = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    onConfirm();
+  }, [onConfirm]);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
     if (isOpen) {
-      if (!dialog.open) {
-        dialog.showModal();
-        confirmBtnRef.current?.focus();
-      }
-    } else {
-      if (dialog.open) {
-        dialog.close();
-      }
+      isClosingRef.current = false;
     }
   }, [isOpen]);
 
@@ -66,50 +76,75 @@ export function ConfirmDialog({
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    const handleClose = () => {
-      if (isOpen) {
-        onCancel();
+    if (isOpen && !dialog.open) {
+      previousFocusRef.current = triggerElement || (document.activeElement as HTMLElement);
+      dialog.showModal();
+      requestAnimationFrame(() => {
+        if (variant === "danger") {
+          cancelButtonRef.current?.focus();
+        } else {
+          confirmButtonRef.current?.focus();
+        }
+      });
+    } else if (!isOpen && dialog.open) {
+      const focusTarget = previousFocusRef.current;
+      dialog.close();
+      requestAnimationFrame(() => {
+        focusTarget?.focus();
+      });
+    }
+  }, [isOpen, triggerElement, variant]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleCancel = (e: Event) => {
+      e.preventDefault();
+      handleClose();
+    };
+
+    const handleCloseEvent = () => {
+      if (!isClosingRef.current) {
+        handleClose();
       }
     };
 
     const handleClick = (e: MouseEvent) => {
-      if (e.target === dialog) {
-        onCancel();
+      const rect = dialog.getBoundingClientRect();
+      const isInDialog =
+        rect.top <= e.clientY &&
+        e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX &&
+        e.clientX <= rect.left + rect.width;
+      if (!isInDialog) {
+        handleClose();
       }
     };
 
-    dialog.addEventListener("close", handleClose);
+    dialog.addEventListener("cancel", handleCancel);
+    dialog.addEventListener("close", handleCloseEvent);
     dialog.addEventListener("click", handleClick);
+
     return () => {
-      dialog.removeEventListener("close", handleClose);
+      dialog.removeEventListener("cancel", handleCancel);
+      dialog.removeEventListener("close", handleCloseEvent);
       dialog.removeEventListener("click", handleClick);
     };
-  }, [isOpen, onCancel]);
+  }, [handleClose]);
 
-  const getConfirmButtonClass = () => {
-    switch (variant) {
-      case "danger":
-        return "btn-danger";
-      case "success":
-        return "btn-success";
-      case "info":
-        return "btn-primary";
-      case "warning":
-      default:
-        return "btn-warning";
-    }
-  };
+  const describedByIds = description ? `${descriptionId} ${bodyId}` : bodyId;
 
   return (
     <dialog
       ref={dialogRef}
       className="confirm-modal"
       aria-labelledby={titleId}
-      aria-describedby={describedBy}
+      aria-describedby={describedByIds}
     >
       <div className="modal-header">
-        <div className={`modal-icon ${variant}`} aria-hidden="true">
-          {getIconForVariant(variant)}
+        <div className={`modal-icon ${variant}`}>
+          <Icon name={iconName} size={20} />
         </div>
         <div className="modal-title-section">
           <h3 id={titleId} className="modal-title">
@@ -128,13 +163,13 @@ export function ConfirmDialog({
         </p>
       </div>
       <div className="modal-actions">
-        <button className="btn btn-secondary" onClick={onCancel}>
+        <button ref={cancelButtonRef} className="btn btn-secondary" onClick={handleClose}>
           {cancelText ?? t("common.cancel")}
         </button>
         <button
-          ref={confirmBtnRef}
-          className={`btn ${getConfirmButtonClass()}`}
-          onClick={onConfirm}
+          ref={confirmButtonRef}
+          className={`btn ${confirmButtonClass}`}
+          onClick={handleConfirm}
         >
           {confirmText ?? t("common.confirm")}
         </button>

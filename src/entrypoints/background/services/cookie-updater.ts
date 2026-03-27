@@ -5,41 +5,44 @@ import { metricsService } from "./metrics";
 export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
-): Promise<chrome.cookies.Cookie | null> => {
+): Promise<chrome.cookies.Cookie> => {
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
-  let result: chrome.cookies.Cookie | null = null;
 
   try {
-    const editResult = await editCookieUtil(originalCookie, updates);
+    const result = await editCookieUtil(originalCookie, updates);
+    success = true;
 
-    if (editResult.success) {
-      success = true;
-      result = editResult.cookie ?? null;
-    } else if (editResult.error) {
-      const report = classifyError(new Error(editResult.error), "cookie update", {
+    const durationMs = Date.now() - startTime;
+    try {
+      metricsService.recordCookieMutation("editCookie", success, durationMs, {
         domain: originalCookie.domain,
+        errorCode,
+        metadata: { cookieName: originalCookie.name },
       });
-      errorCode = report.code;
+    } catch (metricsError) {
+      console.warn("Failed to record editCookie metrics:", metricsError);
     }
+
+    return result;
   } catch (e) {
     const report = classifyError(e, "cookie update", {
       domain: originalCookie.domain,
     });
     errorCode = report.code;
-  }
 
-  const durationMs = Date.now() - startTime;
-  try {
-    metricsService.recordCookieMutation("editCookie", success, durationMs, {
-      domain: originalCookie.domain,
-      errorCode,
-      metadata: { cookieName: originalCookie.name },
-    });
-  } catch (metricsError) {
-    console.warn("Failed to record editCookie metrics:", metricsError);
-  }
+    const durationMs = Date.now() - startTime;
+    try {
+      metricsService.recordCookieMutation("editCookie", success, durationMs, {
+        domain: originalCookie.domain,
+        errorCode,
+        metadata: { cookieName: originalCookie.name },
+      });
+    } catch (metricsError) {
+      console.warn("Failed to record editCookie metrics:", metricsError);
+    }
 
-  return result;
+    throw e;
+  }
 };

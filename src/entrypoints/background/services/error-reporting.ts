@@ -104,7 +104,7 @@ export const classifyError = (
   if (error instanceof Error) {
     message = error.message;
     if (isPermissionDeniedError(error)) {
-      code = ErrorCode.PERMISSION_DENIED;
+      code = ErrorCode.INSUFFICIENT_PERMISSIONS;
       recoverable = false;
     } else {
       code = classifyOperationError(operation);

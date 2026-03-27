@@ -11,6 +11,7 @@ interface ConfirmState {
   cancelText?: string;
   variant: ConfirmVariant;
   onConfirm: () => void;
+  triggerElement?: HTMLElement | null;
 }
 
 interface UseConfirmDialogReturn {
@@ -24,6 +25,7 @@ interface UseConfirmDialogReturn {
       description?: string;
       confirmText?: string;
       cancelText?: string;
+      triggerElement?: HTMLElement | null;
     }
   ) => void;
   closeConfirm: () => void;
@@ -49,6 +51,7 @@ export const useConfirmDialog = (): UseConfirmDialogReturn => {
         description?: string;
         confirmText?: string;
         cancelText?: string;
+        triggerElement?: HTMLElement | null;
       }
     ) => {
       setConfirmState({
@@ -60,6 +63,7 @@ export const useConfirmDialog = (): UseConfirmDialogReturn => {
         description: options?.description,
         confirmText: options?.confirmText,
         cancelText: options?.cancelText,
+        triggerElement: options?.triggerElement,
       });
     },
     []
