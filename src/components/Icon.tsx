@@ -157,11 +157,6 @@ export function Icon({
 }: IconProps) {
   const IconComponent = iconMap[name];
   return (
-    <IconComponent
-      size={size}
-      className={className}
-      aria-hidden={ariaHidden !== undefined ? ariaHidden : true}
-      {...props}
-    />
+    <IconComponent size={size} className={className} aria-hidden={ariaHidden ?? true} {...props} />
   );
 }

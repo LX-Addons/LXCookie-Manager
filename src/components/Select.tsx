@@ -26,14 +26,25 @@ const SelectInner = <T extends string>({
 }: Props<T>) => {
   const id = `${name}-select`;
   const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<(HTMLLIElement | null)[]>([]);
   const selectedOption = options.find((opt) => opt.value === value);
 
   const handleToggle = useCallback(() => {
     if (!disabled) {
-      setIsOpen(!isOpen);
+      setIsOpen((prevIsOpen) => {
+        const newIsOpen = !prevIsOpen;
+        if (newIsOpen) {
+          const selectedIndex = options.findIndex((opt) => opt.value === value);
+          setFocusedIndex(selectedIndex !== -1 ? selectedIndex : 0);
+        } else {
+          setFocusedIndex(-1);
+        }
+        return newIsOpen;
+      });
     }
-  }, [disabled, isOpen]);
+  }, [disabled, options, value]);
 
   const handleOptionClick = useCallback(
     (optionValue: T) => {
@@ -55,14 +66,42 @@ const SelectInner = <T extends string>({
     (e: React.KeyboardEvent) => {
       if (disabled) return;
 
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
-        e.preventDefault();
-        setIsOpen(true);
-      } else if (e.key === "Escape") {
-        setIsOpen(false);
+      if (!isOpen) {
+        if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+          e.preventDefault();
+          const selectedIndex = options.findIndex((opt) => opt.value === value);
+          setFocusedIndex(selectedIndex !== -1 ? selectedIndex : 0);
+          setIsOpen(true);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          const selectedIndex = options.findIndex((opt) => opt.value === value);
+          setFocusedIndex(selectedIndex !== -1 ? selectedIndex : options.length - 1);
+          setIsOpen(true);
+        }
+      } else {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setFocusedIndex((prev) => (prev + 1) % options.length);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setFocusedIndex((prev) => (prev - 1 + options.length) % options.length);
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (focusedIndex >= 0 && focusedIndex < options.length) {
+            onChange(options[focusedIndex].value);
+            setIsOpen(false);
+            setFocusedIndex(-1);
+          }
+        } else if (e.key === "Escape") {
+          setIsOpen(false);
+          setFocusedIndex(-1);
+        } else if (e.key === "Tab") {
+          setIsOpen(false);
+          setFocusedIndex(-1);
+        }
       }
     },
-    [disabled]
+    [disabled, isOpen, options, value, onChange, focusedIndex]
   );
 
   useEffect(() => {
@@ -73,6 +112,13 @@ const SelectInner = <T extends string>({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, handleClickOutside]);
+
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && optionRefs.current[focusedIndex]) {
+      optionRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest" });
+      optionRefs.current[focusedIndex]?.focus();
+    }
+  }, [focusedIndex, isOpen]);
 
   return (
     <div className="select-wrapper">
@@ -100,17 +146,33 @@ const SelectInner = <T extends string>({
         {isOpen && (
           <ul className="custom-select-dropdown" role="listbox" aria-label={label || name}>
             {placeholder && (
-              <li className="custom-select-option disabled" role="option" aria-disabled="true">
+              <li
+                className="custom-select-option disabled"
+                role="option"
+                aria-disabled="true"
+                aria-selected="false"
+              >
                 {placeholder}
               </li>
             )}
-            {options.map((option) => (
+            {options.map((option, index) => (
               <li
                 key={option.value}
-                className={`custom-select-option ${option.value === value ? "selected" : ""}`}
+                ref={(el) => {
+                  optionRefs.current[index] = el;
+                }}
+                className={`custom-select-option ${option.value === value ? "selected" : ""} ${focusedIndex === index ? "focused" : ""}`}
                 role="option"
                 aria-selected={option.value === value}
+                tabIndex={focusedIndex === index ? 0 : -1}
                 onClick={() => handleOptionClick(option.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleOptionClick(option.value);
+                  }
+                }}
+                onMouseEnter={() => setFocusedIndex(index)}
               >
                 {option.label}
               </li>

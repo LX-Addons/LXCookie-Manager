@@ -9,7 +9,7 @@ export const editCookie = async (
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
-  let result: chrome.cookies.Cookie | undefined;
+  let result: chrome.cookies.Cookie;
 
   try {
     result = await editCookieUtil(originalCookie, updates);
@@ -33,8 +33,5 @@ export const editCookie = async (
     }
   }
 
-  if (!result) {
-    throw new Error("Cookie update failed");
-  }
   return result;
 };

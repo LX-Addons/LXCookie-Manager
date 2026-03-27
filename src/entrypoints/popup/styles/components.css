@@ -305,7 +305,7 @@
   background: var(--surface-0);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-floating);
   z-index: 100;
   max-height: 200px;
   overflow-y: auto;
@@ -333,6 +333,15 @@
 .theme-dark .custom-select-option.selected {
   background: var(--primary-tint-10);
   color: var(--primary-500);
+}
+
+.custom-select-option.focused {
+  background: var(--surface-2);
+  box-shadow: var(--shadow-focus);
+}
+
+.theme-dark .custom-select-option.focused {
+  background: var(--surface-2);
 }
 
 .custom-select-option.disabled {

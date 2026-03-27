@@ -17,6 +17,7 @@ import type {
   CookieStats,
   Settings as SettingsType,
   Cookie as CookieType,
+  CustomTheme,
 } from "@/types";
 import { CookieClearType, ThemeMode, ModeType, ErrorCode } from "@/types";
 import { isInList } from "@/utils/domain";
@@ -65,18 +66,15 @@ function IndexPopup() {
   const [settings] = useStorage<SettingsType>(SETTINGS_KEY, DEFAULT_SETTINGS);
   const { t } = useTranslation();
 
-  const isCustomThemeDark = useCallback(
-    (customTheme: typeof settings.customTheme) => {
-      if (!customTheme) return false;
-      const hex = customTheme.bgPrimary.replace("#", "");
-      const r = Number.parseInt(hex.substring(0, 2), 16);
-      const g = Number.parseInt(hex.substring(2, 4), 16);
-      const b = Number.parseInt(hex.substring(4, 6), 16);
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      return luminance < 0.5;
-    },
-    [settings]
-  );
+  const isCustomThemeDark = useCallback((customTheme: CustomTheme | undefined) => {
+    if (!customTheme) return false;
+    const hex = customTheme.bgPrimary.replace("#", "");
+    const r = Number.parseInt(hex.substring(0, 2), 16);
+    const g = Number.parseInt(hex.substring(2, 4), 16);
+    const b = Number.parseInt(hex.substring(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5;
+  }, []);
 
   const theme = useMemo(() => {
     const themeMode = settings.themeMode;

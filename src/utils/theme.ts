@@ -125,8 +125,8 @@ export const getContrastColor = (hex: string): string => {
   const rgb = hexToRgb(hex);
   if (!rgb) return "#ffffff";
   const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
-  const contrastWithWhite = (1.0 + 0.05) / (luminance + 0.05);
-  const contrastWithDark = (luminance + 0.05) / (0.0 + 0.05);
+  const contrastWithWhite = (1 + 0.05) / (luminance + 0.05);
+  const contrastWithDark = (luminance + 0.05) / 0.05;
   return contrastWithDark >= contrastWithWhite ? "#1a202c" : "#ffffff";
 };
 

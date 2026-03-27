@@ -15,7 +15,10 @@ interface ConfirmDialogProps {
   readonly triggerElement?: HTMLElement | null;
 }
 
-const iconNameMap: Record<string, "alertCircle" | "alertTriangle" | "info" | "checkCircle"> = {
+const iconNameMap: Record<
+  NonNullable<ConfirmDialogProps["variant"]>,
+  "alertCircle" | "alertTriangle" | "info" | "checkCircle"
+> = {
   danger: "alertCircle",
   warning: "alertTriangle",
   info: "info",

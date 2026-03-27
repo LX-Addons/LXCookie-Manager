@@ -50,14 +50,18 @@ export function t(path: string, params?: Record<string, string | number>): strin
   let value = getTranslationValue(currentLocale, path);
 
   if (value === undefined && currentLocale !== DEFAULT_LOCALE) {
-    console.warn(
-      `Translation key not found in ${currentLocale}, falling back to ${DEFAULT_LOCALE}: ${path}`
-    );
+    if (import.meta.env.DEV) {
+      console.warn(
+        `Translation key not found in ${currentLocale}, falling back to ${DEFAULT_LOCALE}: ${path}`
+      );
+    }
     value = getTranslationValue(DEFAULT_LOCALE, path);
   }
 
   if (value === undefined) {
-    console.warn(`Translation key not found in any locale: ${path}`);
+    if (import.meta.env.DEV) {
+      console.warn(`Translation key not found in any locale: ${path}`);
+    }
     return path;
   }
 
