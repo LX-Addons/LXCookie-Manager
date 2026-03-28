@@ -6,18 +6,36 @@ import { ClearLog } from "@/components/ClearLog";
 import { CookieList } from "@/components/CookieList";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { StatusPanel } from "@/components/StatusPanel";
+import { Icon, type IconName } from "@/components/Icon";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import { BackgroundService } from "@/lib/background-service";
-import type { DomainList, CookieStats, Settings as SettingsType, Cookie } from "@/types";
+import type {
+  DomainList,
+  CookieStats,
+  Settings as SettingsType,
+  Cookie as CookieType,
+  CustomTheme,
+  GetCurrentTabCookiesData,
+  ApiResponse,
+} from "@/types";
 import { CookieClearType, ThemeMode, ModeType, ErrorCode } from "@/types";
 import { isInList } from "@/utils/domain";
-import { getHoverColor, getActiveColor } from "@/utils/theme";
+import {
+  getHoverColor,
+  getActiveColor,
+  getLineSoftColor,
+  getLineStrongColor,
+  getLighterColor,
+  getMutedTextColor,
+  getContrastColor,
+} from "@/utils/theme";
 import { MESSAGE_DURATION, DEBOUNCE_DELAY_MS } from "@/lib/constants";
 import "./style.css";
 
-type LoadingState = "idle" | "loading" | "permission-denied" | "domain-unavailable" | "load-failed";
+type LoadingState = "idle" | "loading" | "domain-unavailable" | "load-failed" | "permission-denied";
 
 function IndexPopup() {
   const [currentDomain, setCurrentDomain] = useState("");
@@ -32,7 +50,7 @@ function IndexPopup() {
     thirdParty: 0,
     tracking: 0,
   });
-  const [currentCookies, setCurrentCookies] = useState<Cookie[]>([]);
+  const [currentCookies, setCurrentCookies] = useState<CookieType[]>([]);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() => {
     if (typeof globalThis !== "undefined") {
       return globalThis.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -42,6 +60,7 @@ function IndexPopup() {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const loadRequestIdRef = useRef(0);
 
   const { confirmState, showConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
 
@@ -50,13 +69,26 @@ function IndexPopup() {
   const [settings] = useStorage<SettingsType>(SETTINGS_KEY, DEFAULT_SETTINGS);
   const { t } = useTranslation();
 
+  const isCustomThemeDark = useCallback((customTheme: CustomTheme | undefined) => {
+    if (!customTheme) return false;
+    const hex = customTheme.bgPrimary.replace("#", "");
+    const r = Number.parseInt(hex.substring(0, 2), 16);
+    const g = Number.parseInt(hex.substring(2, 4), 16);
+    const b = Number.parseInt(hex.substring(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.5;
+  }, []);
+
   const theme = useMemo(() => {
     const themeMode = settings.themeMode;
     if (themeMode === ThemeMode.AUTO) {
       return systemTheme === "dark" ? ThemeMode.DARK : ThemeMode.LIGHT;
     }
+    if (themeMode === ThemeMode.CUSTOM && settings.customTheme) {
+      return isCustomThemeDark(settings.customTheme) ? ThemeMode.DARK : ThemeMode.LIGHT;
+    }
     return themeMode;
-  }, [settings.themeMode, systemTheme]);
+  }, [settings.themeMode, settings.customTheme, systemTheme, isCustomThemeDark]);
 
   const isCurrentInWhitelist = useMemo(
     () => currentDomain && isInList(currentDomain, whitelist),
@@ -82,42 +114,49 @@ function IndexPopup() {
     return "low";
   }, [stats.tracking, stats.thirdParty]);
 
-  const tabs = useMemo(
+  const tabs = useMemo<
+    Array<{
+      id: string;
+      label: string;
+      iconName: IconName;
+    }>
+  >(
     () => [
-      { id: "manage", label: t("tabs.manage") },
+      { id: "manage", label: t("tabs.manage"), iconName: "cookie" },
       {
         id: "rules",
         label: settings.mode === ModeType.WHITELIST ? t("tabs.whitelist") : t("tabs.blacklist"),
+        iconName: "list",
       },
-      { id: "settings", label: t("tabs.settings") },
-      { id: "log", label: t("tabs.log") },
+      { id: "settings", label: t("tabs.settings"), iconName: "settings" },
+      { id: "log", label: t("tabs.log"), iconName: "shield" },
     ],
     [settings.mode, t]
   );
 
+  const getNewTabId = (e: React.KeyboardEvent, activeTab: string, tabs: Array<{ id: string }>) => {
+    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab);
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault();
+        return tabs[(currentIndex + 1) % tabs.length].id;
+      case "ArrowLeft":
+        e.preventDefault();
+        return tabs[(currentIndex - 1 + tabs.length) % tabs.length].id;
+      case "Home":
+        e.preventDefault();
+        return tabs[0].id;
+      case "End":
+        e.preventDefault();
+        return tabs.at(-1)?.id;
+      default:
+        return null;
+    }
+  };
+
   const handleTabKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      const currentIndex = tabs.findIndex((tab) => tab.id === activeTab);
-      let newTabId: string | null = null;
-
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        const nextIndex = (currentIndex + 1) % tabs.length;
-        newTabId = tabs[nextIndex].id;
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-        newTabId = tabs[prevIndex].id;
-      } else if (e.key === "Home") {
-        e.preventDefault();
-        newTabId = tabs[0].id;
-      } else if (e.key === "End") {
-        e.preventDefault();
-        const lastTab = tabs.at(-1);
-        if (lastTab) {
-          newTabId = lastTab.id;
-        }
-      }
+      const newTabId = getNewTabId(e, activeTab, tabs);
 
       if (newTabId && newTabId !== activeTab) {
         setActiveTab(newTabId);
@@ -138,39 +177,94 @@ function IndexPopup() {
     );
   }, []);
 
-  const updateStats = useCallback(async () => {
-    try {
-      setLoadingState("loading");
-      const statsResponse = await BackgroundService.getStats(currentDomain);
-      const cookiesResponse = await BackgroundService.getCurrentTabCookies();
+  const resetPermissionDeniedState = useCallback(() => {
+    setLoadingState("permission-denied");
+    setCurrentDomain("");
+    setStats({
+      total: 0,
+      current: 0,
+      session: 0,
+      persistent: 0,
+      thirdParty: 0,
+      tracking: 0,
+    });
+    setCurrentCookies([]);
+  }, []);
 
-      if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
-        setLoadingState("permission-denied");
-        showMessage(t("popup.permissionDenied"), true);
-        return;
-      }
-
-      if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
-        setLoadingState("permission-denied");
-        showMessage(t("popup.permissionDenied"), true);
-        return;
-      }
+  const handleCookiesResponseSuccess = useCallback(
+    async (cookiesData: GetCurrentTabCookiesData, requestId: number, isInit: boolean) => {
+      const requestedDomain = cookiesData.domain;
+      const statsResponse = await BackgroundService.getStats(requestedDomain);
+      if (requestId !== loadRequestIdRef.current) return;
 
       if (statsResponse.success && statsResponse.data) {
+        setCurrentDomain(requestedDomain);
+        setCurrentCookies(cookiesData.cookies);
         setStats(statsResponse.data);
+        setLoadingState("idle");
+      } else if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+        resetPermissionDeniedState();
+      } else {
+        setLoadingState("load-failed");
+        if (!isInit) {
+          showMessage(t("popup.updateStatsFailed"), true);
+        }
       }
+    },
+    [resetPermissionDeniedState, showMessage, t]
+  );
 
+  const handleCookiesResponse = useCallback(
+    async (
+      cookiesResponse: ApiResponse<GetCurrentTabCookiesData>,
+      requestId: number,
+      isInit: boolean
+    ) => {
       if (cookiesResponse.success && cookiesResponse.data) {
-        setCurrentCookies(cookiesResponse.data.cookies);
+        await handleCookiesResponseSuccess(cookiesResponse.data, requestId, isInit);
+      } else if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+        resetPermissionDeniedState();
+      } else {
+        setLoadingState("domain-unavailable");
+        setCurrentDomain("");
       }
+    },
+    [handleCookiesResponseSuccess, resetPermissionDeniedState]
+  );
 
-      setLoadingState("idle");
-    } catch (e) {
-      console.error("Failed to update stats:", { error: e, currentDomain });
-      setLoadingState("load-failed");
-      showMessage(t("popup.updateStatsFailed"), true);
-    }
-  }, [currentDomain, showMessage, t]);
+  const loadStats = useCallback(
+    async (options: { isInit: boolean }) => {
+      const { isInit } = options;
+      const requestId = ++loadRequestIdRef.current;
+      let requestedDomain: string | undefined;
+      try {
+        setLoadingState("loading");
+        const cookiesResponse = await BackgroundService.getCurrentTabCookies();
+        if (requestId !== loadRequestIdRef.current) return;
+        await handleCookiesResponse(cookiesResponse, requestId, isInit);
+      } catch (e) {
+        if (requestId !== loadRequestIdRef.current) return;
+        console.error("Failed to load stats:", {
+          error: e,
+          currentDomain: requestedDomain,
+          isInit,
+        });
+        setLoadingState("load-failed");
+        if (!isInit) {
+          showMessage(t("popup.updateStatsFailed"), true);
+        }
+      }
+    },
+    [handleCookiesResponse, showMessage, t]
+  );
+
+  const init = useCallback(async () => {
+    await loadStats({ isInit: true });
+  }, [loadStats]);
+
+  const updateStats = useCallback(async () => {
+    await loadStats({ isInit: false });
+  }, [loadStats]);
 
   const clearCookies = useCallback(
     async (
@@ -226,25 +320,44 @@ function IndexPopup() {
     ]
   );
 
+  const addToListOrShowMessage = useCallback(
+    (
+      domain: string,
+      list: DomainList,
+      setList: (newList: DomainList) => void,
+      addedKey: string,
+      alreadyInKey: string
+    ) => {
+      const isIn = isInList(domain, list);
+      if (isIn) {
+        showMessage(t(alreadyInKey, { domain }));
+      } else {
+        setList([...list, domain]);
+        showMessage(t(addedKey, { domain }));
+      }
+    },
+    [showMessage, t]
+  );
+
   const quickAddToRule = useCallback(() => {
     if (!currentDomain) return;
 
     if (settings.mode === ModeType.WHITELIST) {
-      const isNotInList = !isInList(currentDomain, whitelist);
-      if (isNotInList) {
-        setWhitelist([...whitelist, currentDomain]);
-        showMessage(t("popup.addedToWhitelist", { domain: currentDomain }));
-      } else {
-        showMessage(t("popup.alreadyInWhitelist", { domain: currentDomain }));
-      }
+      addToListOrShowMessage(
+        currentDomain,
+        whitelist,
+        setWhitelist,
+        "popup.addedToWhitelist",
+        "popup.alreadyInWhitelist"
+      );
     } else {
-      const isNotInList = !isInList(currentDomain, blacklist);
-      if (isNotInList) {
-        setBlacklist([...blacklist, currentDomain]);
-        showMessage(t("popup.addedToBlacklist", { domain: currentDomain }));
-      } else {
-        showMessage(t("popup.alreadyInBlacklist", { domain: currentDomain }));
-      }
+      addToListOrShowMessage(
+        currentDomain,
+        blacklist,
+        setBlacklist,
+        "popup.addedToBlacklist",
+        "popup.alreadyInBlacklist"
+      );
     }
   }, [
     currentDomain,
@@ -252,27 +365,104 @@ function IndexPopup() {
     blacklist,
     setWhitelist,
     setBlacklist,
-    showMessage,
-    t,
+    addToListOrShowMessage,
     settings.mode,
   ]);
 
-  const quickClearCurrent = useCallback(() => {
-    showConfirm(
-      t("popup.confirmClear"),
-      t("popup.confirmClearCurrent", { domain: currentDomain }),
-      "warning",
-      () => {
-        clearCookies("domain", currentDomain, t("popup.clearCurrent"), settings.clearType);
-      }
-    );
-  }, [currentDomain, clearCookies, settings.clearType, showConfirm, t]);
+  const quickClearCurrent = useCallback(
+    (triggerElement?: HTMLElement | null) => {
+      showConfirm(
+        t("popup.confirmClear"),
+        t("popup.confirmClearCurrent", { domain: currentDomain }),
+        "warning",
+        () => {
+          clearCookies("domain", currentDomain, t("popup.clearCurrent"), settings.clearType);
+        },
+        { triggerElement }
+      );
+    },
+    [currentDomain, clearCookies, settings.clearType, showConfirm, t]
+  );
 
-  const quickClearAll = useCallback(() => {
-    showConfirm(t("popup.confirmClear"), t("popup.confirmClearAll"), "danger", () => {
-      clearCookies("all", undefined, t("common.allWebsites"), settings.clearType);
-    });
-  }, [clearCookies, settings.clearType, showConfirm, t]);
+  const quickClearAll = useCallback(
+    (triggerElement?: HTMLElement | null) => {
+      showConfirm(
+        t("popup.confirmClear"),
+        t("popup.confirmClearAll"),
+        "danger",
+        () => {
+          clearCookies("all", undefined, t("common.allWebsites"), settings.clearType);
+        },
+        { triggerElement }
+      );
+    },
+    [clearCookies, settings.clearType, showConfirm, t]
+  );
+
+  const handleAddToWhitelist = useCallback(
+    (domains: string[]) => {
+      const newDomains = domains.filter((d) => !isInList(d, whitelist));
+      if (newDomains.length > 0) {
+        setWhitelist([...whitelist, ...newDomains]);
+      }
+    },
+    [whitelist, setWhitelist]
+  );
+
+  const handleAddToBlacklist = useCallback(
+    (domains: string[]) => {
+      const newDomains = domains.filter((d) => !isInList(d, blacklist));
+      if (newDomains.length > 0) {
+        setBlacklist([...blacklist, ...newDomains]);
+      }
+    },
+    [blacklist, setBlacklist]
+  );
+
+  const handleClearBlacklist = useCallback(async () => {
+    try {
+      const response = await BackgroundService.cleanupWithFilter(
+        "domain-list",
+        undefined,
+        "manual-all",
+        {
+          clearType: CookieClearType.ALL,
+          clearCache: settings.clearCache,
+          clearLocalStorage: settings.clearLocalStorage,
+          clearIndexedDB: settings.clearIndexedDB,
+          domainList: blacklist,
+        }
+      );
+
+      if (response.success && response.data) {
+        const result = response.data;
+        if (result.cookiesRemoved > 0) {
+          showMessage(t("popup.clearedBlacklist", { count: result.cookiesRemoved }));
+          updateStats();
+        } else {
+          showMessage(t("popup.noBlacklistCookies"));
+        }
+      } else {
+        showMessage(t("popup.clearCookiesFailed"), true);
+      }
+    } catch (e) {
+      console.error("Failed to clear blacklist:", {
+        error: e,
+        trigger: "clearBlacklist",
+        mode: settings.mode,
+      });
+      showMessage(t("popup.clearCookiesFailed"), true);
+    }
+  }, [
+    blacklist,
+    settings.clearCache,
+    settings.clearLocalStorage,
+    settings.clearIndexedDB,
+    settings.mode,
+    showMessage,
+    t,
+    updateStats,
+  ]);
 
   useEffect(() => {
     const cookieListener = () => {
@@ -313,37 +503,70 @@ function IndexPopup() {
     const root = document.documentElement;
     const primaryHover = getHoverColor(customTheme.primary);
     const primaryActive = getActiveColor(customTheme.primary);
+    const primaryLighter = getLighterColor(customTheme.primary);
     const successHover = getHoverColor(customTheme.success);
     const successActive = getActiveColor(customTheme.success);
+    const successLighter = getLighterColor(customTheme.success);
     const warningHover = getHoverColor(customTheme.warning);
     const warningActive = getActiveColor(customTheme.warning);
+    const warningLighter = getLighterColor(customTheme.warning);
     const dangerHover = getHoverColor(customTheme.danger);
     const dangerActive = getActiveColor(customTheme.danger);
+    const dangerLighter = getLighterColor(customTheme.danger);
+    const textMuted = getMutedTextColor(customTheme.textSecondary);
+
+    const hexToRgba = (hex: string, alpha: number): string => {
+      const rgb = hex.replace("#", "");
+      const r = Number.parseInt(rgb.substring(0, 2), 16);
+      const g = Number.parseInt(rgb.substring(2, 4), 16);
+      const b = Number.parseInt(rgb.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
 
     const themeVars: Record<string, string | undefined> = {
-      "--accent-primary": customTheme.primary,
-      "--accent-success": customTheme.success,
-      "--accent-warning": customTheme.warning,
-      "--accent-danger": customTheme.danger,
-      "--surface-primary": customTheme.bgPrimary,
-      "--surface-secondary": customTheme.bgSecondary,
-      "--text-primary": customTheme.textPrimary,
-      "--text-secondary": customTheme.textSecondary,
+      "--primary-400": primaryLighter,
       "--primary-500": customTheme.primary,
       "--primary-600": primaryHover,
       "--primary-700": primaryActive,
+      "--success-400": successLighter,
       "--success-500": customTheme.success,
       "--success-600": successHover,
       "--success-700": successActive,
+      "--warning-400": warningLighter,
       "--warning-500": customTheme.warning,
       "--warning-600": warningHover,
       "--warning-700": warningActive,
+      "--danger-400": dangerLighter,
       "--danger-500": customTheme.danger,
       "--danger-600": dangerHover,
       "--danger-700": dangerActive,
-      "--bg-primary": customTheme.bgPrimary,
-      "--bg-secondary": customTheme.bgSecondary,
-      "--bg-card": customTheme.bgSecondary,
+      "--surface-0": customTheme.bgPrimary,
+      "--surface-1": customTheme.bgSecondary,
+      "--surface-2": customTheme.bgSecondary,
+      "--text-1": customTheme.textPrimary,
+      "--text-2": customTheme.textSecondary,
+      "--text-3": customTheme.textSecondary,
+      "--text-muted": textMuted,
+      "--text-on-primary": getContrastColor(customTheme.primary),
+      "--text-on-success": getContrastColor(customTheme.success),
+      "--text-on-warning": getContrastColor(customTheme.warning),
+      "--text-on-danger": getContrastColor(customTheme.danger),
+      "--line-soft": getLineSoftColor(customTheme.textSecondary),
+      "--line-strong": getLineStrongColor(customTheme.textSecondary),
+      "--primary-tint-05": hexToRgba(customTheme.primary, 0.05),
+      "--primary-tint-08": hexToRgba(customTheme.primary, 0.08),
+      "--primary-tint-10": hexToRgba(customTheme.primary, 0.1),
+      "--primary-tint-12": hexToRgba(customTheme.primary, 0.12),
+      "--primary-tint-15": hexToRgba(customTheme.primary, 0.15),
+      "--success-tint-10": hexToRgba(customTheme.success, 0.1),
+      "--success-tint-15": hexToRgba(customTheme.success, 0.15),
+      "--warning-tint-10": hexToRgba(customTheme.warning, 0.1),
+      "--warning-tint-15": hexToRgba(customTheme.warning, 0.15),
+      "--danger-tint-05": hexToRgba(customTheme.danger, 0.05),
+      "--danger-tint-08": hexToRgba(customTheme.danger, 0.08),
+      "--danger-tint-10": hexToRgba(customTheme.danger, 0.1),
+      "--danger-tint-12": hexToRgba(customTheme.danger, 0.12),
+      "--danger-tint-15": hexToRgba(customTheme.danger, 0.15),
     };
     Object.entries(themeVars).forEach(([prop, value]) => {
       if (value) root.style.setProperty(prop, value);
@@ -353,29 +576,49 @@ function IndexPopup() {
   const clearCustomTheme = useCallback(() => {
     const root = document.documentElement;
     const customVars = [
-      "--accent-primary",
-      "--accent-success",
-      "--accent-warning",
-      "--accent-danger",
-      "--surface-primary",
-      "--surface-secondary",
-      "--text-primary",
-      "--text-secondary",
+      "--primary-400",
       "--primary-500",
       "--primary-600",
       "--primary-700",
+      "--success-400",
       "--success-500",
       "--success-600",
       "--success-700",
+      "--warning-400",
       "--warning-500",
       "--warning-600",
       "--warning-700",
+      "--danger-400",
       "--danger-500",
       "--danger-600",
       "--danger-700",
-      "--bg-primary",
-      "--bg-secondary",
-      "--bg-card",
+      "--surface-0",
+      "--surface-1",
+      "--surface-2",
+      "--text-1",
+      "--text-2",
+      "--text-3",
+      "--text-muted",
+      "--text-on-primary",
+      "--text-on-success",
+      "--text-on-warning",
+      "--text-on-danger",
+      "--line-soft",
+      "--line-strong",
+      "--primary-tint-05",
+      "--primary-tint-08",
+      "--primary-tint-10",
+      "--primary-tint-12",
+      "--primary-tint-15",
+      "--success-tint-10",
+      "--success-tint-15",
+      "--warning-tint-10",
+      "--warning-tint-15",
+      "--danger-tint-05",
+      "--danger-tint-08",
+      "--danger-tint-10",
+      "--danger-tint-12",
+      "--danger-tint-15",
     ];
     customVars.forEach((prop) => root.style.removeProperty(prop));
   }, []);
@@ -389,131 +632,132 @@ function IndexPopup() {
   }, [settings.themeMode, settings.customTheme, applyCustomTheme, clearCustomTheme]);
 
   useEffect(() => {
-    async function init() {
-      try {
-        setLoadingState("loading");
-        const response = await BackgroundService.getCurrentTabCookies();
-        if (response.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
-          setLoadingState("permission-denied");
-          return;
-        }
-        if (response.success && response.data) {
-          setCurrentDomain(response.data.domain);
-        } else {
-          setLoadingState("domain-unavailable");
-        }
-      } catch {
-        setLoadingState("domain-unavailable");
-        setCurrentDomain("");
-      }
-    }
     init();
-  }, []);
+  }, [init]);
 
-  useEffect(() => {
-    updateStats();
-  }, [currentDomain, updateStats]);
+  const renderSiteStatusIcon = () => {
+    if (siteStatus === "protected") {
+      return <Icon name="shieldCheck" size={12} />;
+    }
+    if (siteStatus === "priority-cleanup") {
+      return <Icon name="shieldAlert" size={12} />;
+    }
+    return null;
+  };
+
+  const themeClasses = useMemo(() => {
+    const classes = ["app-shell"];
+    classes.push(`theme-${theme}`);
+    return classes.join(" ");
+  }, [theme]);
 
   return (
     <ErrorBoundary>
-      <div className={`app-shell theme-${theme}`}>
+      <div className={themeClasses}>
         <header className="app-header">
-          <div className="app-brand">
-            <h1>{t("app.title")}</h1>
+          <div className="app-header-top">
+            <div className="app-brand">
+              <h1>{t("app.title")}</h1>
+            </div>
+            <div className="mode-badge">
+              {settings.mode === ModeType.WHITELIST
+                ? t("settings.whitelistModeShort")
+                : t("settings.blacklistModeShort")}
+            </div>
           </div>
-          <div className="mode-badge">
-            {settings.mode === ModeType.WHITELIST
-              ? t("settings.whitelistModeShort")
-              : t("settings.blacklistModeShort")}
-          </div>
+          {currentDomain && (
+            <div className="app-header-info">
+              <span className="header-domain">{currentDomain}</span>
+              {siteStatus !== "unknown" && siteStatus !== "normal" && (
+                <span className={`header-status ${siteStatus}`}>
+                  {renderSiteStatusIcon()}
+                  {siteStatus === "protected"
+                    ? t("popup.protectedSite")
+                    : t("popup.priorityCleanupSite")}
+                </span>
+              )}
+            </div>
+          )}
         </header>
 
         <div className="tabs" role="tablist" tabIndex={0} onKeyDown={handleTabKeyDown}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              ref={(el) => {
-                tabRefs.current[tab.id] = el;
-              }}
-              data-testid={`tab-${tab.id}`}
-              className={`tab-btn ${activeTab === tab.id ? "active" : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              aria-controls={`${tab.id}-panel`}
-              tabIndex={activeTab === tab.id ? 0 : -1}
-            >
-              <span>{tab.label}</span>
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            return (
+              <button
+                key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[tab.id] = el;
+                }}
+                data-testid={`tab-${tab.id}`}
+                className={`tab-btn ${activeTab === tab.id ? "active" : ""}`}
+                onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`${tab.id}-panel`}
+                tabIndex={activeTab === tab.id ? 0 : -1}
+              >
+                <Icon name={tab.iconName} size={14} className="tab-icon" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {activeTab === "manage" && (
           <main className="tab-content" role="tabpanel" id="manage-panel">
             {loadingState === "permission-denied" && (
-              <section className="panel permission-error-panel">
-                <div className="panel-header">
-                  <h2>⚠️ {t("popup.permissionDenied")}</h2>
-                </div>
-                <p className="permission-error-message">
-                  {t("popup.permissionDeniedDesc") || "请先在设置中授予所有主机权限，然后刷新扩展"}
-                </p>
+              <section className="panel permission-denied-panel">
+                <StatusPanel
+                  variant="error"
+                  title={t("popup.permissionDenied")}
+                  message={t("popup.permissionDeniedDesc")}
+                  action={
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => {
+                        chrome.runtime.openOptionsPage();
+                      }}
+                    >
+                      <Icon name="settings" size={14} />
+                      {t("popup.openExtensionSettings")}
+                    </button>
+                  }
+                />
               </section>
             )}
             {loadingState === "domain-unavailable" && (
               <section className="panel domain-unavailable-panel">
-                <div className="panel-header">
-                  <h2>🔗 {t("popup.unableToGetDomain")}</h2>
-                </div>
-                <p className="domain-unavailable-message">
-                  {t("popup.domainUnavailableDesc") || "请打开一个网页以查看和管理 Cookie"}
-                </p>
+                <StatusPanel
+                  variant="info"
+                  title={t("popup.unableToGetDomain")}
+                  message={t("popup.domainUnavailableDesc")}
+                />
               </section>
             )}
             {loadingState === "load-failed" && (
               <section className="panel load-error-panel">
-                <div className="panel-header">
-                  <h2>❌ {t("popup.updateStatsFailed")}</h2>
-                </div>
-                <p className="load-error-message">
-                  {t("popup.loadFailedDesc") || "加载数据时出错，请重试"}
-                </p>
-                <button className="btn btn-primary" onClick={updateStats}>
-                  {t("popup.retry")}
-                </button>
+                <StatusPanel
+                  variant="error"
+                  title={t("popup.updateStatsFailed")}
+                  message={t("popup.loadFailedDesc")}
+                  action={
+                    <button className="btn btn-primary" onClick={updateStats}>
+                      <Icon name="refresh" size={14} />
+                      {t("popup.retry")}
+                    </button>
+                  }
+                />
               </section>
             )}
             {loadingState === "loading" && (
               <section className="panel loading-panel">
-                <div className="loading-spinner"></div>
-                <p>{t("popup.loading")}</p>
+                <StatusPanel variant="loading" title={t("popup.loading")} />
               </section>
             )}
             {loadingState === "idle" && (
               <>
-                <section className="site-summary panel" data-testid="site-summary">
-                  <div className="panel-header">
-                    <h2 className="site-title">{currentDomain || t("popup.unableToGetDomain")}</h2>
-                    <div className="status-badges">
-                      {siteStatus === "protected" && (
-                        <span className="badge badge-success">{t("popup.protectedSite")}</span>
-                      )}
-                      {siteStatus === "priority-cleanup" && (
-                        <span className="badge badge-warning">
-                          {t("popup.priorityCleanupSite")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mode-summary">
-                    {settings.mode === ModeType.WHITELIST
-                      ? t("popup.modeSummaryWhitelist")
-                      : t("popup.modeSummaryBlacklist")}
-                  </p>
-                </section>
-
-                <section className="insight-strip panel">
-                  <div className="insight-grid" data-testid="insight-grid">
+                <section className="insight-strip panel" data-testid="insight-strip">
+                  <div className="insight-grid">
                     <div className="insight-item insight-primary">
                       <span className="insight-value">{stats.current}</span>
                       <span className="insight-label">{t("popup.currentSiteCookies")}</span>
@@ -536,38 +780,37 @@ function IndexPopup() {
                   )}
                 </section>
 
+                <section className="mode-summary panel">
+                  <p className="mode-summary-text">
+                    {settings.mode === ModeType.WHITELIST
+                      ? t("popup.modeSummaryWhitelist")
+                      : t("popup.modeSummaryBlacklist")}
+                  </p>
+                </section>
+
                 <section className="quick-actions-panel panel" data-testid="quick-actions">
                   <div className="panel-header">
                     <h3>{t("popup.quickManage")}</h3>
                   </div>
                   <div className="action-cluster">
                     <button
-                      onClick={quickClearCurrent}
+                      onClick={(e) => quickClearCurrent(e.currentTarget)}
                       className="btn btn-primary btn-block"
                       disabled={!currentDomain}
                       data-testid="clear-current-btn"
                     >
                       {t("popup.clearCurrent")}
                     </button>
-                    <div className="action-row">
-                      <button
-                        onClick={quickAddToRule}
-                        className="btn btn-secondary"
-                        disabled={!currentDomain}
-                        data-testid="add-to-rule-btn"
-                      >
-                        {settings.mode === ModeType.WHITELIST
-                          ? t("popup.addToWhitelist")
-                          : t("popup.addToBlacklist")}
-                      </button>
-                      <button
-                        onClick={quickClearAll}
-                        className="btn btn-danger"
-                        data-testid="clear-all-btn"
-                      >
-                        {t("popup.clearAllCookies")}
-                      </button>
-                    </div>
+                    <button
+                      onClick={quickAddToRule}
+                      className="btn btn-secondary btn-block"
+                      disabled={!currentDomain}
+                      data-testid="add-to-rule-btn"
+                    >
+                      {settings.mode === ModeType.WHITELIST
+                        ? t("popup.addToWhitelist")
+                        : t("popup.addToBlacklist")}
+                    </button>
                   </div>
                 </section>
 
@@ -598,19 +841,23 @@ function IndexPopup() {
                   whitelist={whitelist}
                   blacklist={blacklist}
                   showCookieRisk={settings.showCookieRisk}
-                  onAddToWhitelist={(domains) => {
-                    const newDomains = domains.filter((d) => !isInList(d, whitelist));
-                    if (newDomains.length > 0) {
-                      setWhitelist([...whitelist, ...newDomains]);
-                    }
-                  }}
-                  onAddToBlacklist={(domains) => {
-                    const newDomains = domains.filter((d) => !isInList(d, blacklist));
-                    if (newDomains.length > 0) {
-                      setBlacklist([...blacklist, ...newDomains]);
-                    }
-                  }}
+                  onAddToWhitelist={handleAddToWhitelist}
+                  onAddToBlacklist={handleAddToBlacklist}
                 />
+
+                <section className="danger-zone-panel panel">
+                  <div className="panel-header">
+                    <h3 className="danger-zone-title">{t("popup.dangerZone")}</h3>
+                  </div>
+                  <p className="danger-zone-desc">{t("popup.dangerZoneDesc")}</p>
+                  <button
+                    onClick={(e) => quickClearAll(e.currentTarget)}
+                    className="btn btn-danger btn-block"
+                    data-testid="clear-all-btn"
+                  >
+                    {t("popup.clearAllCookies")}
+                  </button>
+                </section>
               </>
             )}
           </main>
@@ -623,45 +870,7 @@ function IndexPopup() {
               currentDomain={currentDomain}
               onMessage={showMessage}
               onClearBlacklist={
-                settings.mode === ModeType.BLACKLIST
-                  ? async () => {
-                      try {
-                        const response = await BackgroundService.cleanupWithFilter(
-                          "domain-list",
-                          undefined,
-                          "manual-all",
-                          {
-                            clearType: CookieClearType.ALL,
-                            clearCache: settings.clearCache,
-                            clearLocalStorage: settings.clearLocalStorage,
-                            clearIndexedDB: settings.clearIndexedDB,
-                            domainList: blacklist,
-                          }
-                        );
-
-                        if (response.success && response.data) {
-                          const result = response.data;
-                          if (result.cookiesRemoved > 0) {
-                            showMessage(
-                              t("popup.clearedBlacklist", { count: result.cookiesRemoved })
-                            );
-                            updateStats();
-                          } else {
-                            showMessage(t("popup.noBlacklistCookies"));
-                          }
-                        } else {
-                          showMessage(t("popup.clearCookiesFailed"), true);
-                        }
-                      } catch (e) {
-                        console.error("Failed to clear blacklist:", {
-                          error: e,
-                          trigger: "clearBlacklist",
-                          mode: settings.mode,
-                        });
-                        showMessage(t("popup.clearCookiesFailed"), true);
-                      }
-                    }
-                  : undefined
+                settings.mode === ModeType.BLACKLIST ? handleClearBlacklist : undefined
               }
             />
           </div>
@@ -691,10 +900,14 @@ function IndexPopup() {
         <ConfirmDialog
           isOpen={confirmState.isOpen}
           title={confirmState.title}
+          description={confirmState.description}
           message={confirmState.message}
+          confirmText={confirmState.confirmText}
+          cancelText={confirmState.cancelText}
           variant={confirmState.variant}
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
+          triggerElement={confirmState.triggerElement}
         />
       </div>
     </ErrorBoundary>

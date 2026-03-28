@@ -2,6 +2,13 @@ import { useState, useCallback } from "react";
 
 export type ConfirmVariant = "danger" | "warning" | "info" | "success";
 
+export interface ConfirmOptions {
+  description?: string;
+  confirmText?: string;
+  cancelText?: string;
+  triggerElement?: HTMLElement | null;
+}
+
 interface ConfirmState {
   isOpen: boolean;
   title: string;
@@ -11,6 +18,7 @@ interface ConfirmState {
   cancelText?: string;
   variant: ConfirmVariant;
   onConfirm: () => void;
+  triggerElement?: HTMLElement | null;
 }
 
 interface UseConfirmDialogReturn {
@@ -20,11 +28,7 @@ interface UseConfirmDialogReturn {
     message: string,
     variant: ConfirmVariant,
     onConfirm: () => void,
-    options?: {
-      description?: string;
-      confirmText?: string;
-      cancelText?: string;
-    }
+    options?: ConfirmOptions
   ) => void;
   closeConfirm: () => void;
   handleConfirm: () => void;
@@ -45,11 +49,7 @@ export const useConfirmDialog = (): UseConfirmDialogReturn => {
       message: string,
       variant: ConfirmVariant,
       onConfirm: () => void,
-      options?: {
-        description?: string;
-        confirmText?: string;
-        cancelText?: string;
-      }
+      options?: ConfirmOptions
     ) => {
       setConfirmState({
         isOpen: true,
@@ -60,6 +60,7 @@ export const useConfirmDialog = (): UseConfirmDialogReturn => {
         description: options?.description,
         confirmText: options?.confirmText,
         cancelText: options?.cancelText,
+        triggerElement: options?.triggerElement,
       });
     },
     []

@@ -27,28 +27,28 @@
 }
 
 html {
-  width: 380px;
-  height: 520px;
-  min-width: 380px;
-  min-height: 520px;
+  width: var(--popup-width);
+  height: var(--popup-height);
+  min-width: var(--popup-width);
+  min-height: var(--popup-height);
   margin: 0;
   padding: 0;
   overflow: hidden;
 }
 
 body {
-  width: 380px;
-  height: 520px;
-  min-width: 380px;
-  min-height: 520px;
+  width: var(--popup-width);
+  height: var(--popup-height);
+  min-width: var(--popup-width);
+  min-height: var(--popup-height);
   margin: 0;
   padding: 0;
   overflow: hidden;
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--line-height-normal);
-  color: var(--text-primary);
-  background: var(--bg-primary);
+  color: var(--text-1);
+  background: var(--surface-0);
   transition:
     background-color var(--transition-slow),
     color var(--transition-slow);
@@ -58,11 +58,12 @@ body {
 }
 
 #root {
-  width: 380px;
-  height: 520px;
-  min-width: 380px;
-  min-height: 520px;
-  overflow: hidden;
+  width: var(--popup-width);
+  height: var(--popup-height);
+  min-width: var(--popup-width);
+  min-height: var(--popup-height);
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-resolution: 2dppx) {
@@ -82,6 +83,6 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--primary-600);
+  outline: 2px solid var(--primary-500);
   outline-offset: 2px;
 }

@@ -22,11 +22,159 @@ const rgbToHex = (r: number, g: number, b: number): string => {
   );
 };
 
+const getLuminance = (r: number, g: number, b: number): number => {
+  const a = [r, g, b].map((v) => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+};
+
 export const adjustColorBrightness = (hex: string, amount: number): string => {
   const rgb = hexToRgb(hex);
   if (!rgb) return hex;
   return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
 };
 
-export const getHoverColor = (hex: string): string => adjustColorBrightness(hex, -15);
-export const getActiveColor = (hex: string): string => adjustColorBrightness(hex, -30);
+export const getHoverColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
+  const amount = luminance > 0.5 ? -20 : 20;
+  return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
+};
+
+export const getActiveColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
+  const amount = luminance > 0.5 ? -40 : 40;
+  return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
+};
+
+export const getLineSoftColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
+  let amount: number;
+  if (luminance > 0.7) {
+    amount = -60;
+  } else if (luminance > 0.5) {
+    amount = -45;
+  } else if (luminance > 0.3) {
+    amount = 45;
+  } else {
+    amount = 60;
+  }
+  return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
+};
+
+export const getLineStrongColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
+  let amount: number;
+  if (luminance > 0.7) {
+    amount = -35;
+  } else if (luminance > 0.5) {
+    amount = -25;
+  } else if (luminance > 0.3) {
+    amount = 25;
+  } else {
+    amount = 35;
+  }
+  return rgbToHex(rgb.r + amount, rgb.g + amount, rgb.b + amount);
+};
+
+export const getLighterColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
+
+  const clamp = (value: number) => Math.max(0, Math.min(255, value));
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  if (luminance < 0.2) {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 255, 0.35)),
+      clamp(lerp(rgb.g, 255, 0.35)),
+      clamp(lerp(rgb.b, 255, 0.35))
+    );
+  } else if (luminance < 0.5) {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 255, 0.25)),
+      clamp(lerp(rgb.g, 255, 0.25)),
+      clamp(lerp(rgb.b, 255, 0.25))
+    );
+  } else if (luminance < 0.8) {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 255, 0.2)),
+      clamp(lerp(rgb.g, 255, 0.2)),
+      clamp(lerp(rgb.b, 255, 0.2))
+    );
+  } else {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 0, 0.15)),
+      clamp(lerp(rgb.g, 0, 0.15)),
+      clamp(lerp(rgb.b, 0, 0.15))
+    );
+  }
+};
+
+export const getContrastColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return "#ffffff";
+  const bgLuminance = getLuminance(rgb.r, rgb.g, rgb.b);
+
+  // Calculate real luminance for both text colors
+  const whiteLuminance = 1;
+  const darkRgb = hexToRgb("#1a202c");
+  const darkLuminance = darkRgb ? getLuminance(darkRgb.r, darkRgb.g, darkRgb.b) : 0;
+
+  // Standard contrast ratio formula: (L1 + 0.05) / (L2 + 0.05), L1 > L2
+  const contrastWithWhite = Math.max(
+    (whiteLuminance + 0.05) / (bgLuminance + 0.05),
+    (bgLuminance + 0.05) / (whiteLuminance + 0.05)
+  );
+  const contrastWithDark = Math.max(
+    (darkLuminance + 0.05) / (bgLuminance + 0.05),
+    (bgLuminance + 0.05) / (darkLuminance + 0.05)
+  );
+
+  return contrastWithDark >= contrastWithWhite ? "#1a202c" : "#ffffff";
+};
+
+export const getMutedTextColor = (hex: string): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
+
+  const clamp = (value: number) => Math.max(0, Math.min(255, value));
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  if (luminance < 0.2) {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 255, 0.5)),
+      clamp(lerp(rgb.g, 255, 0.5)),
+      clamp(lerp(rgb.b, 255, 0.5))
+    );
+  } else if (luminance < 0.5) {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 255, 0.4)),
+      clamp(lerp(rgb.g, 255, 0.4)),
+      clamp(lerp(rgb.b, 255, 0.4))
+    );
+  } else if (luminance < 0.8) {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 0, 0.45)),
+      clamp(lerp(rgb.g, 0, 0.45)),
+      clamp(lerp(rgb.b, 0, 0.45))
+    );
+  } else {
+    return rgbToHex(
+      clamp(lerp(rgb.r, 0, 0.55)),
+      clamp(lerp(rgb.g, 0, 0.55)),
+      clamp(lerp(rgb.b, 0, 0.55))
+    );
+  }
+};

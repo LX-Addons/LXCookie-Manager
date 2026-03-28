@@ -34,5 +34,5 @@
 .value-toggle-btn:focus-visible {
   outline: 2px solid var(--primary-600);
   outline-offset: 1px;
-  border-radius: var(--radius-1);
+  border-radius: var(--radius-sm);
 }

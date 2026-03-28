@@ -1,3 +1,4 @@
+import React from "react";
 import { useStorage } from "@/hooks/useStorage";
 import { SETTINGS_KEY, DEFAULT_SETTINGS, DEFAULT_CUSTOM_THEME } from "@/lib/store";
 import type { Settings as SettingsType, CustomTheme, Locale } from "@/types";
@@ -6,6 +7,7 @@ import { RadioGroup } from "@/components/RadioGroup";
 import { CheckboxGroup } from "@/components/CheckboxGroup";
 import { Select } from "@/components/Select";
 import { useTranslation } from "@/hooks/useTranslation";
+import { Icon } from "@/components/Icon";
 
 interface Props {
   onMessage: (msg: string) => void;
@@ -43,7 +45,10 @@ export const Settings = ({ onMessage }: Props) => {
     <div className="settings-container">
       <section className="settings-group panel">
         <div className="settings-group-header">
-          <h3 className="settings-group-title">{t("settings.group.cleanupStrategy")}</h3>
+          <h3 className="settings-group-title">
+            <Icon name="trash" size={16} className="settings-group-icon" />
+            {t("settings.group.cleanupStrategy")}
+          </h3>
           <p className="settings-group-desc">{t("settings.group.cleanupStrategyDesc")}</p>
         </div>
 
@@ -113,8 +118,16 @@ export const Settings = ({ onMessage }: Props) => {
 
       <section className="settings-group panel">
         <div className="settings-group-header">
-          <h3 className="settings-group-title">{t("settings.group.automation")}</h3>
+          <h3 className="settings-group-title">
+            <Icon name="clock" size={16} className="settings-group-icon" />
+            {t("settings.group.automation")}
+          </h3>
           <p className="settings-group-desc">{t("settings.group.automationDesc")}</p>
+        </div>
+
+        <div className="settings-note">
+          <Icon name="info" size={14} className="settings-note-icon" />
+          <p className="settings-note-text">{t("settings.permissionsNote")}</p>
         </div>
 
         <div className="settings-subsection">
@@ -203,7 +216,10 @@ export const Settings = ({ onMessage }: Props) => {
 
       <section className="settings-group panel">
         <div className="settings-group-header">
-          <h3 className="settings-group-title">{t("settings.group.privacyRisk")}</h3>
+          <h3 className="settings-group-title">
+            <Icon name="alertTriangle" size={16} className="settings-group-icon" />
+            {t("settings.group.privacyRisk")}
+          </h3>
           <p className="settings-group-desc">{t("settings.group.privacyRiskDesc")}</p>
         </div>
 
@@ -224,7 +240,10 @@ export const Settings = ({ onMessage }: Props) => {
 
       <section className="settings-group panel">
         <div className="settings-group-header">
-          <h3 className="settings-group-title">{t("settings.group.appearance")}</h3>
+          <h3 className="settings-group-title">
+            <Icon name="palette" size={16} className="settings-group-icon" />
+            {t("settings.group.appearance")}
+          </h3>
           <p className="settings-group-desc">{t("settings.group.appearanceDesc")}</p>
         </div>
 
@@ -348,7 +367,10 @@ export const Settings = ({ onMessage }: Props) => {
 
       <section className="settings-group panel">
         <div className="settings-group-header">
-          <h3 className="settings-group-title">{t("settings.group.languageLogs")}</h3>
+          <h3 className="settings-group-title">
+            <Icon name="info" size={16} className="settings-group-icon" />
+            {t("settings.group.languageLogs")}
+          </h3>
           <p className="settings-group-desc">{t("settings.group.languageLogsDesc")}</p>
         </div>
 

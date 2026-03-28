@@ -4,37 +4,36 @@ import { metricsService } from "./metrics";
 
 export const createCookie = async (
   cookie: Partial<chrome.cookies.Cookie>
-): Promise<chrome.cookies.Cookie | null> => {
+): Promise<chrome.cookies.Cookie> => {
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
-  let created: chrome.cookies.Cookie | null = null;
+  let created: chrome.cookies.Cookie | undefined;
 
   try {
-    const result = await createCookieUtil(cookie);
-
-    if (result.success) {
-      success = true;
-      created = result.cookie ?? null;
-    } else if (result.error) {
-      const report = classifyError(new Error(result.error), "cookie create", {
-        domain: cookie.domain,
-      });
-      errorCode = report.code;
-    }
+    created = await createCookieUtil(cookie);
+    success = true;
   } catch (e) {
     const report = classifyError(e, "cookie create", {
       domain: cookie.domain,
     });
     errorCode = report.code;
+    throw e;
+  } finally {
+    const durationMs = Date.now() - startTime;
+    try {
+      metricsService.recordCookieMutation("createCookie", success, durationMs, {
+        domain: cookie.domain,
+        errorCode,
+        metadata: { cookieName: cookie.name },
+      });
+    } catch (metricsError) {
+      console.warn("Failed to record createCookie metrics:", metricsError);
+    }
   }
 
-  const durationMs = Date.now() - startTime;
-  metricsService.recordCookieMutation("createCookie", success, durationMs, {
-    domain: cookie.domain,
-    errorCode,
-    metadata: { cookieName: cookie.name },
-  });
-
+  if (!created) {
+    throw new Error("Cookie creation failed");
+  }
   return created;
 };

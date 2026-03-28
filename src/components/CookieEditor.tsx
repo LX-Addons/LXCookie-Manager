@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useId, useCallback } from "react";
+import { Icon } from "@/components/Icon";
+import { Select } from "@/components/Select";
 import type { Cookie, SameSite } from "@/types";
 import { useTranslation } from "@/hooks/useTranslation";
 import { fromChromeSameSite } from "@/utils/format";
+import { useDialog } from "@/hooks/useDialog";
 
 interface Props {
   isOpen: boolean;
@@ -9,6 +12,7 @@ interface Props {
   currentDomain?: string;
   onClose: () => void;
   onSave: (cookie: Cookie) => Promise<boolean>;
+  triggerElement?: HTMLElement | null;
 }
 
 const DEFAULT_COOKIE: Cookie = {
@@ -21,7 +25,14 @@ const DEFAULT_COOKIE: Cookie = {
   sameSite: "unspecified",
 };
 
-const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Props, "isOpen">) => {
+const CookieEditorContent = ({
+  isOpen,
+  cookie,
+  currentDomain,
+  onClose,
+  onSave,
+  triggerElement,
+}: Props) => {
   const [formData, setFormData] = useState<Cookie>(() => {
     if (cookie) {
       return {
@@ -36,25 +47,61 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
   });
   const [isSaving, setIsSaving] = useState(false);
   const { t } = useTranslation();
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const valueInputRef = useRef<HTMLTextAreaElement>(null);
+  const titleId = useId();
+  const isClosingRef = useRef(false);
+  const wasOpenRef = useRef(false);
+
+  const handleCloseInternal = useCallback(() => {
+    if (isSaving || isClosingRef.current) return;
+    isClosingRef.current = true;
+    onClose();
+  }, [onClose, isSaving]);
+
+  const handleOpenFocus = useCallback(() => {
+    if (cookie) {
+      valueInputRef.current?.focus();
+    } else {
+      nameInputRef.current?.focus();
+    }
+  }, [cookie]);
+
+  const { dialogRef, handleClose } = useDialog({
+    isOpen,
+    onClose: handleCloseInternal,
+    triggerElement,
+    onOpenFocus: handleOpenFocus,
+  });
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isSaving) {
-        onClose();
+    const justOpened = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (justOpened) {
+      isClosingRef.current = false;
+      if (cookie) {
+        setFormData({
+          ...cookie,
+          sameSite: fromChromeSameSite(cookie.sameSite) as SameSite,
+        });
+      } else {
+        setFormData({
+          ...DEFAULT_COOKIE,
+          domain: currentDomain || "",
+        });
       }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, isSaving]);
+    }
+  }, [isOpen, cookie, currentDomain]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving) return;
+    if (isSaving || isClosingRef.current) return;
 
     setIsSaving(true);
     try {
       const success = await onSave(formData);
-      if (success) {
+      if (success && !isClosingRef.current) {
+        isClosingRef.current = true;
         onClose();
       }
     } catch (error) {
@@ -64,39 +111,41 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
     }
   };
 
-  const handleDialogKeyDown = (e: React.KeyboardEvent) => {
-    e.stopPropagation();
-  };
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isSaving) {
-      onClose();
-    }
-  };
-
   return (
-    <div
-      className="confirm-overlay"
-      onClick={handleOverlayClick}
-      onKeyDown={(e) => e.key === "Escape" && !isSaving && onClose()}
-      role="presentation"
+    <dialog
+      ref={dialogRef}
+      className="confirm-modal cookie-editor-dialog"
+      aria-labelledby={titleId}
       data-testid="cookie-editor"
     >
-      <dialog
-        className="confirm-dialog cookie-editor-dialog"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleDialogKeyDown}
-        open
-      >
-        <h3 className="confirm-title">
-          {cookie ? t("cookieEditor.editCookie") : t("cookieEditor.createCookie")}
-        </h3>
-        <form onSubmit={handleSubmit}>
+      <div className="modal-header">
+        <div className="modal-icon info">
+          <Icon name="cookie" size={20} />
+        </div>
+        <div className="modal-title-section">
+          <h3 id={titleId} className="modal-title">
+            {cookie ? t("cookieEditor.editCookie") : t("cookieEditor.createCookie")}
+          </h3>
+        </div>
+        <button
+          type="button"
+          className="btn btn-icon btn-ghost modal-close-btn"
+          onClick={handleClose}
+          disabled={isSaving}
+          aria-label={t("common.close")}
+        >
+          <Icon name="x" size={16} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit}>
+        <div className="modal-body cookie-editor-body">
           <div className="form-group">
             <label className="form-label" htmlFor="cookie-name">
-              {t("cookieEditor.name")}
+              <Icon name="type" size={14} className="form-label-icon" />
+              <span className="form-label-text">{t("cookieEditor.name")}</span>
             </label>
             <input
+              ref={nameInputRef}
               id="cookie-name"
               type="text"
               className="form-input"
@@ -108,9 +157,11 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="cookie-value">
-              {t("cookieEditor.value")}
+              <Icon name="fileText" size={14} className="form-label-icon" />
+              <span className="form-label-text">{t("cookieEditor.value")}</span>
             </label>
             <textarea
+              ref={valueInputRef}
               id="cookie-value"
               className="form-textarea"
               value={formData.value}
@@ -119,7 +170,8 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="cookie-domain">
-              {t("cookieEditor.domain")}
+              <Icon name="globe" size={14} className="form-label-icon" />
+              <span className="form-label-text">{t("cookieEditor.domain")}</span>
             </label>
             <input
               id="cookie-domain"
@@ -133,7 +185,8 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="cookie-path">
-              {t("cookieEditor.path")}
+              <Icon name="fileText" size={14} className="form-label-icon" />
+              <span className="form-label-text">{t("cookieEditor.path")}</span>
             </label>
             <input
               id="cookie-path"
@@ -147,7 +200,8 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="cookie-expiration">
-              {t("cookieEditor.expiration")}
+              <Icon name="clock" size={14} className="form-label-icon" />
+              <span className="form-label-text">{t("cookieEditor.expiration")}</span>
             </label>
             <input
               id="cookie-expiration"
@@ -164,20 +218,28 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
             />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="cookie-samesite">
-              {t("cookieEditor.sameSite")}
+            <label className="form-label" htmlFor="cookie-samesite-select">
+              <Icon name="shield" size={14} className="form-label-icon" />
+              <span className="form-label-text">{t("cookieEditor.sameSite")}</span>
             </label>
-            <select
-              id="cookie-samesite"
-              className="select-input"
+            <Select
+              name="cookie-samesite"
               value={formData.sameSite}
-              onChange={(e) => setFormData({ ...formData, sameSite: e.target.value as SameSite })}
-            >
-              <option value="unspecified">{t("cookieEditor.unspecified")}</option>
-              <option value="strict">{t("cookieEditor.strict")}</option>
-              <option value="lax">{t("cookieEditor.lax")}</option>
-              <option value="none">{t("cookieEditor.none")}</option>
-            </select>
+              onChange={(value) => {
+                const newSameSite = value as SameSite;
+                setFormData({
+                  ...formData,
+                  sameSite: newSameSite,
+                  secure: newSameSite === "none" ? true : formData.secure,
+                });
+              }}
+              options={[
+                { value: "unspecified", label: t("cookieEditor.unspecified") },
+                { value: "strict", label: t("cookieEditor.strict") },
+                { value: "lax", label: t("cookieEditor.lax") },
+                { value: "none", label: t("cookieEditor.none") },
+              ]}
+            />
           </div>
           <div className="checkbox-group">
             <label className="checkbox-label">
@@ -185,8 +247,13 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
                 type="checkbox"
                 checked={formData.secure}
                 onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
+                disabled={formData.sameSite === "none"}
               />
+              <Icon name="lock" size={14} className="checkbox-icon" />
               <span>{t("cookieEditor.secureOnly")}</span>
+              {formData.sameSite === "none" && (
+                <span className="checkbox-hint">({t("cookieEditor.secureRequiredForNone")})</span>
+              )}
             </label>
             <label className="checkbox-label">
               <input
@@ -194,37 +261,45 @@ const CookieEditorContent = ({ cookie, currentDomain, onClose, onSave }: Omit<Pr
                 checked={formData.httpOnly}
                 onChange={(e) => setFormData({ ...formData, httpOnly: e.target.checked })}
               />
+              <Icon name="shield" size={14} className="checkbox-icon" />
               <span>{t("cookieEditor.httpOnlyOnly")}</span>
             </label>
           </div>
-          <div className="confirm-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              data-testid="cancel-editor"
-              disabled={isSaving}
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              data-testid="save-editor"
-              disabled={isSaving}
-            >
-              {isSaving ? t("common.saving") : t("common.save")}
-            </button>
-          </div>
-        </form>
-      </dialog>
-    </div>
+        </div>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleClose}
+            data-testid="cancel-editor"
+            disabled={isSaving}
+          >
+            <Icon name="x" size={14} />
+            {t("common.cancel")}
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            data-testid="save-editor"
+            disabled={isSaving}
+          >
+            <Icon name="save" size={14} />
+            {isSaving ? t("common.saving") : t("common.save")}
+          </button>
+        </div>
+      </form>
+    </dialog>
   );
 };
 
-export const CookieEditor = ({ isOpen, cookie, currentDomain, onClose, onSave }: Props) => {
-  if (!isOpen) return null;
-
+export const CookieEditor = ({
+  isOpen,
+  cookie,
+  currentDomain,
+  onClose,
+  onSave,
+  triggerElement,
+}: Props) => {
   return (
     <CookieEditorContent
       key={
@@ -232,10 +307,12 @@ export const CookieEditor = ({ isOpen, cookie, currentDomain, onClose, onSave }:
           ? `edit-${cookie.domain}-${cookie.name}-${cookie.path}-${cookie.storeId || "0"}`
           : "new"
       }
+      isOpen={isOpen}
       cookie={cookie}
       currentDomain={currentDomain}
       onClose={onClose}
       onSave={onSave}
+      triggerElement={triggerElement}
     />
   );
 };

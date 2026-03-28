@@ -5,40 +5,32 @@ import { metricsService } from "./metrics";
 export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
-): Promise<chrome.cookies.Cookie | null> => {
+): Promise<chrome.cookies.Cookie> => {
   const startTime = Date.now();
   let success = false;
   let errorCode: string | undefined;
-  let result: chrome.cookies.Cookie | null = null;
+  let result: chrome.cookies.Cookie;
 
   try {
-    const editResult = await editCookieUtil(originalCookie, updates);
-
-    if (editResult.success) {
-      success = true;
-      result = editResult.cookie ?? null;
-    } else if (editResult.error) {
-      const report = classifyError(new Error(editResult.error), "cookie update", {
-        domain: originalCookie.domain,
-      });
-      errorCode = report.code;
-    }
+    result = await editCookieUtil(originalCookie, updates);
+    success = true;
   } catch (e) {
     const report = classifyError(e, "cookie update", {
       domain: originalCookie.domain,
     });
     errorCode = report.code;
-  }
-
-  const durationMs = Date.now() - startTime;
-  try {
-    metricsService.recordCookieMutation("editCookie", success, durationMs, {
-      domain: originalCookie.domain,
-      errorCode,
-      metadata: { cookieName: originalCookie.name },
-    });
-  } catch (metricsError) {
-    console.warn("Failed to record editCookie metrics:", metricsError);
+    throw e;
+  } finally {
+    const durationMs = Date.now() - startTime;
+    try {
+      metricsService.recordCookieMutation("editCookie", success, durationMs, {
+        domain: originalCookie.domain,
+        errorCode,
+        metadata: { cookieName: originalCookie.name },
+      });
+    } catch (metricsError) {
+      console.warn("Failed to record editCookie metrics:", metricsError);
+    }
   }
 
   return result;

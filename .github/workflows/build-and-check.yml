@@ -262,8 +262,47 @@ jobs:
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
+          # 首先测试网络连接
+          if ! curl -s --head --fail --connect-timeout 10 --max-time 15 "https://registry.npmjs.org" > /dev/null 2>&1; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **审计失败：无法连接到 npm registry**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "可能是临时网络问题或 registry 故障，请重试或等待后再次运行。" >> $GITHUB_STEP_SUMMARY
+            echo "audit_status=registry_error" >> $GITHUB_OUTPUT
+            echo "::warning::安全审计失败：无法连接到包注册表，请重试"
+            exit 0
+          fi
+
+          # 获取 JSON 格式的审计结果（仅执行一次），分离 stdout 和 stderr
           AUDIT_EXIT_CODE=0
-          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
+          AUDIT_JSON=$(pnpm audit --json --audit-level=moderate 2>/tmp/audit-stderr.log) || AUDIT_EXIT_CODE=$?
+          
+          # 从 JSON 中提取或格式化人类可读的输出
+          JQ_AVAILABLE=0
+          if command -v jq &> /dev/null; then
+            JQ_AVAILABLE=1
+          fi
+          
+          if [ $JQ_AVAILABLE -eq 1 ] && echo "$AUDIT_JSON" | jq -e . &> /dev/null; then
+            AUDIT_OUTPUT=$(echo "$AUDIT_JSON" | jq -r '
+              if .advisories then
+                (
+                  "Found \(.metadata.vulnerabilities.total // 0) vulnerabilities\n" +
+                  "  Info: \(.metadata.vulnerabilities.info // 0), Low: \(.metadata.vulnerabilities.low // 0), Moderate: \(.metadata.vulnerabilities.moderate // 0), High: \(.metadata.vulnerabilities.high // 0), Critical: \(.metadata.vulnerabilities.critical // 0)\n" +
+                  (if (.advisories | length) > 0 then
+                    "\nAdvisories:\n" +
+                    (.advisories | to_entries | map("  - \(.key): \(.value.title // \"unknown\") [\(.value.severity // \"unknown\")]") | join("\n"))
+                  else
+                    ""
+                  end)
+                )
+              else
+                .
+              end
+            ' 2>/dev/null) || AUDIT_OUTPUT="$AUDIT_JSON"
+          else
+            AUDIT_OUTPUT="$AUDIT_JSON"
+          fi
 
           echo "<details><summary>点击查看完整审计报告</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -277,18 +316,40 @@ jobs:
             echo "✅ 未发现安全漏洞" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=clean" >> $GITHUB_OUTPUT
           else
-            if echo "$AUDIT_OUTPUT" | grep -qiE "(registry|network|ECONNRESET|ETIMEDOUT|ENOTFOUND|5[0-9]{2})"; then
+            # 使用 jq 检查 JSON 输出中是否有漏洞（说明有漏洞而不是网络错误）
+            # 检查 .metadata.vulnerabilities.total > 0 或 .advisories 有内容
+            HAS_VULNERABILITIES=0
+            if [ $JQ_AVAILABLE -eq 1 ]; then
+              # 检查 metadata.vulnerabilities.total > 0
+              if echo "$AUDIT_JSON" | jq -e '(.metadata.vulnerabilities.total | tonumber) > 0' > /dev/null 2>&1; then
+                HAS_VULNERABILITIES=1
+              # 或者检查 advisories 是否有内容
+              elif echo "$AUDIT_JSON" | jq -e '(.advisories | length) > 0' > /dev/null 2>&1; then
+                HAS_VULNERABILITIES=1
+              fi
+            fi
+            
+            # 同时检查 stderr 中是否有网络错误相关信息
+            IS_REGISTRY_ERROR=0
+            if [ -f /tmp/audit-stderr.log ] && [ -s /tmp/audit-stderr.log ]; then
+              if grep -i -E "(network|registry|connect|timeout|ECONNREFUSED|ENOTFOUND|503|502|429)" /tmp/audit-stderr.log > /dev/null 2>&1; then
+                IS_REGISTRY_ERROR=1
+              fi
+            fi
+            
+            if [ $HAS_VULNERABILITIES -eq 1 ] || [ $IS_REGISTRY_ERROR -eq 0 ]; then
+              # 如果有漏洞检测到，或者没有明确的网络错误信号，则认为是发现了漏洞
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
+              echo "audit_status=warning" >> $GITHUB_OUTPUT
+              echo "::error::发现安全漏洞，请查看审计报告并修复"
+            else
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "❌ **审计失败：无法连接到包注册表**" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "可能是临时网络问题或 registry 故障，请重试或等待后再次运行。" >> $GITHUB_STEP_SUMMARY
               echo "audit_status=registry_error" >> $GITHUB_OUTPUT
               echo "::warning::安全审计失败：无法连接到包注册表，请重试"
-            else
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
-              echo "audit_status=warning" >> $GITHUB_OUTPUT
-              echo "::error::发现安全漏洞，请查看审计报告并修复"
             fi
           fi
 

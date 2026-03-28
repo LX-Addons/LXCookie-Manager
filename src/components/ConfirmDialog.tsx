@@ -1,5 +1,7 @@
-import { useEffect, useRef, useId } from "react";
+import { useRef, useId, useCallback, useEffect } from "react";
 import { useTranslation } from "@/hooks/useTranslation";
+import { Icon } from "./Icon";
+import { useDialog } from "@/hooks/useDialog";
 
 interface ConfirmDialogProps {
   readonly isOpen: boolean;
@@ -11,20 +13,17 @@ interface ConfirmDialogProps {
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
   readonly variant?: "danger" | "warning" | "info" | "success";
+  readonly triggerElement?: HTMLElement | null;
 }
 
-const getIconForVariant = (variant: string) => {
-  switch (variant) {
-    case "danger":
-      return "!";
-    case "warning":
-      return "!";
-    case "success":
-      return "✓";
-    case "info":
-    default:
-      return "i";
-  }
+const iconNameMap: Record<
+  NonNullable<ConfirmDialogProps["variant"]>,
+  "alertCircle" | "alertTriangle" | "info" | "checkCircle"
+> = {
+  danger: "alertCircle",
+  warning: "alertTriangle",
+  info: "info",
+  success: "checkCircle",
 };
 
 export function ConfirmDialog({
@@ -37,79 +36,67 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = "warning",
+  triggerElement,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
   const bodyId = useId();
-  const describedBy = description ? `${descriptionId} ${bodyId}` : bodyId;
+  const isClosingRef = useRef(false);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
     if (isOpen) {
-      if (!dialog.open) {
-        dialog.showModal();
-        confirmBtnRef.current?.focus();
-      }
-    } else {
-      if (dialog.open) {
-        dialog.close();
-      }
+      isClosingRef.current = false;
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
+  const iconName = iconNameMap[variant];
+  let confirmButtonClass: string;
+  if (variant === "danger") {
+    confirmButtonClass = "btn-danger";
+  } else if (variant === "warning") {
+    confirmButtonClass = "btn-warning";
+  } else if (variant === "success") {
+    confirmButtonClass = "btn-success";
+  } else {
+    confirmButtonClass = "btn-primary";
+  }
 
-    const handleClose = () => {
-      if (isOpen) {
-        onCancel();
-      }
-    };
+  const handleConfirm = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    onConfirm();
+  }, [onConfirm]);
 
-    const handleClick = (e: MouseEvent) => {
-      if (e.target === dialog) {
-        onCancel();
-      }
-    };
-
-    dialog.addEventListener("close", handleClose);
-    dialog.addEventListener("click", handleClick);
-    return () => {
-      dialog.removeEventListener("close", handleClose);
-      dialog.removeEventListener("click", handleClick);
-    };
-  }, [isOpen, onCancel]);
-
-  const getConfirmButtonClass = () => {
-    switch (variant) {
-      case "danger":
-        return "btn-danger";
-      case "success":
-        return "btn-success";
-      case "info":
-        return "btn-primary";
-      case "warning":
-      default:
-        return "btn-warning";
+  const handleOpenFocus = useCallback(() => {
+    if (variant === "danger") {
+      cancelButtonRef.current?.focus();
+    } else {
+      confirmButtonRef.current?.focus();
     }
-  };
+  }, [variant]);
+
+  const { dialogRef, handleClose } = useDialog({
+    isOpen,
+    onClose: onCancel,
+    triggerElement,
+    onOpenFocus: handleOpenFocus,
+  });
+
+  const describedByIds = description ? `${descriptionId} ${bodyId}` : bodyId;
 
   return (
     <dialog
       ref={dialogRef}
       className="confirm-modal"
       aria-labelledby={titleId}
-      aria-describedby={describedBy}
+      aria-describedby={describedByIds}
     >
       <div className="modal-header">
-        <div className={`modal-icon ${variant}`} aria-hidden="true">
-          {getIconForVariant(variant)}
+        <div className={`modal-icon ${variant}`}>
+          <Icon name={iconName} size={20} />
         </div>
         <div className="modal-title-section">
           <h3 id={titleId} className="modal-title">
@@ -128,13 +115,13 @@ export function ConfirmDialog({
         </p>
       </div>
       <div className="modal-actions">
-        <button className="btn btn-secondary" onClick={onCancel}>
+        <button ref={cancelButtonRef} className="btn btn-secondary" onClick={handleClose}>
           {cancelText ?? t("common.cancel")}
         </button>
         <button
-          ref={confirmBtnRef}
-          className={`btn ${getConfirmButtonClass()}`}
-          onClick={onConfirm}
+          ref={confirmButtonRef}
+          className={`btn ${confirmButtonClass}`}
+          onClick={handleConfirm}
         >
           {confirmText ?? t("common.confirm")}
         </button>

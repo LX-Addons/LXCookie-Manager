@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { Icon } from "@/components/Icon";
 import { useStorage } from "@/hooks/useStorage";
 import { WHITELIST_KEY, BLACKLIST_KEY } from "@/lib/store";
 import type { DomainList } from "@/types";
@@ -100,7 +101,13 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
           <div
             className={`current-domain-status ${isCurrentDomainInList ? "in-list" : "not-in-list"}`}
           >
-            <span className="status-icon">{isCurrentDomainInList ? "\u2713" : "\u25CB"}</span>
+            <span className="status-icon">
+              {isCurrentDomainInList ? (
+                <Icon name="checkCircle" size={16} />
+              ) : (
+                <Icon name="info" size={16} />
+              )}
+            </span>
             <span className="status-text">
               {isCurrentDomainInList
                 ? t("domainManager.currentDomainInList")
@@ -171,7 +178,13 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
         </div>
         {list.length === 0 ? (
           <div className="rule-list-empty">
-            <span className="empty-icon">{type === "whitelist" ? "*" : "!"}</span>
+            <span className="empty-icon">
+              {type === "whitelist" ? (
+                <Icon name="shield" size={24} />
+              ) : (
+                <Icon name="shieldAlert" size={24} />
+              )}
+            </span>
             <p className="empty-text">
               {type === "whitelist"
                 ? t("domainManager.emptyWhitelist")

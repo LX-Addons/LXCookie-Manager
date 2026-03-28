@@ -16,12 +16,6 @@ export interface CookieRemoveResult {
   error?: string;
 }
 
-export interface CookieCreateResult {
-  success: boolean;
-  cookie?: chrome.cookies.Cookie;
-  error?: string;
-}
-
 const shouldClearCookieByType = (
   cookie: chrome.cookies.Cookie,
   clearType: CookieClearType
@@ -126,10 +120,10 @@ const buildCookieSetDetails = (
 
 export const createCookie = async (
   cookie: Partial<chrome.cookies.Cookie>
-): Promise<CookieCreateResult> => {
+): Promise<chrome.cookies.Cookie> => {
   if (!cookie.name || !cookie.domain) {
     console.warn("createCookie: missing required fields (name or domain)");
-    return { success: false, error: "Missing required fields (name or domain)" };
+    throw new Error("Missing required fields (name or domain)");
   }
 
   const fullCookie: chrome.cookies.Cookie = {
@@ -139,27 +133,24 @@ export const createCookie = async (
 
   const result = buildCookieSetDetails(fullCookie);
   if (!result.success) {
-    return { success: false, error: "Invalid cookie data" };
+    throw new Error("Invalid cookie data");
   }
 
   const createdCookie = await chrome.cookies.set(result.setDetails);
   if (!createdCookie) {
-    return { success: false, error: "Failed to create cookie" };
+    throw new Error("Failed to create cookie");
   }
-  return { success: true, cookie: createdCookie };
+  return createdCookie;
 };
 
 export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
-): Promise<CookieCreateResult> => {
+): Promise<chrome.cookies.Cookie> => {
   const supportedFields = new Set(["value", "httpOnly", "secure", "sameSite", "expirationDate"]);
   const unsupportedKeys = Object.keys(updates).filter((key) => !supportedFields.has(key));
   if (unsupportedKeys.length > 0) {
-    return {
-      success: false,
-      error: `Unsupported cookie fields: ${unsupportedKeys.join(", ")}`,
-    };
+    throw new Error(`Unsupported cookie fields: ${unsupportedKeys.join(", ")}`);
   }
 
   const safeUpdates: Partial<chrome.cookies.Cookie> = {};
@@ -197,14 +188,14 @@ export const editCookie = async (
 
   const result = buildCookieSetDetails(nextCookie);
   if (!result.success) {
-    return { success: false, error: "Invalid cookie data" };
+    throw new Error("Invalid cookie data");
   }
 
   const updatedCookie = await chrome.cookies.set(result.setDetails);
   if (!updatedCookie) {
-    return { success: false, error: "Failed to edit cookie" };
+    throw new Error("Failed to edit cookie");
   }
-  return { success: true, cookie: updatedCookie };
+  return updatedCookie;
 };
 
 export const getAllCookies = async (): Promise<chrome.cookies.Cookie[]> => {
