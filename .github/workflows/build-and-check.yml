@@ -273,12 +273,17 @@ jobs:
             exit 0
           fi
 
-          # 获取 JSON 格式的审计结果（仅执行一次）
+          # 获取 JSON 格式的审计结果（仅执行一次），分离 stdout 和 stderr
           AUDIT_EXIT_CODE=0
-          AUDIT_JSON=$(pnpm audit --json --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
+          AUDIT_JSON=$(pnpm audit --json --audit-level=moderate 2>/tmp/audit-stderr.log) || AUDIT_EXIT_CODE=$?
           
           # 从 JSON 中提取或格式化人类可读的输出
-          if command -v jq &> /dev/null && echo "$AUDIT_JSON" | jq -e . &> /dev/null; then
+          JQ_AVAILABLE=0
+          if command -v jq &> /dev/null; then
+            JQ_AVAILABLE=1
+          fi
+          
+          if [ $JQ_AVAILABLE -eq 1 ] && echo "$AUDIT_JSON" | jq -e . &> /dev/null; then
             AUDIT_OUTPUT=$(echo "$AUDIT_JSON" | jq -r '
               if .advisories then
                 (
@@ -286,7 +291,7 @@ jobs:
                   "  Info: \(.metadata.vulnerabilities.info // 0), Low: \(.metadata.vulnerabilities.low // 0), Moderate: \(.metadata.vulnerabilities.moderate // 0), High: \(.metadata.vulnerabilities.high // 0), Critical: \(.metadata.vulnerabilities.critical // 0)\n" +
                   (if (.advisories | length) > 0 then
                     "\nAdvisories:\n" +
-                    (.advisories | to_entries | map("  - \(.key): \(.value.title // "unknown") [\(.value.severity // "unknown")]") | join("\n"))
+                    (.advisories | to_entries | map("  - \(.key): \(.value.title // \"unknown\") [\(.value.severity // \"unknown\")]") | join("\n"))
                   else
                     ""
                   end)
@@ -312,7 +317,14 @@ jobs:
             echo "audit_status=clean" >> $GITHUB_OUTPUT
           else
             # 使用 jq 检查 JSON 输出中是否有 vulnerabilities 字段（说明有漏洞而不是网络错误）
-            if echo "$AUDIT_JSON" | jq -e '.vulnerabilities' > /dev/null 2>&1; then
+            HAS_VULNERABILITIES=0
+            if [ $JQ_AVAILABLE -eq 1 ]; then
+              if echo "$AUDIT_JSON" | jq -e '.vulnerabilities' > /dev/null 2>&1; then
+                HAS_VULNERABILITIES=1
+              fi
+            fi
+            
+            if [ $HAS_VULNERABILITIES -eq 1 ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
               echo "audit_status=warning" >> $GITHUB_OUTPUT

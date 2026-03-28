@@ -124,9 +124,17 @@ export const getLighterColor = (hex: string): string => {
 export const getContrastColor = (hex: string): string => {
   const rgb = hexToRgb(hex);
   if (!rgb) return "#ffffff";
-  const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
-  const contrastWithWhite = (1 + 0.05) / (luminance + 0.05);
-  const contrastWithDark = (luminance + 0.05) / 0.05;
+  const bgLuminance = getLuminance(rgb.r, rgb.g, rgb.b);
+  
+  // Calculate real luminance for both text colors
+  const whiteLuminance = 1.0;
+  const darkRgb = hexToRgb("#1a202c");
+  const darkLuminance = darkRgb ? getLuminance(darkRgb.r, darkRgb.g, darkRgb.b) : 0;
+  
+  // Standard contrast ratio formula: (L1 + 0.05) / (L2 + 0.05), L1 > L2
+  const contrastWithWhite = Math.max((whiteLuminance + 0.05) / (bgLuminance + 0.05), (bgLuminance + 0.05) / (whiteLuminance + 0.05));
+  const contrastWithDark = Math.max((darkLuminance + 0.05) / (bgLuminance + 0.05), (bgLuminance + 0.05) / (darkLuminance + 0.05));
+  
   return contrastWithDark >= contrastWithWhite ? "#1a202c" : "#ffffff";
 };
 
