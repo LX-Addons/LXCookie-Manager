@@ -44,20 +44,19 @@ const SelectInner = <T extends string>({
 
   const handleToggle = useCallback(() => {
     if (!disabled) {
-      setIsOpen((prevIsOpen) => {
-        const newIsOpen = !prevIsOpen;
-        if (newIsOpen && options.length > 0) {
+      if (isOpen) {
+        closeSelect("toggle");
+      } else {
+        setIsOpen(true);
+        if (options.length > 0) {
           const selectedIndex = options.findIndex((opt) => opt.value === value);
           setFocusedIndex(selectedIndex === -1 ? 0 : selectedIndex);
-        } else if (newIsOpen) {
-          setFocusedIndex(-1);
         } else {
-          closeSelect("toggle");
+          setFocusedIndex(-1);
         }
-        return newIsOpen;
-      });
+      }
     }
-  }, [disabled, options, value, closeSelect]);
+  }, [disabled, isOpen, options, value, closeSelect]);
 
   const handleOptionClick = useCallback(
     (optionValue: T) => {

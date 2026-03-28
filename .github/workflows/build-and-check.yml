@@ -316,15 +316,29 @@ jobs:
             echo "✅ 未发现安全漏洞" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=clean" >> $GITHUB_OUTPUT
           else
-            # 使用 jq 检查 JSON 输出中是否有 vulnerabilities 字段（说明有漏洞而不是网络错误）
+            # 使用 jq 检查 JSON 输出中是否有漏洞（说明有漏洞而不是网络错误）
+            # 检查 .metadata.vulnerabilities.total > 0 或 .advisories 有内容
             HAS_VULNERABILITIES=0
             if [ $JQ_AVAILABLE -eq 1 ]; then
-              if echo "$AUDIT_JSON" | jq -e '.vulnerabilities' > /dev/null 2>&1; then
+              # 检查 metadata.vulnerabilities.total > 0
+              if echo "$AUDIT_JSON" | jq -e '(.metadata.vulnerabilities.total | tonumber) > 0' > /dev/null 2>&1; then
+                HAS_VULNERABILITIES=1
+              # 或者检查 advisories 是否有内容
+              elif echo "$AUDIT_JSON" | jq -e '(.advisories | length) > 0' > /dev/null 2>&1; then
                 HAS_VULNERABILITIES=1
               fi
             fi
             
-            if [ $HAS_VULNERABILITIES -eq 1 ]; then
+            # 同时检查 stderr 中是否有网络错误相关信息
+            IS_REGISTRY_ERROR=0
+            if [ -f /tmp/audit-stderr.log ] && [ -s /tmp/audit-stderr.log ]; then
+              if grep -i -E "(network|registry|connect|timeout|ECONNREFUSED|ENOTFOUND|503|502|429)" /tmp/audit-stderr.log > /dev/null 2>&1; then
+                IS_REGISTRY_ERROR=1
+              fi
+            fi
+            
+            if [ $HAS_VULNERABILITIES -eq 1 ] || [ $IS_REGISTRY_ERROR -eq 0 ]; then
+              # 如果有漏洞检测到，或者没有明确的网络错误信号，则认为是发现了漏洞
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
               echo "audit_status=warning" >> $GITHUB_OUTPUT
