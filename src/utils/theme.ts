@@ -127,7 +127,7 @@ export const getContrastColor = (hex: string): string => {
   const bgLuminance = getLuminance(rgb.r, rgb.g, rgb.b);
 
   // Calculate real luminance for both text colors
-  const whiteLuminance = 1.0;
+  const whiteLuminance = 1;
   const darkRgb = hexToRgb("#1a202c");
   const darkLuminance = darkRgb ? getLuminance(darkRgb.r, darkRgb.g, darkRgb.b) : 0;
 

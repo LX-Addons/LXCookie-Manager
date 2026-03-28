@@ -18,6 +18,8 @@ import type {
   Settings as SettingsType,
   Cookie as CookieType,
   CustomTheme,
+  GetCurrentTabCookiesData,
+  ApiResponse,
 } from "@/types";
 import { CookieClearType, ThemeMode, ModeType, ErrorCode } from "@/types";
 import { isInList } from "@/utils/domain";
@@ -189,6 +191,47 @@ function IndexPopup() {
     setCurrentCookies([]);
   }, []);
 
+  const handleCookiesResponseSuccess = useCallback(
+    async (cookiesData: GetCurrentTabCookiesData, requestId: number, isInit: boolean) => {
+      const requestedDomain = cookiesData.domain;
+      const statsResponse = await BackgroundService.getStats(requestedDomain);
+      if (requestId !== loadRequestIdRef.current) return;
+
+      if (statsResponse.success && statsResponse.data) {
+        setCurrentDomain(requestedDomain);
+        setCurrentCookies(cookiesData.cookies);
+        setStats(statsResponse.data);
+        setLoadingState("idle");
+      } else if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+        resetPermissionDeniedState();
+      } else {
+        setLoadingState("load-failed");
+        if (!isInit) {
+          showMessage(t("popup.updateStatsFailed"), true);
+        }
+      }
+    },
+    [resetPermissionDeniedState, showMessage, t]
+  );
+
+  const handleCookiesResponse = useCallback(
+    async (
+      cookiesResponse: ApiResponse<GetCurrentTabCookiesData>,
+      requestId: number,
+      isInit: boolean
+    ) => {
+      if (cookiesResponse.success && cookiesResponse.data) {
+        await handleCookiesResponseSuccess(cookiesResponse.data, requestId, isInit);
+      } else if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
+        resetPermissionDeniedState();
+      } else {
+        setLoadingState("domain-unavailable");
+        setCurrentDomain("");
+      }
+    },
+    [handleCookiesResponseSuccess, resetPermissionDeniedState]
+  );
+
   const loadStats = useCallback(
     async (options: { isInit: boolean }) => {
       const { isInit } = options;
@@ -198,31 +241,7 @@ function IndexPopup() {
         setLoadingState("loading");
         const cookiesResponse = await BackgroundService.getCurrentTabCookies();
         if (requestId !== loadRequestIdRef.current) return;
-
-        if (cookiesResponse.success && cookiesResponse.data) {
-          requestedDomain = cookiesResponse.data.domain;
-          const statsResponse = await BackgroundService.getStats(requestedDomain);
-          if (requestId !== loadRequestIdRef.current) return;
-
-          if (statsResponse.success && statsResponse.data) {
-            setCurrentDomain(requestedDomain);
-            setCurrentCookies(cookiesResponse.data.cookies);
-            setStats(statsResponse.data);
-            setLoadingState("idle");
-          } else if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
-            resetPermissionDeniedState();
-          } else {
-            setLoadingState("load-failed");
-            if (!isInit) {
-              showMessage(t("popup.updateStatsFailed"), true);
-            }
-          }
-        } else if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
-          resetPermissionDeniedState();
-        } else {
-          setLoadingState("domain-unavailable");
-          setCurrentDomain("");
-        }
+        await handleCookiesResponse(cookiesResponse, requestId, isInit);
       } catch (e) {
         if (requestId !== loadRequestIdRef.current) return;
         console.error("Failed to load stats:", {
@@ -236,7 +255,7 @@ function IndexPopup() {
         }
       }
     },
-    [showMessage, t, resetPermissionDeniedState]
+    [handleCookiesResponse, showMessage, t]
   );
 
   const init = useCallback(async () => {
@@ -379,6 +398,71 @@ function IndexPopup() {
     },
     [clearCookies, settings.clearType, showConfirm, t]
   );
+
+  const handleAddToWhitelist = useCallback(
+    (domains: string[]) => {
+      const newDomains = domains.filter((d) => !isInList(d, whitelist));
+      if (newDomains.length > 0) {
+        setWhitelist([...whitelist, ...newDomains]);
+      }
+    },
+    [whitelist, setWhitelist]
+  );
+
+  const handleAddToBlacklist = useCallback(
+    (domains: string[]) => {
+      const newDomains = domains.filter((d) => !isInList(d, blacklist));
+      if (newDomains.length > 0) {
+        setBlacklist([...blacklist, ...newDomains]);
+      }
+    },
+    [blacklist, setBlacklist]
+  );
+
+  const handleClearBlacklist = useCallback(async () => {
+    try {
+      const response = await BackgroundService.cleanupWithFilter(
+        "domain-list",
+        undefined,
+        "manual-all",
+        {
+          clearType: CookieClearType.ALL,
+          clearCache: settings.clearCache,
+          clearLocalStorage: settings.clearLocalStorage,
+          clearIndexedDB: settings.clearIndexedDB,
+          domainList: blacklist,
+        }
+      );
+
+      if (response.success && response.data) {
+        const result = response.data;
+        if (result.cookiesRemoved > 0) {
+          showMessage(t("popup.clearedBlacklist", { count: result.cookiesRemoved }));
+          updateStats();
+        } else {
+          showMessage(t("popup.noBlacklistCookies"));
+        }
+      } else {
+        showMessage(t("popup.clearCookiesFailed"), true);
+      }
+    } catch (e) {
+      console.error("Failed to clear blacklist:", {
+        error: e,
+        trigger: "clearBlacklist",
+        mode: settings.mode,
+      });
+      showMessage(t("popup.clearCookiesFailed"), true);
+    }
+  }, [
+    blacklist,
+    settings.clearCache,
+    settings.clearLocalStorage,
+    settings.clearIndexedDB,
+    settings.mode,
+    showMessage,
+    t,
+    updateStats,
+  ]);
 
   useEffect(() => {
     const cookieListener = () => {
@@ -757,18 +841,8 @@ function IndexPopup() {
                   whitelist={whitelist}
                   blacklist={blacklist}
                   showCookieRisk={settings.showCookieRisk}
-                  onAddToWhitelist={(domains) => {
-                    const newDomains = domains.filter((d) => !isInList(d, whitelist));
-                    if (newDomains.length > 0) {
-                      setWhitelist([...whitelist, ...newDomains]);
-                    }
-                  }}
-                  onAddToBlacklist={(domains) => {
-                    const newDomains = domains.filter((d) => !isInList(d, blacklist));
-                    if (newDomains.length > 0) {
-                      setBlacklist([...blacklist, ...newDomains]);
-                    }
-                  }}
+                  onAddToWhitelist={handleAddToWhitelist}
+                  onAddToBlacklist={handleAddToBlacklist}
                 />
 
                 <section className="danger-zone-panel panel">
@@ -796,45 +870,7 @@ function IndexPopup() {
               currentDomain={currentDomain}
               onMessage={showMessage}
               onClearBlacklist={
-                settings.mode === ModeType.BLACKLIST
-                  ? async () => {
-                      try {
-                        const response = await BackgroundService.cleanupWithFilter(
-                          "domain-list",
-                          undefined,
-                          "manual-all",
-                          {
-                            clearType: CookieClearType.ALL,
-                            clearCache: settings.clearCache,
-                            clearLocalStorage: settings.clearLocalStorage,
-                            clearIndexedDB: settings.clearIndexedDB,
-                            domainList: blacklist,
-                          }
-                        );
-
-                        if (response.success && response.data) {
-                          const result = response.data;
-                          if (result.cookiesRemoved > 0) {
-                            showMessage(
-                              t("popup.clearedBlacklist", { count: result.cookiesRemoved })
-                            );
-                            updateStats();
-                          } else {
-                            showMessage(t("popup.noBlacklistCookies"));
-                          }
-                        } else {
-                          showMessage(t("popup.clearCookiesFailed"), true);
-                        }
-                      } catch (e) {
-                        console.error("Failed to clear blacklist:", {
-                          error: e,
-                          trigger: "clearBlacklist",
-                          mode: settings.mode,
-                        });
-                        showMessage(t("popup.clearCookiesFailed"), true);
-                      }
-                    }
-                  : undefined
+                settings.mode === ModeType.BLACKLIST ? handleClearBlacklist : undefined
               }
             />
           </div>

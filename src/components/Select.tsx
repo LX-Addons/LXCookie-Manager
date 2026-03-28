@@ -211,7 +211,7 @@ const SelectInner = <T extends string>({
           <div
             ref={dropdownRef}
             className="custom-select-dropdown"
-            role="listbox"
+            role="listbox" // NOSONAR
             aria-label={label || name}
             onKeyDown={handleKeyDown}
             tabIndex={0}
