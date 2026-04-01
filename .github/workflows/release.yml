@@ -109,13 +109,24 @@ jobs:
           PREVIOUS_TAG=$(git tag --merged HEAD --sort=-v:refname | grep -E '^v[0-9]' | grep -vx "$CURRENT_TAG" | head -n 1 || true)
           echo "tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
 
+      - name: 准备 Cookie 数据（新鲜度强制，EasyPrivacy 必需）
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          echo "📥 准备 Cookie 数据..."
+          echo "========================================"
+          echo "🔒 Release 模式 - EasyPrivacy 必需 + 新鲜度强制"
+          echo "   规则: 只有当 EasyPrivacy 成功且版本日期可证明新鲜时，才视为满足新鲜度要求"
+          echo "   无法证明新鲜时，一律失败"
+          echo "   lastUpdated 仅是本地生成时间，不代表上游发布日期"
+          pnpm run prepare:cookie-data:release
+
       - name: 构建扩展
         if: steps.check_tag.outputs.exists == 'false'
-        run: pnpm run build
+        run: pnpm run build:dist
 
       - name: 打包扩展
         if: steps.check_tag.outputs.exists == 'false'
-        run: pnpm run zip
+        run: pnpm run zip:dist
 
       - name: 获取 zip 文件路径
         if: steps.check_tag.outputs.exists == 'false'

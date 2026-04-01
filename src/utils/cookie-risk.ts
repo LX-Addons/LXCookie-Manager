@@ -4,17 +4,16 @@ import {
   THIRD_PARTY_TRACKERS,
   SENSITIVE_COOKIE_KEYWORDS,
 } from "@/lib/constants";
-import { isCookieDomainMatch, normalizeDomain } from "./domain";
+import { isCookieDomainMatch, normalizeDomain, isInList } from "./domain";
 
 export const isTrackingCookie = (cookie: { name: string; domain: string }): boolean => {
   const lowerName = cookie.name.toLowerCase();
-  const lowerDomain = cookie.domain.toLowerCase();
 
   if (TRACKING_COOKIE_KEYWORDS.some((keyword) => lowerName.includes(keyword))) {
     return true;
   }
 
-  if (THIRD_PARTY_TRACKERS.some((tracker) => lowerDomain.includes(tracker))) {
+  if (isInList(cookie.domain, THIRD_PARTY_TRACKERS)) {
     return true;
   }
 
