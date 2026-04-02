@@ -1,4 +1,4 @@
-import { RiskLevel } from "@/types";
+import type { RiskLevel } from "@/types";
 
 export const getCookieTypeName = (type: string, t?: (key: string) => string): string => {
   if (t) {

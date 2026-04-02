@@ -1,4 +1,4 @@
-import { CookieRisk, CookieRiskFactors, RiskLevel, SameSite } from "@/types";
+import type { CookieRisk, CookieRiskFactors, RiskLevel, SameSite } from "@/types";
 import {
   TRACKING_COOKIE_KEYWORDS_SET,
   THIRD_PARTY_TRACKERS_SET,
@@ -121,7 +121,6 @@ export interface CookieForRiskAssessment {
   sameSite?: SameSite;
   session?: boolean;
   expirationDate?: number;
-  path?: string;
 }
 
 export const assessCookieRisk = (

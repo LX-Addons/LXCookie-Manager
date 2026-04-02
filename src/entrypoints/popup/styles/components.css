@@ -1312,11 +1312,6 @@
   color: var(--text-3);
 }
 
-.risk-factor-item.factor-path {
-  background: var(--surface-2);
-  color: var(--text-3);
-}
-
 .theme-dark .risk-factor-item.factor-tracking {
   background: var(--danger-tint-15);
   color: var(--danger-500);

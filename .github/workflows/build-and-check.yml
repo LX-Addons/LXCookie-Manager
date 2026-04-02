@@ -442,11 +442,11 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.sha }}"
-            pnpm run verify:cookie-baseline -- --pr "$BASE_SHA" "$HEAD_SHA"
+            pnpm run verify:cookie-baseline --pr "$BASE_SHA" "$HEAD_SHA"
           else
             BEFORE_SHA="${{ github.event.before }}"
             AFTER_SHA="${{ github.sha }}"
-            pnpm run verify:cookie-baseline -- --push "$BEFORE_SHA" "$AFTER_SHA"
+            pnpm run verify:cookie-baseline --push "$BEFORE_SHA" "$AFTER_SHA"
           fi
 
       - name: 准备 Cookie 数据
