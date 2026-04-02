@@ -1,8 +1,9 @@
-import { writeFileSync, mkdirSync, existsSync, readFileSync, renameSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { writeFileSync, mkdirSync, existsSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isValidHostname, isValidCookieKeyword } from "../src/lib/cookie-data-validators.js";
 import type { TrackerData } from "../src/data/tracker-domains.d.ts";
+import trackingCookieKeywordsConfig from "./tracking-cookie-keywords.json" with { type: "json" };
 
 /**
  * Cookie 数据维护约定（权威说明）
@@ -48,6 +49,21 @@ const DISCONNECT_URL =
   "https://raw.githubusercontent.com/disconnectme/disconnect-tracking-protection/master/services.json";
 
 const MAX_STALENESS_DAYS = 14;
+const FETCH_TIMEOUT_MS = 30000;
+
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number = FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 interface FreshnessCheckResult {
   isStale: boolean;
@@ -70,7 +86,7 @@ function isValidExistingDataForFreshness(data: unknown): data is TrackerData {
     return false;
   }
   const lastUpdatedDate = new Date(d.lastUpdated);
-  if (isNaN(lastUpdatedDate.getTime())) {
+  if (Number.isNaN(lastUpdatedDate.getTime())) {
     return false;
   }
   if (!d.sources || typeof d.sources !== "object") {
@@ -159,12 +175,11 @@ function parseEasyPrivacy(text: string): {
   for (const line of lines) {
     if (line.startsWith("! Version:")) {
       version = line.replace("! Version:", "").trim();
-      // 尝试从版本字符串解析日期，常见格式如 "202504010000"
-      const dateMatch = version.match(/(\d{4})(\d{2})(\d{2})/);
+      const dateMatch = /(\d{4})(\d{2})(\d{2})/.exec(version);
       if (dateMatch) {
-        const year = parseInt(dateMatch[1], 10);
-        const month = parseInt(dateMatch[2], 10) - 1; // 月份是 0-11
-        const day = parseInt(dateMatch[3], 10);
+        const year = Number.parseInt(dateMatch[1], 10);
+        const month = Number.parseInt(dateMatch[2], 10) - 1;
+        const day = Number.parseInt(dateMatch[3], 10);
         versionDate = new Date(Date.UTC(year, month, day));
       }
     }
@@ -265,10 +280,7 @@ function validateTrackerData(data: TrackerData): { valid: boolean; errors: strin
       errors.push("trackingDomains 不能为空");
     }
 
-    // 全量校验：必须检查每个 trackingDomains 条目，不能只检查前 N 项
-    // 即使数据量再大，也必须完整校验
-    for (let i = 0; i < data.trackingDomains.length; i++) {
-      const domain = data.trackingDomains[i];
+    for (const domain of data.trackingDomains) {
       if (!isValidHostname(domain)) {
         errors.push("trackingDomains 包含无效域名: " + domain);
       }
@@ -282,10 +294,7 @@ function validateTrackerData(data: TrackerData): { valid: boolean; errors: strin
       errors.push("trackingCookieKeywords 不能为空");
     }
 
-    // 全量校验：必须检查每个 trackingCookieKeywords 条目，不能只检查前 N 项
-    // 即使数据量再大，也必须完整校验
-    for (let i = 0; i < data.trackingCookieKeywords.length; i++) {
-      const keyword = data.trackingCookieKeywords[i];
+    for (const keyword of data.trackingCookieKeywords) {
       if (!isValidCookieKeyword(keyword)) {
         errors.push("trackingCookieKeywords 包含无效关键词: " + keyword);
       }
@@ -362,7 +371,7 @@ async function fetchData(): Promise<{
 
   console.log("📥 正在下载 EasyPrivacy 数据...");
   try {
-    const easyPrivacyResponse = await fetch(EASYPRIVACY_URL);
+    const easyPrivacyResponse = await fetchWithTimeout(EASYPRIVACY_URL);
     easyPrivacyDownloaded = easyPrivacyResponse.ok;
     if (easyPrivacyResponse.ok) {
       const easyPrivacyText = await easyPrivacyResponse.text();
@@ -408,7 +417,7 @@ async function fetchData(): Promise<{
 
   console.log("\n📥 正在下载 Disconnect.me 数据...");
   try {
-    const disconnectResponse = await fetch(DISCONNECT_URL);
+    const disconnectResponse = await fetchWithTimeout(DISCONNECT_URL);
     disconnectDownloaded = disconnectResponse.ok;
     if (disconnectResponse.ok) {
       const disconnectJson = (await disconnectResponse.json()) as Record<string, unknown>;
@@ -448,123 +457,7 @@ async function fetchData(): Promise<{
   console.log("\n📊 合并后总计: " + allDomains.size + " 个唯一追踪域名");
   console.log("   - 去重: " + duplicates + " 个重复域名");
 
-  const trackingCookieKeywords = [
-    "_ga",
-    "_gid",
-    "_gat",
-    "utm_",
-    "google_analytics",
-    "fbp",
-    "pixel",
-    "track",
-    "analytics",
-    "ads",
-    "advertising",
-    "marketing",
-    "conversion",
-    "visitor",
-    "unique",
-    "identify",
-    "guid",
-    "uuid",
-    "_fbp",
-    "_fbc",
-    "fr",
-    "datr",
-    "sb",
-    "c_user",
-    "xs",
-    "pl",
-    "pid",
-    "muc",
-    "mu",
-    "guest_id",
-    "personalization_id",
-    "twid",
-    "_pin_unauth",
-    "_pinterest_ct_ua",
-    "_pinterest_ct_rt",
-    "km_ai",
-    "km_lv",
-    "km_uq",
-    "hubspotutk",
-    "__hstc",
-    "__hssrc",
-    "__hssc",
-    "mp_",
-    "mixpanel",
-    "amplitude",
-    "amp_",
-    "ajs_",
-    "segment",
-    "intercom-",
-    "intercomId",
-    "_cio",
-    "cio",
-    "klaviyi",
-    "_klevi",
-    "__kla_id",
-    "keap",
-    "optimizely",
-    "_opt_",
-    "vwo_",
-    "_vis_opt",
-    "hotjar",
-    "_hjid",
-    "_hjSessionUser",
-    "_hjSession",
-    "crazyegg",
-    "mouseflow",
-    "_mf_",
-    "fullstory",
-    "_fs_",
-    "logglytrackingsession",
-    "_lr_",
-    "lytics",
-    "_lio",
-    "quantserve",
-    "__qca",
-    "__qbs",
-    "scorecardresearch",
-    "uid",
-    "uidr",
-    "comscore",
-    "cs_",
-    "nielsen",
-    "nuid",
-    "demdex",
-    "dextp",
-    "everest",
-    "everest_g_v4",
-    "adcloud",
-    "_ac_",
-    "bidswitch",
-    "bscookie",
-    "criteo",
-    "tluid",
-    "tapad_",
-    "tapad_id",
-    "adnxs",
-    "anj",
-    "uuid2",
-    "pubmatic",
-    "kadusercookie",
-    "rubicon",
-    "pb_r",
-    "openx",
-    "ox_",
-    "pubwise",
-    "pw_",
-    "sharethrough",
-    "st_",
-    "teads",
-    "td_",
-    "outbrain",
-    "ob_",
-    "taboola",
-    "tb_",
-    "trc_",
-  ].filter(isValidCookieKeyword);
+  const trackingCookieKeywords = trackingCookieKeywordsConfig.keywords.filter(isValidCookieKeyword);
 
   const validKeywords = new Set<string>();
   for (const keyword of trackingCookieKeywords) {
@@ -575,8 +468,8 @@ async function fetchData(): Promise<{
 
   return {
     data: {
-      trackingDomains: Array.from(allDomains).sort(),
-      trackingCookieKeywords: Array.from(validKeywords).sort(),
+      trackingDomains: Array.from(allDomains).sort((a, b) => a.localeCompare(b)),
+      trackingCookieKeywords: Array.from(validKeywords).sort((a, b) => a.localeCompare(b)),
       lastUpdated: new Date().toISOString(),
       sources: {
         easyprivacy: {
@@ -617,6 +510,134 @@ async function fetchData(): Promise<{
   };
 }
 
+function loadExistingData(outputPath: string): TrackerData | null {
+  if (!existsSync(outputPath)) return null;
+  try {
+    const data = JSON.parse(readFileSync(outputPath, "utf-8")) as TrackerData;
+    if (data?.lastUpdated) {
+      const lastUpdateDate = new Date(data.lastUpdated);
+      const now = new Date();
+      const diffMs = now.getTime() - lastUpdateDate.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      console.log("📅 现有数据更新于: " + data.lastUpdated + " (距今 " + diffDays + " 天前)");
+    }
+    return data;
+  } catch {
+    console.log("⚠️  无法读取现有数据文件");
+    return null;
+  }
+}
+
+function handleValidationFailure(
+  validation: { valid: boolean; errors: string[] },
+  allowFailure: boolean
+): boolean {
+  console.error("❌ 数据验证失败:");
+  for (const error of validation.errors) {
+    console.error("   - " + error);
+  }
+  if (!allowFailure) {
+    process.exit(1);
+  }
+  console.log("\n⚠️  允许失败模式：不覆盖现有 tracker-domains.json");
+  return false;
+}
+
+function handleEasyPrivacyFailure(allowFailure: boolean): boolean {
+  console.error("\n❌ EasyPrivacy 必需模式失败：EasyPrivacy 来源必须成功");
+  console.error("   - EasyPrivacy: ❌ 失败");
+  if (!allowFailure) {
+    process.exit(1);
+  }
+  console.log("\n⚠️  允许失败模式：不覆盖现有 tracker-domains.json");
+  return false;
+}
+
+function logFreshnessInfo(freshness: FreshnessCheckResult): void {
+  if (freshness.checkDate) {
+    console.log(
+      "📅 新鲜度检查基于: " + freshness.checkSource + " (" + freshness.checkDate.toISOString() + ")"
+    );
+    const now = new Date();
+    const nowUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const diffMs = nowUtc.getTime() - freshness.checkDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    console.log("   距今: " + Math.floor(diffDays) + " 天，限制: " + MAX_STALENESS_DAYS + " 天");
+  } else {
+    console.log("⚠️  无法获取可靠的新鲜度检查日期");
+  }
+}
+
+function handleFreshnessFailure(freshness: FreshnessCheckResult, allowFailure: boolean): boolean {
+  console.error("\n❌ 新鲜度强制模式失败：数据不满足新鲜度要求！");
+  console.error("   - 当前数据新鲜度: ❌ 陈旧");
+  console.error("   - 新鲜度检查来源: " + freshness.checkSource);
+  if (!allowFailure) {
+    process.exit(1);
+  }
+  console.log("\n⚠️  允许失败模式：不覆盖现有 tracker-domains.json");
+  return false;
+}
+
+function writeTrackerData(data: TrackerData, outputPath: string, tempPath: string): void {
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true });
+  }
+
+  writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
+  if (existsSync(outputPath)) {
+    rmSync(outputPath, { force: true });
+  }
+  renameSync(tempPath, outputPath);
+  console.log("\n✅ 数据已保存到: " + outputPath);
+}
+
+function printStats(
+  data: TrackerData,
+  stats: Awaited<ReturnType<typeof fetchData>>["stats"],
+  finalDataIsStale: boolean
+): void {
+  console.log("\n📊 数据更新结果:");
+  console.log("----------------------------------------");
+  console.log("📍 EasyPrivacy:");
+  if (stats.easyPrivacy.success) {
+    console.log(
+      "   ✅ " + stats.easyPrivacy.count + " 个有效域名 (版本: " + stats.easyPrivacy.version + ")"
+    );
+  } else {
+    if (!stats.easyPrivacy.downloaded) {
+      console.log("   ❌ 下载失败");
+    } else if (!stats.easyPrivacy.parsed) {
+      console.log("   ❌ 解析失败");
+    } else if (!stats.easyPrivacy.valid) {
+      console.log("   ⚠️ 数据为空");
+    }
+  }
+
+  console.log("📍 Disconnect.me:");
+  if (stats.disconnect.success) {
+    console.log("   ✅ " + stats.disconnect.count + " 个有效域名");
+  } else {
+    if (!stats.disconnect.downloaded) {
+      console.log("   ❌ 下载失败");
+    } else if (!stats.disconnect.parsed) {
+      console.log("   ❌ 解析失败");
+    } else if (!stats.disconnect.valid) {
+      console.log("   ⚠️ 数据为空");
+    }
+  }
+
+  console.log("📈 合并结果:");
+  console.log("   最终唯一域名: " + stats.merged.count);
+  console.log("   去重数量: " + stats.merged.duplicates);
+  console.log("   Cookie关键词: " + data.trackingCookieKeywords.length);
+  console.log("   本地生成时间: " + data.lastUpdated);
+
+  console.log("\n📋 快速判断:");
+  console.log("   数据可信: " + (stats.easyPrivacy.success ? "✅ 是" : "❌ 否"));
+  console.log("   数据最新: " + (finalDataIsStale ? "❌ 否" : "✅ 是"));
+}
+
 async function main(
   allowFailure: boolean = false,
   requireEasyPrivacy: boolean = false,
@@ -633,158 +654,48 @@ async function main(
   console.log("");
 
   try {
-    let existingData: TrackerData | null = null;
     const outputPath = join(DATA_DIR, "tracker-domains.json");
     const tempPath = join(DATA_DIR, "tracker-domains.tmp.json");
-    if (existsSync(outputPath)) {
-      try {
-        existingData = JSON.parse(readFileSync(outputPath, "utf-8")) as TrackerData;
-        if (existingData && existingData.lastUpdated) {
-          const lastUpdateDate = new Date(existingData.lastUpdated);
-          const now = new Date();
-          const diffMs = now.getTime() - lastUpdateDate.getTime();
-          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-          console.log(
-            "📅 现有数据更新于: " + existingData.lastUpdated + " (距今 " + diffDays + " 天前)"
-          );
-        }
-      } catch {
-        console.log("⚠️  无法读取现有数据文件");
-      }
-    }
+
+    const existingData = loadExistingData(outputPath);
     console.log("");
 
-    // 1. 抓取数据
     const { data, stats } = await fetchData();
 
-    // 2. 验证数据
     console.log("\n🔍 正在验证数据...");
     const validation = validateTrackerData(data);
     if (!validation.valid) {
-      console.error("❌ 数据验证失败:");
-      for (const error of validation.errors) {
-        console.error("   - " + error);
-      }
-      if (!allowFailure) {
-        process.exit(1);
-      }
-      if (allowFailure) {
-        console.log("\n⚠️  允许失败模式：不覆盖现有 tracker-domains.json");
-      }
+      handleValidationFailure(validation, allowFailure);
       return;
     }
     console.log("✅ 数据验证通过");
 
-    // 3. EasyPrivacy 必需模式检查
-    if (requireEasyPrivacy) {
-      if (!stats.easyPrivacy.success) {
-        console.error("\n❌ EasyPrivacy 必需模式失败：EasyPrivacy 来源必须成功");
-        console.error("   - EasyPrivacy: " + (stats.easyPrivacy.success ? "✅ 成功" : "❌ 失败"));
-        if (!allowFailure) {
-          process.exit(1);
-        }
-        if (allowFailure) {
-          console.log("\n⚠️  允许失败模式：不覆盖现有 tracker-domains.json");
-        }
-        return;
-      }
+    if (requireEasyPrivacy && !stats.easyPrivacy.success) {
+      handleEasyPrivacyFailure(allowFailure);
+      return;
     }
 
-    // 4. 新鲜度检查
     const freshness = checkDataFreshness(
       stats.easyPrivacy.success,
       stats.easyPrivacy.versionDate,
       existingData
     );
-    const finalDataIsStale = freshness.isStale;
-    const freshnessCheckDate = freshness.checkDate;
-    const freshnessCheckSource = freshness.checkSource;
+    logFreshnessInfo(freshness);
 
-    if (freshnessCheckDate) {
-      console.log(
-        "📅 新鲜度检查基于: " + freshnessCheckSource + " (" + freshnessCheckDate.toISOString() + ")"
-      );
-      const now = new Date();
-      const nowUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-      const diffMs = nowUtc.getTime() - freshnessCheckDate.getTime();
-      const diffDays = diffMs / (1000 * 60 * 60 * 24);
-      console.log("   距今: " + Math.floor(diffDays) + " 天，限制: " + MAX_STALENESS_DAYS + " 天");
-    } else {
-      console.log("⚠️  无法获取可靠的新鲜度检查日期");
-    }
-
-    // 5. 新鲜度强制模式检查
-    if (enforceFreshness && finalDataIsStale) {
-      console.error("\n❌ 新鲜度强制模式失败：数据不满足新鲜度要求！");
-      console.error("   - 当前数据新鲜度: " + (finalDataIsStale ? "❌ 陈旧" : "✅ 最新"));
-      console.error("   - 新鲜度检查来源: " + freshnessCheckSource);
-      if (!allowFailure) {
-        process.exit(1);
-      }
-      if (allowFailure) {
-        console.log("\n⚠️  允许失败模式：不覆盖现有 tracker-domains.json");
-      }
+    if (enforceFreshness && freshness.isStale) {
+      handleFreshnessFailure(freshness, allowFailure);
       return;
     }
 
-    // 6. allow-failure 模式下 EasyPrivacy 失败检查
-    // 策略：允许外部源失败；失败时不覆盖现有 Cookie 数据，成功时更新到最新结果
     if (allowFailure && !stats.easyPrivacy.success) {
       console.log("\n⚠️  允许失败模式：EasyPrivacy 失败，不覆盖现有 tracker-domains.json");
-      console.log("   - EasyPrivacy: " + (stats.easyPrivacy.success ? "✅ 成功" : "❌ 失败"));
+      console.log("   - EasyPrivacy: ❌ 失败");
       console.log("   - Disconnect: " + (stats.disconnect.success ? "✅ 成功" : "❌ 失败"));
       return;
     }
 
-    // 7. 所有检查通过后，才开始写文件
-    if (!existsSync(DATA_DIR)) {
-      mkdirSync(DATA_DIR, { recursive: true });
-    }
-
-    // 先写临时文件，再原子替换
-    writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
-    renameSync(tempPath, outputPath);
-    console.log("\n✅ 数据已保存到: " + outputPath);
-
-    console.log("\n📊 数据更新结果:");
-    console.log("----------------------------------------");
-    console.log("📍 EasyPrivacy:");
-    if (stats.easyPrivacy.success) {
-      console.log(
-        "   ✅ " + stats.easyPrivacy.count + " 个有效域名 (版本: " + stats.easyPrivacy.version + ")"
-      );
-    } else {
-      if (!stats.easyPrivacy.downloaded) {
-        console.log("   ❌ 下载失败");
-      } else if (!stats.easyPrivacy.parsed) {
-        console.log("   ❌ 解析失败");
-      } else if (!stats.easyPrivacy.valid) {
-        console.log("   ⚠️ 数据为空");
-      }
-    }
-
-    console.log("📍 Disconnect.me:");
-    if (stats.disconnect.success) {
-      console.log("   ✅ " + stats.disconnect.count + " 个有效域名");
-    } else {
-      if (!stats.disconnect.downloaded) {
-        console.log("   ❌ 下载失败");
-      } else if (!stats.disconnect.parsed) {
-        console.log("   ❌ 解析失败");
-      } else if (!stats.disconnect.valid) {
-        console.log("   ⚠️ 数据为空");
-      }
-    }
-
-    console.log("📈 合并结果:");
-    console.log("   最终唯一域名: " + stats.merged.count);
-    console.log("   去重数量: " + stats.merged.duplicates);
-    console.log("   Cookie关键词: " + data.trackingCookieKeywords.length);
-    console.log("   本地生成时间: " + data.lastUpdated);
-
-    console.log("\n📋 快速判断:");
-    console.log("   数据可信: " + (stats.easyPrivacy.success ? "✅ 是" : "❌ 否"));
-    console.log("   数据最新: " + (finalDataIsStale ? "❌ 否" : "✅ 是"));
+    writeTrackerData(data, outputPath, tempPath);
+    printStats(data, stats, freshness.isStale);
   } catch (error) {
     console.error("❌ 更新失败:", error);
     if (allowFailure) {
@@ -798,4 +709,7 @@ async function main(
 const allowFailure = process.argv.includes("--allow-failure");
 const requireEasyPrivacy = process.argv.includes("--require-easyprivacy");
 const enforceFreshness = process.argv.includes("--enforce-freshness");
-main(allowFailure, requireEasyPrivacy, enforceFreshness);
+main(allowFailure, requireEasyPrivacy, enforceFreshness).catch((error) => {
+  console.error("❌ 未预期的错误:", error);
+  process.exit(1);
+});

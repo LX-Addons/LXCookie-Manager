@@ -1,6 +1,6 @@
 import trackerData from "@/data/tracker-domains.json";
 import type { TrackerData } from "@/data/tracker-domains.d.ts";
-import { isValidHostname, isValidCookieKeyword } from "./cookie-data-validators.js";
+import { isValidHostname, isValidCookieKeyword } from "./cookie-data-validators";
 
 export const MESSAGE_DURATION = 3000;
 
@@ -49,15 +49,16 @@ const DEFAULT_THIRD_PARTY_TRACKERS = [
   "optmstr.com",
 ];
 
-function hasValidTrackerData(data: TrackerData): boolean {
-  if (!Array.isArray(data.trackingDomains) || data.trackingDomains.length === 0) {
-    return false;
-  }
+function hasRequiredArrays(data: TrackerData): boolean {
+  return (
+    Array.isArray(data.trackingDomains) &&
+    data.trackingDomains.length > 0 &&
+    Array.isArray(data.trackingCookieKeywords) &&
+    data.trackingCookieKeywords.length > 0
+  );
+}
 
-  if (!Array.isArray(data.trackingCookieKeywords) || data.trackingCookieKeywords.length === 0) {
-    return false;
-  }
-
+function hasValidMetadata(data: TrackerData): boolean {
   if (!data.lastUpdated || typeof data.lastUpdated !== "string") {
     return false;
   }
@@ -74,32 +75,43 @@ function hasValidTrackerData(data: TrackerData): boolean {
     return false;
   }
 
-  const allowedKeys = ["trackingDomains", "trackingCookieKeywords", "lastUpdated", "sources"];
-  const actualKeys = Object.keys(data);
-  for (const key of actualKeys) {
-    if (!allowedKeys.includes(key)) {
-      return false;
-    }
-  }
-  for (const key of allowedKeys) {
-    if (!actualKeys.includes(key)) {
-      return false;
-    }
+  if (
+    typeof data.sources.easyprivacy.count !== "number" ||
+    data.sources.easyprivacy.count < 0 ||
+    typeof data.sources.easyprivacy.version !== "string" ||
+    data.sources.easyprivacy.version.trim().length === 0
+  ) {
+    return false;
   }
 
-  // 全量校验：必须检查每个 trackingDomains 条目，不能只检查前 N 项
-  // 即使数据量再大，也必须完整校验
-  for (let i = 0; i < data.trackingDomains.length; i++) {
-    const domain = data.trackingDomains[i];
+  if (typeof data.sources.disconnect.count !== "number" || data.sources.disconnect.count < 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function hasExactKeys(data: TrackerData): boolean {
+  const allowedKeys = ["trackingDomains", "trackingCookieKeywords", "lastUpdated", "sources"];
+  const actualKeys = Object.keys(data);
+  return (
+    actualKeys.every((k) => allowedKeys.includes(k)) &&
+    allowedKeys.every((k) => actualKeys.includes(k))
+  );
+}
+
+function hasValidTrackerData(data: TrackerData): boolean {
+  if (!hasRequiredArrays(data)) return false;
+  if (!hasValidMetadata(data)) return false;
+  if (!hasExactKeys(data)) return false;
+
+  for (const domain of data.trackingDomains) {
     if (!isValidHostname(domain)) {
       return false;
     }
   }
 
-  // 全量校验：必须检查每个 trackingCookieKeywords 条目，不能只检查前 N 项
-  // 即使数据量再大，也必须完整校验
-  for (let i = 0; i < data.trackingCookieKeywords.length; i++) {
-    const keyword = data.trackingCookieKeywords[i];
+  for (const keyword of data.trackingCookieKeywords) {
     if (!isValidCookieKeyword(keyword)) {
       return false;
     }
@@ -108,10 +120,12 @@ function hasValidTrackerData(data: TrackerData): boolean {
   return true;
 }
 
-export const TRACKING_COOKIE_KEYWORDS: string[] = hasValidTrackerData(trackerData)
+const trackerDataValid = hasValidTrackerData(trackerData);
+
+export const TRACKING_COOKIE_KEYWORDS: string[] = trackerDataValid
   ? trackerData.trackingCookieKeywords
   : DEFAULT_TRACKING_COOKIE_KEYWORDS;
 
-export const THIRD_PARTY_TRACKERS: string[] = hasValidTrackerData(trackerData)
+export const THIRD_PARTY_TRACKERS: string[] = trackerDataValid
   ? trackerData.trackingDomains
   : DEFAULT_THIRD_PARTY_TRACKERS;
