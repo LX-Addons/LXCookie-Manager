@@ -37,6 +37,10 @@ function isIPv6Address(hostname: string): boolean {
 }
 
 export function isValidHostname(hostname: string): boolean {
+  if (typeof hostname !== "string") {
+    return false;
+  }
+
   if (!hostname || hostname.length === 0) {
     return false;
   }
@@ -100,6 +104,10 @@ export function isValidHostname(hostname: string): boolean {
 }
 
 export function isValidCookieKeyword(keyword: string): boolean {
+  if (typeof keyword !== "string") {
+    return false;
+  }
+
   if (!keyword || keyword.length < 2) {
     return false;
   }

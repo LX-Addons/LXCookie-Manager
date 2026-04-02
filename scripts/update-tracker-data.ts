@@ -281,7 +281,9 @@ function validateTrackingDomains(domains: unknown, errors: string[]): void {
       errors.push("trackingDomains 不能为空");
     }
     for (const domain of domains) {
-      if (!isValidHostname(domain)) {
+      if (typeof domain !== "string") {
+        errors.push("trackingDomains 包含非字符串值: " + JSON.stringify(domain));
+      } else if (!isValidHostname(domain)) {
         errors.push("trackingDomains 包含无效域名: " + domain);
       }
     }
@@ -296,7 +298,9 @@ function validateTrackingCookieKeywords(keywords: unknown, errors: string[]): vo
       errors.push("trackingCookieKeywords 不能为空");
     }
     for (const keyword of keywords) {
-      if (!isValidCookieKeyword(keyword)) {
+      if (typeof keyword !== "string") {
+        errors.push("trackingCookieKeywords 包含非字符串值: " + JSON.stringify(keyword));
+      } else if (!isValidCookieKeyword(keyword)) {
         errors.push("trackingCookieKeywords 包含无效关键词: " + keyword);
       }
     }
