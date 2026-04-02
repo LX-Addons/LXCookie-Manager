@@ -16,6 +16,7 @@ import { execFileSync } from "node:child_process";
 
 const COOKIE_RELATED_FILES = [
   "scripts/update-tracker-data.ts",
+  "scripts/tracking-cookie-keywords.json",
   "src/data/tracker-domains.d.ts",
   "src/lib/cookie-data-validators.ts",
 ];

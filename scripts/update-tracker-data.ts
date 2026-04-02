@@ -75,53 +75,7 @@ function isValidExistingDataForFreshness(data: unknown): data is TrackerData {
   if (!data || typeof data !== "object") {
     return false;
   }
-  const d = data as Record<string, unknown>;
-  if (!Array.isArray(d.trackingDomains) || d.trackingDomains.length === 0) {
-    return false;
-  }
-  if (!Array.isArray(d.trackingCookieKeywords) || d.trackingCookieKeywords.length === 0) {
-    return false;
-  }
-  if (typeof d.lastUpdated !== "string" || !d.lastUpdated) {
-    return false;
-  }
-  const lastUpdatedDate = new Date(d.lastUpdated);
-  if (Number.isNaN(lastUpdatedDate.getTime())) {
-    return false;
-  }
-  if (!d.sources || typeof d.sources !== "object") {
-    return false;
-  }
-  const sources = d.sources as Record<string, unknown>;
-  if (!sources.easyprivacy || typeof sources.easyprivacy !== "object") {
-    return false;
-  }
-  if (!sources.disconnect || typeof sources.disconnect !== "object") {
-    return false;
-  }
-  const allowedKeys = ["trackingDomains", "trackingCookieKeywords", "lastUpdated", "sources"];
-  const actualKeys = Object.keys(d);
-  for (const key of actualKeys) {
-    if (!allowedKeys.includes(key)) {
-      return false;
-    }
-  }
-  for (const key of allowedKeys) {
-    if (!actualKeys.includes(key)) {
-      return false;
-    }
-  }
-  for (const domain of d.trackingDomains) {
-    if (typeof domain !== "string" || !isValidHostname(domain)) {
-      return false;
-    }
-  }
-  for (const keyword of d.trackingCookieKeywords) {
-    if (typeof keyword !== "string" || !isValidCookieKeyword(keyword)) {
-      return false;
-    }
-  }
-  return true;
+  return validateTrackerData(data as TrackerData).valid;
 }
 
 function checkDataFreshness(
@@ -303,6 +257,11 @@ function validateTrackerData(data: TrackerData): { valid: boolean; errors: strin
 
   if (!data.lastUpdated || typeof data.lastUpdated !== "string") {
     errors.push("lastUpdated 必须是有效的时间字符串");
+  } else {
+    const lastUpdatedDate = new Date(data.lastUpdated);
+    if (Number.isNaN(lastUpdatedDate.getTime())) {
+      errors.push("lastUpdated 必须是可解析的日期字符串");
+    }
   }
 
   if (!data.sources || typeof data.sources !== "object") {
@@ -585,9 +544,6 @@ function writeTrackerData(data: TrackerData, outputPath: string, tempPath: strin
   }
 
   writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
-  if (existsSync(outputPath)) {
-    rmSync(outputPath, { force: true });
-  }
   renameSync(tempPath, outputPath);
   console.log("\n✅ 数据已保存到: " + outputPath);
 }
@@ -687,10 +643,14 @@ async function main(
       return;
     }
 
-    if (allowFailure && !stats.easyPrivacy.success) {
-      console.log("\n⚠️  允许失败模式：EasyPrivacy 失败，不覆盖现有 tracker-domains.json");
-      console.log("   - EasyPrivacy: ❌ 失败");
-      console.log("   - Disconnect: " + (stats.disconnect.success ? "✅ 成功" : "❌ 失败"));
+    if (!stats.easyPrivacy.success) {
+      if (allowFailure) {
+        console.log("\n⚠️  允许失败模式：EasyPrivacy 失败，不覆盖现有 tracker-domains.json");
+        console.log("   - EasyPrivacy: ❌ 失败");
+        console.log("   - Disconnect: " + (stats.disconnect.success ? "✅ 成功" : "❌ 失败"));
+        return;
+      }
+      handleEasyPrivacyFailure(false);
       return;
     }
 
