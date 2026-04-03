@@ -32,6 +32,24 @@ export const isInList = (domain: string, list: string[]): boolean => {
   });
 };
 
+export const isInSet = (domain: string, domainSet: Set<string>): boolean => {
+  const normalizedDomain = normalizeDomain(domain);
+
+  if (domainSet.has(normalizedDomain)) {
+    return true;
+  }
+
+  const parts = normalizedDomain.split(".");
+  for (let i = 1; i < parts.length - 1; i++) {
+    const parentDomain = parts.slice(i).join(".");
+    if (domainSet.has(parentDomain)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const validateDomain = (
   domain: string,
   t?: (key: string) => string

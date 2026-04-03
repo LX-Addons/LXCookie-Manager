@@ -33,7 +33,7 @@ interface CookieListContentProps extends Props {
   showConfirm: ShowConfirmFn;
 }
 
-type RiskFilter = "all" | "low" | "medium" | "high";
+type RiskFilter = "all" | "low" | "medium" | "high" | "critical";
 type TypeFilter = "all" | "session" | "persistent";
 type DomainScopeFilter = "all" | "current" | "third-party";
 
@@ -540,9 +540,10 @@ export const CookieListContent = memo(
                         aria-label={t("cookieList.filterRiskAll")}
                       >
                         <option value="all">{t("cookieList.filterRiskAll")}</option>
-                        <option value="low">{t("cookieList.filterRiskLow")}</option>
-                        <option value="medium">{t("cookieList.filterRiskMedium")}</option>
+                        <option value="critical">{t("cookieList.filterRiskCritical")}</option>
                         <option value="high">{t("cookieList.filterRiskHigh")}</option>
+                        <option value="medium">{t("cookieList.filterRiskMedium")}</option>
+                        <option value="low">{t("cookieList.filterRiskLow")}</option>
                       </select>
                     )}
                     <select
@@ -728,8 +729,11 @@ export const CookieListContent = memo(
                                             </span>
                                           )}
                                           {risk && (
-                                            <span className={`cookie-tag tag-risk-${risk.level}`}>
-                                              {getRiskLevelText(risk.level, t)}
+                                            <span
+                                              className={`cookie-tag tag-risk-${risk.level}`}
+                                              title={risk.reason}
+                                            >
+                                              {getRiskLevelText(risk.level, t)} ({risk.score})
                                             </span>
                                           )}
                                           {!cookie.expirationDate && (
@@ -856,6 +860,59 @@ export const CookieListContent = memo(
                                                   cookie.expirationDate * 1000
                                                 ).toLocaleString()}
                                               </span>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {risk && risk.level !== "low" && (
+                                          <div className="cookie-detail-group risk-factors-group">
+                                            <div className="cookie-detail-row">
+                                              <span className="detail-label">
+                                                {t("cookieList.riskFactors")}
+                                              </span>
+                                            </div>
+                                            <div className="risk-factors-list">
+                                              {risk.factors.isTracking && (
+                                                <span className="risk-factor-item factor-tracking">
+                                                  <Icon name="alertTriangle" size={12} />
+                                                  {t("cookieList.trackingCookie")}
+                                                </span>
+                                              )}
+                                              {risk.factors.isSensitive && (
+                                                <span className="risk-factor-item factor-sensitive">
+                                                  <Icon name="lock" size={12} />
+                                                  {t("cookieList.sensitiveCookie")}
+                                                </span>
+                                              )}
+                                              {risk.factors.isThirdParty && (
+                                                <span className="risk-factor-item factor-third-party">
+                                                  <Icon name="globe" size={12} />
+                                                  {t("cookieList.thirdPartyCookie")}
+                                                </span>
+                                              )}
+                                              {risk.factors.notHttpOnly && (
+                                                <span className="risk-factor-item factor-insecure">
+                                                  <Icon name="info" size={12} />
+                                                  {t("cookieList.notHttpOnly")}
+                                                </span>
+                                              )}
+                                              {risk.factors.notSecure && (
+                                                <span className="risk-factor-item factor-insecure">
+                                                  <Icon name="unlock" size={12} />
+                                                  {t("cookieList.notSecure")}
+                                                </span>
+                                              )}
+                                              {risk.factors.sameSiteNone && (
+                                                <span className="risk-factor-item factor-insecure">
+                                                  <Icon name="globe" size={12} />
+                                                  {t("cookieList.sameSiteNone")}
+                                                </span>
+                                              )}
+                                              {risk.factors.longLifetime && (
+                                                <span className="risk-factor-item factor-lifetime">
+                                                  <Icon name="clock" size={12} />
+                                                  {t("cookieList.longLifetime")}
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                         )}

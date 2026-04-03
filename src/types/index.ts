@@ -110,11 +110,24 @@ export interface ClearLogEntry {
   details?: string;
 }
 
-export interface CookieRisk {
-  level: "low" | "medium" | "high";
-  reason: string;
+export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export interface CookieRiskFactors {
   isTracking: boolean;
   isThirdParty: boolean;
+  isSensitive: boolean;
+  notHttpOnly: boolean;
+  notSecure: boolean;
+  sameSiteNone: boolean;
+  longLifetime: boolean;
+  sessionCookie: boolean;
+}
+
+export interface CookieRisk {
+  level: RiskLevel;
+  score: number;
+  reason: string;
+  factors: CookieRiskFactors;
 }
 
 export type CleanupTrigger =

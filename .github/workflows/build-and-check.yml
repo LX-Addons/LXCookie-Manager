@@ -250,7 +250,7 @@ jobs:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
       - name: 检查密钥泄露
-        uses: trufflesecurity/trufflehog@6c05c4a00b91aa542267d8e32a8254774799d68d # v3.93.8
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # v3.94.1
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
@@ -415,6 +415,8 @@ jobs:
     steps:
       - name: 检出仓库
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: 安装项目依赖
         uses: ./.github/actions/setup-pnpm
@@ -426,16 +428,55 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: .wxt
-          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
+          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'src/data/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-
             ${{ runner.os }}-wxt-
+
+      - name: 验证 Cookie 数据基线一致性
+        id: verify-consistency
+        run: |
+          echo "🔍 Cookie 数据基线一致性校验"
+          echo "========================================"
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.sha }}"
+            pnpm run verify:cookie-baseline --pr "$BASE_SHA" "$HEAD_SHA"
+          else
+            BEFORE_SHA="${{ github.event.before }}"
+            AFTER_SHA="${{ github.sha }}"
+            pnpm run verify:cookie-baseline --push "$BEFORE_SHA" "$AFTER_SHA"
+          fi
+
+      - name: 准备 Cookie 数据
+        id: cookie-data
+        run: |
+          set -e
+          echo "📥 准备 Cookie 数据..."
+          echo "========================================"
+          
+          if [[ "${{ github.ref_name }}" == "main" || "${{ github.ref_name }}" == "beta" || "${{ github.ref_name }}" == "release" ]]; then
+            echo "🔒 主分支/发布分支 - EasyPrivacy 必需 + 新鲜度强制"
+            echo "   规则: 只有当 EasyPrivacy 成功且版本日期可证明新鲜时，才视为满足新鲜度要求"
+            echo "   无法证明新鲜时，一律失败"
+            echo "   lastUpdated 仅是本地生成时间，不代表上游发布日期"
+            pnpm run prepare:cookie-data:release 2>&1
+            echo "enforce_freshness=true" >> $GITHUB_OUTPUT
+            echo "require_easyprivacy=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  PR/非主分支 - 允许外部源失败；失败时不覆盖现有 Cookie 数据，成功时更新到最新结果"
+            pnpm run prepare:cookie-data:allow-failure 2>&1
+            echo "enforce_freshness=false" >> $GITHUB_OUTPUT
+            echo "require_easyprivacy=false" >> $GITHUB_OUTPUT
+          fi
+          echo "✅ Cookie 数据准备完成"
 
       - name: 构建扩展
         run: |
           set -e
           echo "🔨 开始构建..."
-          pnpm run build 2>&1
+          pnpm run build:dist 2>&1
           echo "✅ 构建命令完成"
 
           echo "📁 构建后检查 .output/ 目录:"
@@ -514,8 +555,8 @@ jobs:
           ls -la .output/
 
           echo ""
-          echo "🔨 运行 pnpm run zip..."
-          pnpm run zip
+          echo "🔨 运行 pnpm run zip:dist..."
+          pnpm run zip:dist
 
           echo ""
           echo "📁 打包后 .output/ 目录内容 (递归):"
@@ -529,7 +570,7 @@ jobs:
           echo "📊 在 .output/ 中找到 $ZIP_COUNT 个 zip 文件"
 
           if [ "$ZIP_COUNT" -eq 0 ]; then
-            echo "❌ pnpm run zip 执行完成，但未生成 zip 文件"
+            echo "❌ pnpm run zip:dist 执行完成，但未生成 zip 文件"
             exit 1
           fi
 

@@ -9,16 +9,17 @@ const icons = {
 
 export default defineConfig({
   srcDir: "src",
-  modules: ["@wxt-dev/module-react"],
+  modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"],
   manifestVersion: 3,
   manifest: {
-    name: "LXCookie Manager",
-    description: "高级 Cookie 管理，支持白名单/黑名单功能和选择性 Cookie 清除",
+    name: "__MSG_extensionName__",
+    description: "__MSG_extensionDescription__",
+    default_locale: "zh_CN",
     permissions: ["cookies", "storage", "tabs", "browsingData", "alarms"],
     host_permissions: ["https://*/*", "http://*/*"],
     action: {
       default_icon: icons,
-      default_title: "LXCookie Manager",
+      default_title: "__MSG_extensionName__",
     },
     icons,
     content_security_policy: {

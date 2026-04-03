@@ -34,6 +34,14 @@
   --danger-600: #d32f2f;
   --danger-700: #c62828;
 
+  --critical-50: #fffbeb;
+  --critical-100: #fef3c7;
+  --critical-200: #fde68a;
+  --critical-400: #fbbf24;
+  --critical-500: #f59e0b;
+  --critical-600: #d97706;
+  --critical-700: #92400e;
+
   --export-500: #8b5cf6;
 
   --primary-tint-05: rgba(98, 125, 152, 0.05);
@@ -50,6 +58,12 @@
   --danger-tint-10: rgba(229, 57, 53, 0.1);
   --danger-tint-12: rgba(229, 57, 53, 0.12);
   --danger-tint-15: rgba(229, 57, 53, 0.15);
+
+  --critical-tint-05: rgba(245, 158, 11, 0.05);
+  --critical-tint-08: rgba(245, 158, 11, 0.08);
+  --critical-tint-10: rgba(245, 158, 11, 0.1);
+  --critical-tint-12: rgba(245, 158, 11, 0.12);
+  --critical-tint-15: rgba(245, 158, 11, 0.15);
 
   --surface-0: #ffffff;
   --surface-1: #f7f9fc;

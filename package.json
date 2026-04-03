@@ -1,14 +1,22 @@
 {
   "name": "lxcookie-manager",
   "displayName": "LXCookie Manager",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "高级Cookie管理，支持白名单/黑名单功能和选择性Cookie清除",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "wxt",
-    "build": "wxt build",
-    "zip": "wxt zip --browser chrome",
+    "prepare:cookie-data": "pnpm exec tsx scripts/update-tracker-data.ts",
+    "prepare:cookie-data:allow-failure": "pnpm exec tsx scripts/update-tracker-data.ts --allow-failure",
+    "prepare:cookie-data:release": "pnpm exec tsx scripts/update-tracker-data.ts --require-easyprivacy --enforce-freshness",
+    "verify:cookie-baseline": "tsx scripts/verify-cookie-baseline.ts",
+    "build:dist": "wxt build",
+    "build": "pnpm run prepare:cookie-data && pnpm run build:dist",
+    "build:local": "pnpm run prepare:cookie-data:allow-failure && pnpm run build:dist",
+    "zip:dist": "wxt zip --browser chrome",
+    "zip": "pnpm run prepare:cookie-data && pnpm run zip:dist",
+    "zip:local": "pnpm run prepare:cookie-data:allow-failure && pnpm run zip:dist",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css}\"",
@@ -18,7 +26,8 @@
     "changelog:latest": "git-cliff --latest"
   },
   "dependencies": {
-    "lucide-react": "^1.6.0",
+    "@wxt-dev/i18n": "^0.2.5",
+    "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "wxt": "^0.20.20"
@@ -28,8 +37,8 @@
     "@types/node": "24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
     "@wxt-dev/module-react": "^1.2.2",
     "eslint": "~10.1.0",
     "eslint-plugin-prettier": "^5.5.5",
@@ -40,8 +49,9 @@
     "globals": "^17.4.0",
     "license-checker-rseidelsohn": "4.4.2",
     "prettier": "^3.8.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.1"
+    "vite": "^8.0.3"
   },
   "pnpm": {
     "overrides": {
