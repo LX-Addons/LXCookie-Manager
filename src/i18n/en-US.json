@@ -202,7 +202,13 @@
     "emptyLogsHint": "Cookie management operations will be recorded here",
     "count": "Count",
     "time": "Time",
-    "domainListWithMore": "{domains} and {count} more domains"
+    "domainListWithMore": "{domains} and {count} more domains",
+    "filterAll": "All",
+    "filterClear": "Clear",
+    "filterEdit": "Edit",
+    "filterDelete": "Delete",
+    "filterImport": "Import",
+    "filterExport": "Export"
   },
   "cookieList": {
     "noCookies": "No cookies for current website",

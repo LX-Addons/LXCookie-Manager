@@ -2,12 +2,17 @@ import { Icon } from "@/components/Icon";
 import { StatusPanel } from "@/components/StatusPanel";
 import { CookieList } from "@/components/CookieList";
 import { useTranslation } from "@/hooks";
-import type { CookieStats, Cookie as CookieType } from "@/types";
-import type { DomainList, Settings as SettingsType } from "@/types";
+import type {
+  CookieStats,
+  Cookie as CookieType,
+  DomainList,
+  Settings as SettingsType,
+} from "@/types";
 import { ModeType } from "@/types";
+import type { LoadingState } from "../hooks/usePopupData";
 
 interface ManageSectionProps {
-  loadingState: string;
+  loadingState: LoadingState;
   stats: CookieStats;
   currentCookies: CookieType[];
   currentDomain: string;
@@ -22,6 +27,12 @@ interface ManageSectionProps {
   handleAddToWhitelist: (domains: string[]) => void;
   handleAddToBlacklist: (domains: string[]) => void;
 }
+
+const getRiskLevel = (stats: CookieStats) => {
+  if (stats.tracking > 0) return "high";
+  if (stats.thirdParty > 0) return "medium";
+  return "low";
+};
 
 export const ManageSection = ({
   loadingState,
@@ -41,12 +52,7 @@ export const ManageSection = ({
 }: ManageSectionProps) => {
   const { t } = useTranslation();
 
-  const getRiskLevel = () => {
-    if (stats.tracking > 0) return "high";
-    if (stats.thirdParty > 0) return "medium";
-    return "low";
-  };
-  const riskLevel = getRiskLevel();
+  const riskLevel = getRiskLevel(stats);
 
   return (
     <main className="tab-content" role="tabpanel" id="manage-panel">

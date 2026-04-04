@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Cookie } from "@/types";
 import { getCookieKey } from "@/utils/format";
-import { toggleSetValue } from "@/utils";
+import { toggleSetValue, filterSetByValidKeys } from "@/utils";
 
 interface UseCookieSelectionProps {
   cookies: Cookie[];
@@ -37,27 +37,9 @@ export const useCookieSelection = ({
     const validKeys = new Set(
       cookies.map((c) => getCookieKey(c.name, c.domain, c.path, c.storeId))
     );
-    setSelectedCookies((prev) => {
-      const next = new Set<string>();
-      prev.forEach((key) => {
-        if (validKeys.has(key)) next.add(key);
-      });
-      return next;
-    });
-    setVisibleValues((prev) => {
-      const next = new Set<string>();
-      prev.forEach((key) => {
-        if (validKeys.has(key)) next.add(key);
-      });
-      return next;
-    });
-    setExpandedCookies((prev) => {
-      const next = new Set<string>();
-      prev.forEach((key) => {
-        if (validKeys.has(key)) next.add(key);
-      });
-      return next;
-    });
+    setSelectedCookies((prev) => filterSetByValidKeys(prev, validKeys));
+    setVisibleValues((prev) => filterSetByValidKeys(prev, validKeys));
+    setExpandedCookies((prev) => filterSetByValidKeys(prev, validKeys));
   }, [cookies]);
 
   useEffect(() => {
@@ -71,20 +53,21 @@ export const useCookieSelection = ({
     );
   }, [filteredCookies, selectedCookies]);
 
-  const toggleSelectAll = () => {
+  const toggleSelectAll = useCallback(() => {
     setSelectedCookies((prev) => {
       const next = new Set(prev);
       const visibleKeys = filteredCookies.map((cookie) =>
         getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId)
       );
-      if (selectAll) {
+      const allSelected = visibleKeys.length > 0 && visibleKeys.every((key) => prev.has(key));
+      if (allSelected) {
         visibleKeys.forEach((key) => next.delete(key));
       } else {
         visibleKeys.forEach((key) => next.add(key));
       }
       return next;
     });
-  };
+  }, [filteredCookies]);
 
   const toggleCookieSelection = (key: string) => {
     setSelectedCookies((prev) => toggleSetValue(prev, key));

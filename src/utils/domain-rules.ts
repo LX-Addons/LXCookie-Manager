@@ -9,8 +9,10 @@ export function addDomainsToList(newDomains: string[], existingList: string[]): 
   const normalizedNew = newDomains.map((d) => normalizeDomain(d));
   const normalizedExisting = existingList.map((d) => normalizeDomain(d));
 
+  const sortedNew = [...normalizedNew].sort((a, b) => a.length - b.length);
+
   const filteredNew: string[] = [];
-  for (const domain of normalizedNew) {
+  for (const domain of sortedNew) {
     const isCoveredByExisting = normalizedExisting.some(
       (existing) => domain === existing || domain.endsWith("." + existing)
     );
@@ -21,28 +23,15 @@ export function addDomainsToList(newDomains: string[], existingList: string[]): 
     );
     if (isSubdomainOfAnotherNew) continue;
 
-    const isParentOfAnotherNew = normalizedNew.some(
-      (other) => other !== domain && (other === domain || other.endsWith("." + domain))
-    );
-    if (isParentOfAnotherNew) {
-      const alreadyHasParent = filteredNew.some(
-        (added) => added === domain || added.endsWith("." + domain)
-      );
-      if (!alreadyHasParent) {
-        filteredNew.push(domain);
-      }
-    } else {
-      filteredNew.push(domain);
-    }
+    filteredNew.push(domain);
   }
 
   const finalList: string[] = [...normalizedExisting];
   for (const newDomain of filteredNew) {
-    const subdomainsToRemove = finalList.filter(
-      (existing) =>
-        existing !== newDomain && (existing === newDomain || existing.endsWith("." + newDomain))
+    const subdomainsToRemove = new Set(
+      finalList.filter((existing) => existing !== newDomain && existing.endsWith("." + newDomain))
     );
-    const remainingList = finalList.filter((item) => !subdomainsToRemove.includes(item));
+    const remainingList = finalList.filter((item) => !subdomainsToRemove.has(item));
     if (!remainingList.includes(newDomain)) {
       remainingList.push(newDomain);
     }
@@ -50,8 +39,8 @@ export function addDomainsToList(newDomains: string[], existingList: string[]): 
     finalList.push(...remainingList);
   }
 
-  const sortedNext = [...finalList].sort();
-  const sortedExisting = [...normalizedExisting].sort();
+  const sortedNext = [...finalList].sort((a, b) => a.localeCompare(b));
+  const sortedExisting = [...normalizedExisting].sort((a, b) => a.localeCompare(b));
   const changed = JSON.stringify(sortedNext) !== JSON.stringify(sortedExisting);
 
   return { nextList: finalList, changed };

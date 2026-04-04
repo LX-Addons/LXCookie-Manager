@@ -103,14 +103,20 @@ export const CookieListToolbar = memo(function CookieListToolbar({
               value={domainScopeFilter}
               onChange={(e) => onDomainScopeFilterChange(e.target.value as DomainScopeFilter)}
               className="filter-select"
-              disabled={!currentDomain}
+              disabled={currentDomain === undefined || currentDomain === ""}
               title={!currentDomain ? t("cookieList.filterDomainDisabled") : undefined}
               aria-label={t("cookieList.filterDomainAll")}
+              aria-describedby={!currentDomain ? "domain-filter-disabled-hint" : undefined}
             >
               <option value="all">{t("cookieList.filterDomainAll")}</option>
               <option value="current">{t("cookieList.filterDomainCurrent")}</option>
               <option value="third-party">{t("cookieList.filterDomainThirdParty")}</option>
             </select>
+            {!currentDomain && (
+              <span id="domain-filter-disabled-hint" className="sr-only">
+                {t("cookieList.filterDomainDisabled")}
+              </span>
+            )}
           </div>
           {hasActiveFilters && (
             <div className="filter-status">

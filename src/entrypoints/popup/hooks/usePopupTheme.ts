@@ -11,6 +11,52 @@ import {
   getContrastColor,
 } from "@/utils/theme";
 
+const CUSTOM_THEME_VARS = [
+  "--primary-400",
+  "--primary-500",
+  "--primary-600",
+  "--primary-700",
+  "--success-400",
+  "--success-500",
+  "--success-600",
+  "--success-700",
+  "--warning-400",
+  "--warning-500",
+  "--warning-600",
+  "--warning-700",
+  "--danger-400",
+  "--danger-500",
+  "--danger-600",
+  "--danger-700",
+  "--surface-0",
+  "--surface-1",
+  "--surface-2",
+  "--text-1",
+  "--text-2",
+  "--text-3",
+  "--text-muted",
+  "--text-on-primary",
+  "--text-on-success",
+  "--text-on-warning",
+  "--text-on-danger",
+  "--line-soft",
+  "--line-strong",
+  "--primary-tint-05",
+  "--primary-tint-08",
+  "--primary-tint-10",
+  "--primary-tint-12",
+  "--primary-tint-15",
+  "--success-tint-10",
+  "--success-tint-15",
+  "--warning-tint-10",
+  "--warning-tint-15",
+  "--danger-tint-05",
+  "--danger-tint-08",
+  "--danger-tint-10",
+  "--danger-tint-12",
+  "--danger-tint-15",
+] as const;
+
 interface UsePopupThemeProps {
   settings: SettingsType;
 }
@@ -29,7 +75,16 @@ export const usePopupTheme = ({ settings }: UsePopupThemeProps): UsePopupThemeRe
 
   const isCustomThemeDark = useCallback((customTheme: CustomTheme | undefined) => {
     if (!customTheme) return false;
-    const hex = customTheme.bgPrimary.replace("#", "");
+    let hex = customTheme.bgPrimary.replace("#", "");
+    if (hex.length === 3) {
+      hex = hex
+        .split("")
+        .map((c) => c + c)
+        .join("");
+    }
+    if (hex.length !== 6 || !/^[0-9A-Fa-f]+$/.test(hex)) {
+      return false;
+    }
     const r = Number.parseInt(hex.substring(0, 2), 16);
     const g = Number.parseInt(hex.substring(2, 4), 16);
     const b = Number.parseInt(hex.substring(4, 6), 16);
@@ -136,52 +191,7 @@ export const usePopupTheme = ({ settings }: UsePopupThemeProps): UsePopupThemeRe
 
   const clearCustomTheme = useCallback(() => {
     const root = document.documentElement;
-    const customVars = [
-      "--primary-400",
-      "--primary-500",
-      "--primary-600",
-      "--primary-700",
-      "--success-400",
-      "--success-500",
-      "--success-600",
-      "--success-700",
-      "--warning-400",
-      "--warning-500",
-      "--warning-600",
-      "--warning-700",
-      "--danger-400",
-      "--danger-500",
-      "--danger-600",
-      "--danger-700",
-      "--surface-0",
-      "--surface-1",
-      "--surface-2",
-      "--text-1",
-      "--text-2",
-      "--text-3",
-      "--text-muted",
-      "--text-on-primary",
-      "--text-on-success",
-      "--text-on-warning",
-      "--text-on-danger",
-      "--line-soft",
-      "--line-strong",
-      "--primary-tint-05",
-      "--primary-tint-08",
-      "--primary-tint-10",
-      "--primary-tint-12",
-      "--primary-tint-15",
-      "--success-tint-10",
-      "--success-tint-15",
-      "--warning-tint-10",
-      "--warning-tint-15",
-      "--danger-tint-05",
-      "--danger-tint-08",
-      "--danger-tint-10",
-      "--danger-tint-12",
-      "--danger-tint-15",
-    ];
-    customVars.forEach((prop) => root.style.removeProperty(prop));
+    CUSTOM_THEME_VARS.forEach((prop) => root.style.removeProperty(prop));
   }, []);
 
   useEffect(() => {

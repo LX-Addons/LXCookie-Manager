@@ -39,6 +39,6 @@ export const filterRedundantDomains = (domains: string[], existingList?: string[
     return result.nextList;
   }
 
-  const normalizedExisting = existingList.map((d) => normalizeDomain(d));
-  return result.nextList.filter((domain) => !normalizedExisting.includes(domain));
+  const normalizedExisting = new Set(existingList.map((d) => normalizeDomain(d)));
+  return result.nextList.filter((domain) => !normalizedExisting.has(domain));
 };

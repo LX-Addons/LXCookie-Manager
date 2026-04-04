@@ -67,7 +67,11 @@ export function usePopupActions({
           } else {
             showMessage(t("popup.noCookiesCleared"));
           }
-          await updateStats();
+          try {
+            await updateStats();
+          } catch (statsError) {
+            console.error("Failed to update stats after clearing cookies:", statsError);
+          }
         } else {
           showMessage(t("popup.clearCookiesFailed"), true);
         }
@@ -104,11 +108,11 @@ export function usePopupActions({
       listType: string
     ) => {
       const result = addDomainsToList([domain], list);
-      if (!result.changed) {
-        showMessage(t(alreadyInKey, { domain, listType }));
-      } else {
+      if (result.changed) {
         setList(result.nextList);
         showMessage(t(addedKey, { listType }));
+      } else {
+        showMessage(t(alreadyInKey, { domain, listType }));
       }
     },
     [showMessage, t]
@@ -149,6 +153,8 @@ export function usePopupActions({
 
   const quickClearCurrent = useCallback(
     (triggerElement?: HTMLElement | null) => {
+      if (!currentDomain) return;
+
       showConfirm(
         t("popup.confirmClear"),
         t("popup.confirmClearCurrent", { domain: currentDomain }),
@@ -216,7 +222,11 @@ export function usePopupActions({
         const result = response.data;
         if (result.cookiesRemoved > 0) {
           showMessage(t("popup.clearedBlacklist", { count: result.cookiesRemoved }));
-          await updateStats();
+          try {
+            await updateStats();
+          } catch (statsError) {
+            console.error("Failed to update stats after clearing blacklist:", statsError);
+          }
         } else {
           showMessage(t("popup.noBlacklistCookies"));
         }

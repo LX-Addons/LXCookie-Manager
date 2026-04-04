@@ -33,9 +33,9 @@ export function useSiteStatus({
     const isInWhitelist = currentDomain ? isInList(currentDomain, whitelist) : false;
     const isInBlacklist = currentDomain ? isInList(currentDomain, blacklist) : false;
 
-    let status: SiteStatus = "normal";
-    let statusText = t("popup.siteStatus.normal");
-    let statusIcon: IconName = "globe";
+    let status: SiteStatus;
+    let statusText: string;
+    let statusIcon: IconName;
 
     if (mode === ModeType.WHITELIST) {
       if (isInWhitelist) {
@@ -47,16 +47,14 @@ export function useSiteStatus({
         statusText = t("popup.siteStatus.priorityCleanup");
         statusIcon = "alertTriangle";
       }
+    } else if (isInBlacklist) {
+      status = "priority-cleanup";
+      statusText = t("popup.siteStatus.priorityCleanup");
+      statusIcon = "alertTriangle";
     } else {
-      if (isInBlacklist) {
-        status = "priority-cleanup";
-        statusText = t("popup.siteStatus.priorityCleanup");
-        statusIcon = "alertTriangle";
-      } else {
-        status = "normal";
-        statusText = t("popup.siteStatus.normal");
-        statusIcon = "checkCircle";
-      }
+      status = "normal";
+      statusText = t("popup.siteStatus.normal");
+      statusIcon = "checkCircle";
     }
 
     return {

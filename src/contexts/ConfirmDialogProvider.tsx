@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   ConfirmDialogContext,
@@ -67,14 +67,18 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
     }
     executedRef.current = true;
     try {
-      state.onConfirm();
+      Promise.resolve(state.onConfirm()).catch((err) => {
+        console.error("ConfirmDialog onConfirm error:", err);
+      });
     } finally {
       closeConfirm();
     }
   }, [state, closeConfirm]);
 
+  const contextValue = useMemo(() => ({ showConfirm }), [showConfirm]);
+
   return (
-    <ConfirmDialogContext.Provider value={{ showConfirm }}>
+    <ConfirmDialogContext.Provider value={contextValue}>
       {children}
       <ConfirmDialog
         isOpen={state.isOpen}

@@ -100,26 +100,26 @@ export function useStorage<T>(key: StorageKey, defaultValue: T) {
 
   useEffect(() => {
     if (pendingValueRef.current !== null) {
-      storage.setItem(key, pendingValueRef.current);
+      const valueToStore = pendingValueRef.current;
       pendingValueRef.current = null;
+      storage.setItem(key, valueToStore).catch((error) => {
+        console.error(`Failed to persist storage key "${key}":`, error);
+      });
     }
   }, [value, key]);
 
-  const updateValue = useCallback(
-    (newValue: T | ((prev: T) => T)) => {
-      if (typeof newValue === "function") {
-        setValue((prev) => {
-          const next = (newValue as (prev: T) => T)(prev);
-          pendingValueRef.current = next;
-          return next;
-        });
-      } else {
-        setValue(newValue);
-        storage.setItem(key, newValue);
-      }
-    },
-    [key]
-  );
+  const updateValue = useCallback((newValue: T | ((prev: T) => T)) => {
+    if (typeof newValue === "function") {
+      setValue((prev) => {
+        const next = (newValue as (prev: T) => T)(prev);
+        pendingValueRef.current = next;
+        return next;
+      });
+    } else {
+      setValue(newValue);
+      pendingValueRef.current = newValue;
+    }
+  }, []);
 
   return [value, updateValue] as const;
 }

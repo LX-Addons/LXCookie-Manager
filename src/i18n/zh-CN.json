@@ -202,7 +202,13 @@
     "emptyLogsHint": "Cookie 管理操作会在此处记录",
     "count": "数量",
     "time": "时间",
-    "domainListWithMore": "{domains}等 {count} 个域名"
+    "domainListWithMore": "{domains}等 {count} 个域名",
+    "filterAll": "全部",
+    "filterClear": "清除",
+    "filterEdit": "编辑",
+    "filterDelete": "删除",
+    "filterImport": "导入",
+    "filterExport": "导出"
   },
   "cookieList": {
     "noCookies": "当前网站暂无 Cookie",

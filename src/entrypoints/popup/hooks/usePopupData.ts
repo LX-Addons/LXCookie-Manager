@@ -10,7 +10,12 @@ import { ErrorCode } from "@/types";
 import { DEBOUNCE_DELAY_MS } from "@/lib/constants";
 import { useTranslation } from "@/hooks";
 
-type LoadingState = "idle" | "loading" | "domain-unavailable" | "load-failed" | "permission-denied";
+export type LoadingState =
+  | "idle"
+  | "loading"
+  | "domain-unavailable"
+  | "load-failed"
+  | "permission-denied";
 
 interface UsePopupDataProps {
   onErrorMessage?: (text: string, isError?: boolean) => void;
@@ -68,12 +73,10 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
         setLoadingState("idle");
       } else if (statsResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
         resetPermissionDeniedState();
+      } else if (isInit) {
+        setLoadingState("load-failed");
       } else {
-        if (isInit) {
-          setLoadingState("load-failed");
-        } else {
-          onErrorMessage?.(t("popup.updateStatsFailed"), true);
-        }
+        onErrorMessage?.(t("popup.updateStatsFailed"), true);
       }
     },
     [resetPermissionDeniedState, onErrorMessage, t]
@@ -89,13 +92,11 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
         await handleCookiesResponseSuccess(cookiesResponse.data, requestId, isInit);
       } else if (cookiesResponse.error?.code === ErrorCode.INSUFFICIENT_PERMISSIONS) {
         resetPermissionDeniedState();
+      } else if (isInit) {
+        setLoadingState("domain-unavailable");
+        setCurrentDomain("");
       } else {
-        if (isInit) {
-          setLoadingState("domain-unavailable");
-          setCurrentDomain("");
-        } else {
-          onErrorMessage?.(t("popup.updateStatsFailed"), true);
-        }
+        onErrorMessage?.(t("popup.updateStatsFailed"), true);
       }
     },
     [handleCookiesResponseSuccess, resetPermissionDeniedState, onErrorMessage, t]

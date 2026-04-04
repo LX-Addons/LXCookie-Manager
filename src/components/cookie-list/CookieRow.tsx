@@ -49,13 +49,16 @@ export const CookieRow = memo(function CookieRow({
         risk.factors.sameSiteNone && t("cookieList.sameSiteNone"),
         risk.factors.longLifetime && t("cookieList.longLifetime"),
         risk.factors.sessionCookie && t("cookieList.sessionCookie"),
-      ].filter(Boolean)
+      ].filter((item): item is string => Boolean(item))
     : [];
 
   return (
     <div className={`cookie-card ${isSelected ? "selected" : ""}`}>
       <div className="cookie-summary-row">
-        <label className="checkbox-label cookie-checkbox">
+        <label
+          className="checkbox-label cookie-checkbox"
+          aria-label={t("cookieList.selectCookie", { name: cookie.name })}
+        >
           <input type="checkbox" checked={isSelected} onChange={() => onToggleSelection(keyProp)} />
         </label>
         <div className="cookie-summary-info">
@@ -158,8 +161,8 @@ export const CookieRow = memo(function CookieRow({
             <div className="cookie-detail-group risk-factors-group">
               <span className="cookie-detail-label">{t("cookieList.riskFactors")}</span>
               <ul className="risk-factors-list">
-                {riskFactorsList.map((factor, index) => (
-                  <li key={index} className="risk-factor-item">
+                {riskFactorsList.map((factor) => (
+                  <li key={factor} className="risk-factor-item">
                     {factor}
                   </li>
                 ))}

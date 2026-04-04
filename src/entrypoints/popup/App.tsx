@@ -4,6 +4,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Icon } from "@/components/Icon";
 import { WHITELIST_KEY, BLACKLIST_KEY, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import type { DomainList, Settings as SettingsType } from "@/types";
+import { ModeType } from "@/types";
 import { usePopupData } from "./hooks/usePopupData";
 import { usePopupMessage } from "./hooks/usePopupMessage";
 import { usePopupTheme } from "./hooks/usePopupTheme";
@@ -77,7 +78,7 @@ function IndexPopup() {
             <h1>{t("app.title")}</h1>
           </div>
           <div className="mode-badge">
-            {settings.mode === "whitelist"
+            {settings.mode === ModeType.WHITELIST
               ? t("settings.whitelistModeShort")
               : t("settings.blacklistModeShort")}
           </div>

@@ -22,3 +22,11 @@ export const toggleSetValue = (set: Set<string>, value: string): Set<string> => 
   }
   return next;
 };
+
+export const filterSetByValidKeys = <T>(prevSet: Set<T>, validKeys: Set<T>): Set<T> => {
+  const next = new Set<T>();
+  prevSet.forEach((key) => {
+    if (validKeys.has(key)) next.add(key);
+  });
+  return next;
+};

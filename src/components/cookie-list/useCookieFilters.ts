@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import type { Cookie, CookieRisk } from "@/types";
 import { assessCookieRisk } from "@/utils/cookie-risk";
 import { isDomainMatch, normalizeDomain } from "@/utils/domain";
@@ -128,12 +128,12 @@ export const useCookieFilters = ({
     [searchText, riskFilter, typeFilter, domainScopeFilter]
   );
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchText("");
     setRiskFilter("all");
     setTypeFilter("all");
     setDomainScopeFilter("all");
-  };
+  }, []);
 
   return {
     searchText,
