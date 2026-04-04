@@ -211,6 +211,7 @@
     "filterExport": "导出"
   },
   "cookieList": {
+    "selectCookie": "选择 Cookie {name}",
     "noCookies": "当前网站暂无 Cookie",
     "cookieDetails": "Cookie 列表 ({count})",
     "selected": "已选 {count} 个",

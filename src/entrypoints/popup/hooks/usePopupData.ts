@@ -44,6 +44,11 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
   const [currentCookies, setCurrentCookies] = useState<CookieType[]>([]);
   const loadRequestIdRef = useRef(0);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onErrorMessageRef = useRef(onErrorMessage);
+
+  useEffect(() => {
+    onErrorMessageRef.current = onErrorMessage;
+  }, [onErrorMessage]);
 
   const { t } = useTranslation();
 
@@ -91,10 +96,10 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
       } else if (isInit) {
         setLoadingState("load-failed");
       } else {
-        onErrorMessage?.(t("popup.updateStatsFailed"), true);
+        onErrorMessageRef.current?.(t("popup.updateStatsFailed"), true);
       }
     },
-    [resetPermissionDeniedState, onErrorMessage, t]
+    [resetPermissionDeniedState, t]
   );
 
   const handleCookiesResponse = useCallback(
@@ -111,10 +116,10 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
         setLoadingState("domain-unavailable");
         setCurrentDomain("");
       } else {
-        onErrorMessage?.(t("popup.updateStatsFailed"), true);
+        onErrorMessageRef.current?.(t("popup.updateStatsFailed"), true);
       }
     },
-    [handleCookiesResponseSuccess, resetPermissionDeniedState, onErrorMessage, t]
+    [handleCookiesResponseSuccess, resetPermissionDeniedState, t]
   );
 
   const loadStats = useCallback(
@@ -137,11 +142,11 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
         if (isInit) {
           setLoadingState("load-failed");
         } else {
-          onErrorMessage?.(t("popup.updateStatsFailed"), true);
+          onErrorMessageRef.current?.(t("popup.updateStatsFailed"), true);
         }
       }
     },
-    [handleCookiesResponse, onErrorMessage, t]
+    [handleCookiesResponse, t]
   );
 
   const init = useCallback(async () => {

@@ -32,6 +32,7 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
   });
 
   const executedRef = useRef(false);
+  const dialogSessionRef = useRef(0);
 
   const showConfirm = useCallback(
     (
@@ -42,6 +43,7 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
       options?: ConfirmOptions
     ) => {
       executedRef.current = false;
+      dialogSessionRef.current += 1;
       setState({
         isOpen: true,
         title,
@@ -66,13 +68,16 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
       return;
     }
     executedRef.current = true;
+    const sessionId = dialogSessionRef.current;
     void Promise.resolve()
       .then(() => state.onConfirm())
       .catch((err) => {
         console.error("ConfirmDialog onConfirm error:", err);
       })
       .finally(() => {
-        closeConfirm();
+        if (dialogSessionRef.current === sessionId) {
+          closeConfirm();
+        }
       });
   }, [state, closeConfirm]);
 

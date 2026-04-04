@@ -1,10 +1,7 @@
 import { memo } from "react";
 import { Icon } from "@/components/Icon";
 import type { TranslationFunction } from "@/hooks";
-
-type RiskFilter = "all" | "low" | "medium" | "high" | "critical";
-type TypeFilter = "all" | "session" | "persistent";
-type DomainScopeFilter = "all" | "current" | "third-party";
+import type { RiskFilter, TypeFilter, DomainScopeFilter } from "./useCookieFilters";
 
 interface CookieListToolbarProps {
   cookieCount: number;
@@ -51,17 +48,19 @@ export const CookieListToolbar = memo(function CookieListToolbar({
 
   return (
     <>
-      <button
-        type="button"
-        className="cookie-list-header"
-        onClick={onToggleExpand}
-        aria-expanded={isExpanded}
-      >
-        <h3 className="cookie-heading">{t("cookieList.cookieDetails", { count: cookieCount })}</h3>
-        <span className={`expand-icon ${isExpanded ? "expanded" : ""}`} aria-hidden="true">
-          <Icon name="chevronDown" size={16} />
-        </span>
-      </button>
+      <h3 className="cookie-heading">
+        <button
+          type="button"
+          className="cookie-list-header"
+          onClick={onToggleExpand}
+          aria-expanded={isExpanded}
+        >
+          <span>{t("cookieList.cookieDetails", { count: cookieCount })}</span>
+          <span className={`expand-icon ${isExpanded ? "expanded" : ""}`} aria-hidden="true">
+            <Icon name="chevronDown" size={16} />
+          </span>
+        </button>
+      </h3>
 
       {isExpanded && (
         <div className="cookie-filter-bar" data-testid="cookie-toolbar">

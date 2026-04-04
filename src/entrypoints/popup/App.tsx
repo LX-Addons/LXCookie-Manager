@@ -102,6 +102,7 @@ function IndexPopup() {
           return (
             <button
               key={tab.id}
+              id={tab.id + "-tab"}
               ref={(el) => {
                 tabRefs.current[tab.id] = el;
               }}

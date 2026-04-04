@@ -6,9 +6,9 @@ import { getCookieKey } from "@/utils/format";
 import { groupCookiesByDomain } from "./utils";
 import type { TranslationFunction } from "@/hooks";
 
-type RiskFilter = "all" | "low" | "medium" | "high" | "critical";
-type TypeFilter = "all" | "session" | "persistent";
-type DomainScopeFilter = "all" | "current" | "third-party";
+export type RiskFilter = "all" | "low" | "medium" | "high" | "critical";
+export type TypeFilter = "all" | "session" | "persistent";
+export type DomainScopeFilter = "all" | "current" | "third-party";
 
 interface UseCookieFiltersProps {
   cookies: Cookie[];
@@ -65,7 +65,7 @@ export const useCookieFilters = ({
     let result = cookies;
 
     if (searchText) {
-      const lowerSearch = searchText.toLowerCase();
+      const lowerSearch = searchText.trim().toLowerCase();
       result = result.filter(
         (cookie) =>
           cookie.name.toLowerCase().includes(lowerSearch) ||

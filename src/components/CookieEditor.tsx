@@ -67,7 +67,6 @@ const CookieEditorContent = ({
   const { dialogRef, handleClose } = useDialog({
     isOpen,
     onClose: () => {
-      if (isSaving) return;
       onClose();
     },
     triggerElement,

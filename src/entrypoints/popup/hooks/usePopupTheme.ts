@@ -67,7 +67,7 @@ interface UsePopupThemeReturn {
 
 export const usePopupTheme = ({ settings }: UsePopupThemeProps): UsePopupThemeReturn => {
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() => {
-    if (typeof globalThis !== "undefined") {
+    if (typeof globalThis !== "undefined" && typeof globalThis.matchMedia === "function") {
       return globalThis.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
     return "light";
@@ -107,6 +107,9 @@ export const usePopupTheme = ({ settings }: UsePopupThemeProps): UsePopupThemeRe
   }, [settings.themeMode, settings.customTheme, systemTheme, isCustomThemeDark]);
 
   useEffect(() => {
+    if (typeof globalThis === "undefined" || typeof globalThis.matchMedia !== "function") {
+      return;
+    }
     const mediaQuery = globalThis.matchMedia("(prefers-color-scheme: dark)");
 
     const handler = (e: MediaQueryListEvent) => {
@@ -134,8 +137,20 @@ export const usePopupTheme = ({ settings }: UsePopupThemeProps): UsePopupThemeRe
     const dangerLighter = getLighterColor(customTheme.danger);
     const textMuted = getMutedTextColor(customTheme.textSecondary);
 
-    const hexToRgba = (hex: string, alpha: number): string => {
-      const rgb = hex.replace("#", "");
+    const normalizeHex = (input: string): string | null => {
+      let hex = input.replace("#", "").trim();
+      if (hex.length === 3) {
+        hex = hex
+          .split("")
+          .map((c) => c + c)
+          .join("");
+      }
+      return /^[0-9A-Fa-f]{6}$/.test(hex) ? hex : null;
+    };
+
+    const hexToRgba = (hex: string, alpha: number): string | undefined => {
+      const rgb = normalizeHex(hex);
+      if (!rgb) return undefined;
       const r = Number.parseInt(rgb.substring(0, 2), 16);
       const g = Number.parseInt(rgb.substring(2, 4), 16);
       const b = Number.parseInt(rgb.substring(4, 6), 16);
@@ -188,7 +203,11 @@ export const usePopupTheme = ({ settings }: UsePopupThemeProps): UsePopupThemeRe
       "--danger-tint-15": hexToRgba(customTheme.danger, 0.15),
     };
     Object.entries(themeVars).forEach(([prop, value]) => {
-      if (value) root.style.setProperty(prop, value);
+      if (typeof value === "string" && value.length > 0) {
+        root.style.setProperty(prop, value);
+      } else {
+        root.style.removeProperty(prop);
+      }
     });
   }, []);
 

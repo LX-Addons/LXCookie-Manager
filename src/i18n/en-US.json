@@ -211,6 +211,7 @@
     "filterExport": "Export"
   },
   "cookieList": {
+    "selectCookie": "Select cookie {name}",
     "noCookies": "No cookies for current website",
     "cookieDetails": "Cookie List ({count})",
     "selected": "{count} selected",
