@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { storage } from "wxt/utils/storage";
 
 type StorageKey = `local:${string}` | `session:${string}` | `sync:${string}` | `managed:${string}`;
@@ -59,27 +59,24 @@ const mergeWithDefault = <T>(defaultValue: T, storedValue: T): T => {
  * @template T - The type of the stored value
  * @param key - The storage key (must be prefixed with storage area: local:, session:, sync:, or managed:)
  * @param defaultValue - The default value to use when no stored value exists.
- *   **IMPORTANT**: This must be a stable reference (module-level constant or memoized value).
- *   Passing inline object/array literals will cause unnecessary re-renders and effect re-runs.
- *   Example: `useStorage('key', [])` is acceptable but `useStorage('key', { foo: 'bar' })` is not recommended.
+ *   **⚠️ 所有引用类型默认值（对象、数组等）必须使用模块级稳定常量，禁止传入内联字面量**，
+ *   否则每次渲染都会创建新引用，导致 effect 重复执行、存储重复加载、watcher 反复重绑定。
  *
  * @returns A tuple of [value, setValue] similar to useState
  *
  * @example
- * // ✅ Good: module-level constant
+ * // ✅ 推荐：使用模块级常量（引用类型）
  * const DEFAULT_SETTINGS = { theme: 'light' };
  * useStorage('local:settings', DEFAULT_SETTINGS);
  *
  * @example
- * // ✅ Acceptable: empty array (no merge logic needed)
- * useStorage('local:items', []);
- *
- * @example
- * // ❌ Avoid: inline object literal
- * useStorage('local:settings', { theme: 'light' }); // Creates new reference each render
+ * // ✅ 推荐：数组也必须使用模块级常量
+ * const EMPTY_LIST: ItemType[] = [];
+ * useStorage('local:items', EMPTY_LIST);
  */
 export function useStorage<T>(key: StorageKey, defaultValue: T) {
   const [value, setValue] = useState<T>(defaultValue);
+  const pendingValueRef = useRef<T | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -101,15 +98,28 @@ export function useStorage<T>(key: StorageKey, defaultValue: T) {
     return unwatch;
   }, [key, defaultValue]);
 
-  const updateValue = useCallback(
-    (newValue: T | ((prev: T) => T)) => {
-      const valueToStore =
-        typeof newValue === "function" ? (newValue as (prev: T) => T)(value) : newValue;
-      setValue(valueToStore);
-      storage.setItem(key, valueToStore);
-    },
-    [key, value]
-  );
+  useEffect(() => {
+    if (pendingValueRef.current !== null) {
+      const valueToStore = pendingValueRef.current;
+      pendingValueRef.current = null;
+      storage.setItem(key, valueToStore).catch((error) => {
+        console.error(`Failed to persist storage key "${key}":`, error);
+      });
+    }
+  }, [value, key]);
+
+  const updateValue = useCallback((newValue: T | ((prev: T) => T)) => {
+    if (typeof newValue === "function") {
+      setValue((prev) => {
+        const next = (newValue as (prev: T) => T)(prev);
+        pendingValueRef.current = next;
+        return next;
+      });
+    } else {
+      setValue(newValue);
+      pendingValueRef.current = newValue;
+    }
+  }, []);
 
   return [value, updateValue] as const;
 }

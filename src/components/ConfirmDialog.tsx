@@ -1,7 +1,6 @@
-import { useRef, useId, useCallback, useEffect } from "react";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useRef, useId, useCallback } from "react";
+import { useTranslation, useDialog } from "@/hooks";
 import { Icon } from "./Icon";
-import { useDialog } from "@/hooks/useDialog";
 
 interface ConfirmDialogProps {
   readonly isOpen: boolean;
@@ -10,10 +9,11 @@ interface ConfirmDialogProps {
   readonly message: string;
   readonly confirmText?: string;
   readonly cancelText?: string;
-  readonly onConfirm: () => void;
+  readonly onConfirm: () => void | Promise<void>;
   readonly onCancel: () => void;
   readonly variant?: "danger" | "warning" | "info" | "success";
   readonly triggerElement?: HTMLElement | null;
+  readonly isLoading?: boolean;
 }
 
 const iconNameMap: Record<
@@ -24,6 +24,13 @@ const iconNameMap: Record<
   warning: "alertTriangle",
   info: "info",
   success: "checkCircle",
+};
+
+const buttonClassMap: Record<NonNullable<ConfirmDialogProps["variant"]>, string> = {
+  danger: "btn-danger",
+  warning: "btn-warning",
+  info: "btn-primary",
+  success: "btn-success",
 };
 
 export function ConfirmDialog({
@@ -37,6 +44,7 @@ export function ConfirmDialog({
   onCancel,
   variant = "warning",
   triggerElement,
+  isLoading = false,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
@@ -44,31 +52,6 @@ export function ConfirmDialog({
   const titleId = useId();
   const descriptionId = useId();
   const bodyId = useId();
-  const isClosingRef = useRef(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      isClosingRef.current = false;
-    }
-  }, [isOpen]);
-
-  const iconName = iconNameMap[variant];
-  let confirmButtonClass: string;
-  if (variant === "danger") {
-    confirmButtonClass = "btn-danger";
-  } else if (variant === "warning") {
-    confirmButtonClass = "btn-warning";
-  } else if (variant === "success") {
-    confirmButtonClass = "btn-success";
-  } else {
-    confirmButtonClass = "btn-primary";
-  }
-
-  const handleConfirm = useCallback(() => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-    onConfirm();
-  }, [onConfirm]);
 
   const handleOpenFocus = useCallback(() => {
     if (variant === "danger") {
@@ -83,9 +66,17 @@ export function ConfirmDialog({
     onClose: onCancel,
     triggerElement,
     onOpenFocus: handleOpenFocus,
+    closeOnOutsideClick: !isLoading,
+    closeOnEsc: !isLoading,
   });
 
+  const handleConfirm = useCallback(() => {
+    onConfirm();
+  }, [onConfirm]);
+
   const describedByIds = description ? `${descriptionId} ${bodyId}` : bodyId;
+  const iconName = iconNameMap[variant];
+  const confirmButtonClass = buttonClassMap[variant];
 
   return (
     <dialog
@@ -115,13 +106,19 @@ export function ConfirmDialog({
         </p>
       </div>
       <div className="modal-actions">
-        <button ref={cancelButtonRef} className="btn btn-secondary" onClick={handleClose}>
+        <button
+          ref={cancelButtonRef}
+          className="btn btn-secondary"
+          onClick={handleClose}
+          disabled={isLoading}
+        >
           {cancelText ?? t("common.cancel")}
         </button>
         <button
           ref={confirmButtonRef}
           className={`btn ${confirmButtonClass}`}
           onClick={handleConfirm}
+          disabled={isLoading}
         >
           {confirmText ?? t("common.confirm")}
         </button>

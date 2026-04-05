@@ -120,15 +120,24 @@ LXCookie_Manager/
 │   └── 🖼️ icon.png                    # 扩展图标资源
 │
 ├── 📂 scripts/                         # 🔧 构建脚本
-│   └── update-tracker-data.ts         # 追踪数据更新脚本
+│   ├── tracking-cookie-keywords.json   # 追踪 Cookie 关键词数据
+│   ├── update-tracker-data.ts          # 追踪数据更新脚本
+│   └── verify-cookie-baseline.ts       # Cookie 基线验证脚本
 │
 ├── 📂 src/
 │   │
 │   ├── 📂 components/                  # 🎨 React UI 组件
+│   │   ├── 📂 cookie-list/             # Cookie 列表组件
+│   │   │   ├── CookieBatchActions.tsx  # 批量操作组件
+│   │   │   ├── CookieDomainGroup.tsx   # 域名分组组件
+│   │   │   ├── CookieListToolbar.tsx   # 列表工具栏
+│   │   │   ├── CookieRow.tsx           # Cookie 行组件
+│   │   │   ├── useCookieFilters.ts     # Cookie 筛选 Hook
+│   │   │   ├── useCookieSelection.ts   # Cookie 选择 Hook
+│   │   │   └── utils.ts                # 列表工具函数
 │   │   ├── ⬜ CheckboxGroup.tsx        # 复选框组组件
 │   │   ├── 📋 ClearLog.tsx             # 清理日志组件
 │   │   ├── ⚠️ ConfirmDialog.tsx        # 确认对话框
-│   │   ├── ⚠️ ConfirmDialogWrapper.tsx # 确认对话框包装器
 │   │   ├── ✏️ CookieEditor.tsx         # Cookie 编辑器
 │   │   ├── 📜 CookieList.tsx           # Cookie 列表
 │   │   ├── 🌐 DomainManager.tsx        # 域名管理器
@@ -136,7 +145,12 @@ LXCookie_Manager/
 │   │   ├── 🔘 Icon.tsx                 # 图标组件
 │   │   ├── 🔘 RadioGroup.tsx           # 单选按钮组
 │   │   ├── 📦 Select.tsx               # 下拉选择框
-│   │   └── ⚙️ Settings.tsx             # 设置面板
+│   │   ├── ⚙️ Settings.tsx             # 设置面板
+│   │   └── 📊 StatusPanel.tsx          # 状态面板
+│   │
+│   ├── 📂 contexts/                    # 🔄 React Context
+│   │   ├── ConfirmDialogContext.ts     # 确认对话框上下文
+│   │   └── ConfirmDialogProvider.tsx   # 确认对话框提供者
 │   │
 │   ├── 📂 data/                        # 📊 数据文件
 │   │   ├── tracker-domains.json        # 追踪域名数据
@@ -148,6 +162,17 @@ LXCookie_Manager/
 │   │   │   ├── index.html              # HTML 模板
 │   │   │   ├── main.tsx                # 入口文件
 │   │   │   ├── style.css               # 主样式文件
+│   │   │   ├── 📂 hooks/               # Popup Hooks
+│   │   │   │   ├── usePopupActions.ts  # 操作逻辑 Hook
+│   │   │   │   ├── usePopupData.ts     # 数据管理 Hook
+│   │   │   │   ├── usePopupMessage.ts  # 消息通信 Hook
+│   │   │   │   ├── usePopupTabs.ts     # 标签页 Hook
+│   │   │   │   └── usePopupTheme.ts    # 主题 Hook
+│   │   │   ├── 📂 sections/            # 页面分区组件
+│   │   │   │   ├── LogSection.tsx      # 日志区域
+│   │   │   │   ├── ManageSection.tsx   # 管理区域
+│   │   │   │   ├── RulesSection.tsx    # 规则区域
+│   │   │   │   └── SettingsSection.tsx # 设置区域
 │   │   │   └── 📂 styles/              # 样式模块
 │   │   │       ├── tokens.css          # CSS 变量定义
 │   │   │       ├── layout.css          # 布局样式
@@ -185,19 +210,27 @@ LXCookie_Manager/
 │   │           └── tab-url-manager.ts      # 标签页 URL 管理服务
 │   │
 │   ├── 📂 hooks/                       # 🪝 React Hooks
-│   │   ├── useConfirmDialog.ts         # 对话框 Hook
-│   │   ├── useStorage.ts               # 存储 Hook
-│   │   └── useTranslation.ts           # 国际化 Hook
+│   │   ├── 📂 core/                    # 核心 Hooks
+│   │   │   ├── useDialog.ts            # 对话框 Hook
+│   │   │   ├── useSiteStatus.ts        # 站点状态 Hook
+│   │   │   ├── useStorage.ts           # 存储 Hook
+│   │   │   └── useTranslation.ts       # 国际化 Hook
+│   │   └── index.ts                    # Hooks 导出入口
 │   │
-│   ├── 📂 i18n/                        # 🌍 国际化资源
+│   ├── 📂 i18n/                        # 🌍 国际化资源（WXT i18n）
 │   │   ├── en-US.json                  # 英文语言包
 │   │   ├── zh-CN.json                  # 中文语言包
 │   │   ├── index.ts                    # i18n 入口
 │   │   └── types.ts                    # 类型定义
 │   │
+│   ├── 📂 locales/                     # 🌐 语言包（备用）
+│   │   ├── en.json                     # 英文语言包
+│   │   └── zh_CN.json                 # 中文语言包
+│   │
 │   ├── 📂 lib/                         # 📚 核心库
 │   │   ├── background-service.ts       # 后台通信服务
 │   │   ├── constants.ts                # 常量定义（含追踪数据）
+│   │   ├── cookie-data-validators.ts   # Cookie 数据验证
 │   │   ├── distributed-lock.ts         # 分布式锁
 │   │   └── store.ts                    # 状态存储
 │   │
@@ -213,13 +246,13 @@ LXCookie_Manager/
 │       │   ├── index.ts                # 清理工具入口
 │       │   ├── schedule-utils.ts       # 调度工具
 │       │   └── site-data-ops.ts        # 站点数据操作
-│       ├── cookie-data-validators.ts   # Cookie 数据验证
 │       ├── cookie-risk.ts              # Cookie 风险评估
+│       ├── domain-rules.ts             # 域名规则工具
 │       ├── domain.ts                   # 域名工具
 │       ├── format.ts                   # 格式化工具
 │       ├── index.ts                    # 工具函数入口
 │       └── theme.ts                    # 主题工具
-│
+
 ├── 📂 .github/                         # ⚡ GitHub 配置
 │   ├── 📂 actions/                     # 自定义 Actions
 │   │   └── 📂 setup-pnpm/
@@ -234,12 +267,18 @@ LXCookie_Manager/
 │   ├── CODEOWNERS                      # 代码所有者
 │   ├── codeql-config.yml               # CodeQL 配置
 │   └── dependabot.yml                  # 依赖更新配置
-│
+
 ├── 📄 package.json                     # 项目依赖配置
+├── 📄 pnpm-lock.yaml                   # pnpm 锁定文件
 ├── 📄 tsconfig.json                    # TypeScript 配置
 ├── 📄 wxt.config.ts                    # WXT 框架配置
 ├── 📄 eslint.config.js                 # ESLint 规则配置
 ├── 📄 .prettierrc.json                 # Prettier 格式化配置
+├── 📄 .prettierignore                  # Prettier 忽略配置
+├── 📄 .npmrc                           # npm 配置
+├── 📄 .gitattributes                   # Git 属性配置
+├── 📄 .gitignore                       # Git 忽略配置
+├── 📄 LICENSE                          # 许可证
 └── 📄 README.md                        # 项目说明文档
 ```
 
@@ -249,14 +288,16 @@ LXCookie_Manager/
 | 目录 | 职责 | 主要内容 |
 |:----:|:----:|:---------|
 | `public/` | 静态资源 | 扩展图标 |
-| `scripts/` | 构建脚本 | 追踪数据更新 |
-| `src/components/` | UI 组件 | React 可复用组件 |
+| `scripts/` | 构建脚本 | 追踪数据更新、Cookie 基线验证 |
+| `src/components/` | UI 组件 | React 可复用组件（含 Cookie 列表子模块） |
+| `src/contexts/` | React Context | 确认对话框上下文与提供者 |
 | `src/data/` | 数据文件 | 追踪域名数据 |
-| `src/entrypoints/popup/` | 弹出窗口 | Popup UI 及样式 |
+| `src/entrypoints/popup/` | 弹出窗口 | Popup UI、Hooks、分区组件及样式 |
 | `src/entrypoints/background/` | 后台服务 | Service Worker 及消息处理 |
-| `src/hooks/` | 自定义 Hooks | 状态管理、国际化 |
-| `src/i18n/` | 国际化 | 多语言支持 |
-| `src/lib/` | 核心库 | 后台通信、常量、存储 |
+| `src/hooks/` | 自定义 Hooks | 状态管理、国际化、对话框等核心 Hooks |
+| `src/i18n/` | 国际化 | WXT i18n 多语言支持 |
+| `src/locales/` | 语言包 | 备用语言包文件 |
+| `src/lib/` | 核心库 | 后台通信、常量、存储、数据验证 |
 | `src/types/` | 类型定义 | TypeScript 类型 |
 | `src/utils/` | 工具函数 | 清理逻辑、风险评估、域名工具等 |
 | `.github/` | CI/CD | 自动化工作流 |

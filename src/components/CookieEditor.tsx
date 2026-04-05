@@ -2,9 +2,8 @@ import { useState, useEffect, useRef, useId, useCallback } from "react";
 import { Icon } from "@/components/Icon";
 import { Select } from "@/components/Select";
 import type { Cookie, SameSite } from "@/types";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useTranslation, useDialog } from "@/hooks";
 import { fromChromeSameSite } from "@/utils/format";
-import { useDialog } from "@/hooks/useDialog";
 
 interface Props {
   isOpen: boolean;
@@ -50,14 +49,14 @@ const CookieEditorContent = ({
   const nameInputRef = useRef<HTMLInputElement>(null);
   const valueInputRef = useRef<HTMLTextAreaElement>(null);
   const titleId = useId();
-  const isClosingRef = useRef(false);
-  const wasOpenRef = useRef(false);
 
-  const handleCloseInternal = useCallback(() => {
-    if (isSaving || isClosingRef.current) return;
-    isClosingRef.current = true;
-    onClose();
-  }, [onClose, isSaving]);
+  const wasOpenRef = useRef(false);
+  const savedRef = useRef(false);
+  const allowCloseRef = useRef(false);
+
+  // isSaving: 请求中防重复提交
+  // savedRef: 成功后关闭完成前防重复点击
+  // allowCloseRef: 只有保存成功后才允许关闭
 
   const handleOpenFocus = useCallback(() => {
     if (cookie) {
@@ -69,7 +68,10 @@ const CookieEditorContent = ({
 
   const { dialogRef, handleClose } = useDialog({
     isOpen,
-    onClose: handleCloseInternal,
+    onClose: () => {
+      if (savedRef.current && !allowCloseRef.current) return;
+      onClose();
+    },
     triggerElement,
     onOpenFocus: handleOpenFocus,
   });
@@ -78,7 +80,8 @@ const CookieEditorContent = ({
     const justOpened = isOpen && !wasOpenRef.current;
     wasOpenRef.current = isOpen;
     if (justOpened) {
-      isClosingRef.current = false;
+      savedRef.current = false;
+      allowCloseRef.current = false;
       if (cookie) {
         setFormData({
           ...cookie,
@@ -95,17 +98,21 @@ const CookieEditorContent = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSaving || isClosingRef.current) return;
+    if (isSaving || savedRef.current) return;
 
+    savedRef.current = true;
     setIsSaving(true);
     try {
       const success = await onSave(formData);
-      if (success && !isClosingRef.current) {
-        isClosingRef.current = true;
-        onClose();
+      if (success) {
+        allowCloseRef.current = true;
+        handleClose();
+      } else {
+        savedRef.current = false;
       }
     } catch (error) {
       console.error("Failed to save cookie:", error);
+      savedRef.current = false;
     } finally {
       setIsSaving(false);
     }

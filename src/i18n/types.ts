@@ -6,14 +6,6 @@ export interface Translations {
     delete: string;
     save: string;
     saving: string;
-    edit: string;
-    clear: string;
-    clearAll: string;
-    export: string;
-    yes: string;
-    no: string;
-    count: string;
-    domains: string;
     allWebsites: string;
     unknownError: string;
     listSeparator: string;
@@ -21,7 +13,6 @@ export interface Translations {
   };
   app: {
     title: string;
-    subtitle: string;
   };
   tabs: {
     manage: string;
@@ -31,7 +22,6 @@ export interface Translations {
     log: string;
   };
   popup: {
-    currentWebsite: string;
     cookieStats: string;
     total: string;
     current: string;
@@ -39,7 +29,6 @@ export interface Translations {
     persistent: string;
     thirdParty: string;
     tracking: string;
-    quickActions: string;
     addToWhitelist: string;
     addToBlacklist: string;
     clearCurrent: string;
@@ -54,15 +43,6 @@ export interface Translations {
     domainUnavailableDesc: string;
     loadFailedDesc: string;
     retry: string;
-    startupCleanup: string;
-    expiredCookieCleanup: string;
-    cleanedExpired: string;
-    noExpiredFound: string;
-    cleanExpiredFailed: string;
-    addedToWhitelist: string;
-    alreadyInWhitelist: string;
-    addedToBlacklist: string;
-    alreadyInBlacklist: string;
     clearedSuccess: string;
     confirmClear: string;
     confirmClearCurrent: string;
@@ -70,15 +50,14 @@ export interface Translations {
     clearedBlacklist: string;
     noBlacklistCookies: string;
     noCookiesCleared: string;
-    siteStatus: string;
-    protectedSite: string;
-    priorityCleanupSite: string;
+    siteStatus: {
+      protected: string;
+      priorityCleanup: string;
+      normal: string;
+    };
     modeSummaryWhitelist: string;
     modeSummaryBlacklist: string;
-    privacyScore: string;
     quickManage: string;
-    viewAllCookies: string;
-    riskSummary: string;
     currentSiteCookies: string;
     thirdPartyDetected: string;
     trackingDetected: string;
@@ -167,7 +146,6 @@ export interface Translations {
     clearLocalStorageDesc: string;
     clearIndexedDB: string;
     clearIndexedDBDesc: string;
-    settingsSaved: string;
     language: string;
     languageDesc: string;
     cleanupOnTabCloseDesc: string;
@@ -220,23 +198,12 @@ export interface Translations {
     expiredLogsCleared: string;
     noExpiredLogs: string;
     logsExported: string;
-    noLogs: string;
     logOverview: string;
     totalEntries: string;
-    filterAll: string;
-    filterClear: string;
-    filterEdit: string;
-    filterDelete: string;
-    filterImport: string;
-    filterExport: string;
     emptyLogs: string;
     emptyLogsHint: string;
-    action: string;
-    site: string;
     count: string;
     time: string;
-    details: string;
-    andMoreDomains: string;
     domainListWithMore: string;
   };
   cookieList: {
@@ -270,7 +237,6 @@ export interface Translations {
     edit: string;
     hide: string;
     show: string;
-    selectCookie: string;
     value: string;
     domain: string;
     path: string;

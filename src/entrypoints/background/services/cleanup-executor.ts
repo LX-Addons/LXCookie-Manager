@@ -1,7 +1,7 @@
 import type { CleanupExecutionResult, CleanupTrigger, Settings } from "@/types";
 import { CookieClearType, CleanupError, CleanupStage, ErrorCode } from "@/types";
 import { runCleanup, runCleanupWithFilter } from "@/utils/cleanup/cleanup-runner";
-import { isCookieDomainMatch } from "@/utils/domain";
+import { isDomainMatch } from "@/utils/domain";
 import { metricsService } from "@/entrypoints/background/services/metrics";
 import { logService } from "@/entrypoints/background/services/log-service";
 import { classifyError } from "@/entrypoints/background/services/error-reporting";
@@ -134,7 +134,7 @@ class CleanupExecutorImpl {
             durationMs: 0,
           };
         }
-        filterFn = (domain) => isCookieDomainMatch(domain, filterValue);
+        filterFn = (domain) => isDomainMatch(domain, filterValue);
         break;
       case "domain-list":
         if (!domainList?.length) {
@@ -147,8 +147,7 @@ class CleanupExecutorImpl {
             durationMs: 0,
           };
         }
-        filterFn = (domain) =>
-          domainList.some((listDomain) => isCookieDomainMatch(domain, listDomain));
+        filterFn = (domain) => domainList.some((listDomain) => isDomainMatch(domain, listDomain));
         break;
       default:
         return {

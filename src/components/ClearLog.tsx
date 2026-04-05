@@ -1,26 +1,24 @@
-import { useStorage } from "@/hooks/useStorage";
+import { useStorage, useTranslation } from "@/hooks";
 import { CLEAR_LOG_KEY, SETTINGS_KEY, DEFAULT_SETTINGS, LOG_RETENTION_MAP } from "@/lib/store";
 import type { ClearLogEntry, Settings } from "@/types";
 import { LogRetention } from "@/types";
 import { getCookieTypeName, getActionText, formatLogTime } from "@/utils/format";
 import { useMemo, useState } from "react";
-import { ConfirmDialogWrapper, type ShowConfirmFn } from "@/components/ConfirmDialogWrapper";
-import { useTranslation } from "@/hooks/useTranslation";
+import { useConfirmDialogContext } from "@/contexts/ConfirmDialogContext";
 import { BackgroundService } from "@/lib/background-service";
 import { Icon } from "@/components/Icon";
+
+const EMPTY_LOGS: ClearLogEntry[] = [];
 
 type ActionFilter = "all" | "clear" | "edit" | "delete" | "import" | "export";
 
 interface Props {
-  onMessage: (msg: string, isError?: boolean) => void;
+  onMessage: (text: string, isError?: boolean) => void;
 }
 
-interface ClearLogContentProps extends Props {
-  showConfirm: ShowConfirmFn;
-}
-
-const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
-  const [logs, setLogs] = useStorage<ClearLogEntry[]>(CLEAR_LOG_KEY, []);
+export const ClearLog = ({ onMessage }: Props) => {
+  const showConfirm = useConfirmDialogContext();
+  const [logs, setLogs] = useStorage<ClearLogEntry[]>(CLEAR_LOG_KEY, EMPTY_LOGS);
   const [settings] = useStorage<Settings>(SETTINGS_KEY, DEFAULT_SETTINGS);
   const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
   const { t } = useTranslation();
@@ -221,13 +219,5 @@ const ClearLogContent = ({ onMessage, showConfirm }: ClearLogContentProps) => {
         </section>
       )}
     </div>
-  );
-};
-
-export const ClearLog = ({ onMessage }: Props) => {
-  return (
-    <ConfirmDialogWrapper>
-      {(showConfirm) => <ClearLogContent onMessage={onMessage} showConfirm={showConfirm} />}
-    </ConfirmDialogWrapper>
   );
 };

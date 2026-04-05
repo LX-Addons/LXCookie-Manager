@@ -4,6 +4,11 @@ import { SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import type { Settings, Locale } from "@/types";
 import { setLocale, detectBrowserLocale, t as translate } from "@/i18n";
 
+export type TranslationFunction = (
+  path: string,
+  params?: Record<string, string | number>
+) => string;
+
 export function useTranslation() {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_SETTINGS.locale);
 
@@ -39,11 +44,9 @@ export function useTranslation() {
   );
 
   const setTranslationLocale = useCallback((newLocale: Locale) => {
-    // 先同步更新本地 state 和 i18n，确保 UI 立即响应
     setLocaleState(newLocale);
     setLocale(newLocale);
 
-    // 再异步持久化到 storage
     storage
       .getItem<Settings>(SETTINGS_KEY)
       .then((current) => {

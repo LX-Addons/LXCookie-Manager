@@ -4,7 +4,7 @@ import {
   THIRD_PARTY_TRACKERS_SET,
   SENSITIVE_COOKIE_KEYWORDS,
 } from "@/lib/constants";
-import { isCookieDomainMatch, isInSet } from "./domain";
+import { isDomainMatch, isInSet } from "./domain";
 
 const LONG_LIFETIME_DAYS = 90;
 
@@ -31,7 +31,7 @@ export const isSensitiveCookie = (cookie: { name: string }): boolean => {
 
 export const isThirdPartyCookie = (cookieDomain: string, currentDomain?: string): boolean => {
   if (!currentDomain) return false;
-  return !isCookieDomainMatch(cookieDomain, currentDomain);
+  return !isDomainMatch(cookieDomain, currentDomain);
 };
 
 export const hasLongLifetime = (cookie: { expirationDate?: number }): boolean => {

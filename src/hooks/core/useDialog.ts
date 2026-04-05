@@ -5,9 +5,23 @@ export interface UseDialogOptions {
   onClose: () => void;
   triggerElement?: HTMLElement | null;
   onOpenFocus?: () => void;
+  closeOnOutsideClick?: boolean;
+  closeOnEsc?: boolean;
 }
 
-export function useDialog({ isOpen, onClose, triggerElement, onOpenFocus }: UseDialogOptions) {
+export interface UseDialogReturn {
+  dialogRef: React.RefObject<HTMLDialogElement | null>;
+  handleClose: () => void;
+}
+
+export function useDialog({
+  isOpen,
+  onClose,
+  triggerElement,
+  onOpenFocus,
+  closeOnOutsideClick = true,
+  closeOnEsc = true,
+}: UseDialogOptions): UseDialogReturn {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isClosingRef = useRef(false);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -16,6 +30,11 @@ export function useDialog({ isOpen, onClose, triggerElement, onOpenFocus }: UseD
     if (isClosingRef.current) return;
     isClosingRef.current = true;
     onClose();
+    requestAnimationFrame(() => {
+      if (dialogRef.current?.open) {
+        isClosingRef.current = false;
+      }
+    });
   }, [onClose]);
 
   useEffect(() => {
@@ -44,6 +63,10 @@ export function useDialog({ isOpen, onClose, triggerElement, onOpenFocus }: UseD
     if (!dialog) return;
 
     const handleCancel = (e: Event) => {
+      if (!closeOnEsc) {
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       handleClose();
     };
@@ -56,6 +79,7 @@ export function useDialog({ isOpen, onClose, triggerElement, onOpenFocus }: UseD
     };
 
     const handleClick = (e: MouseEvent) => {
+      if (!closeOnOutsideClick) return;
       const rect = dialog.getBoundingClientRect();
       const isInDialog =
         rect.top <= e.clientY &&
@@ -76,7 +100,7 @@ export function useDialog({ isOpen, onClose, triggerElement, onOpenFocus }: UseD
       dialog.removeEventListener("close", handleCloseEvent);
       dialog.removeEventListener("click", handleClick);
     };
-  }, [handleClose]);
+  }, [handleClose, closeOnOutsideClick, closeOnEsc]);
 
   return {
     dialogRef,

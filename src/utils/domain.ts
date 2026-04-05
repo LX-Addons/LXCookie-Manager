@@ -13,17 +13,6 @@ export const isDomainMatch = (cookieDomain: string, targetDomain: string): boole
   return false;
 };
 
-export const isCookieDomainMatch = (cookieDomain: string, targetDomain: string): boolean => {
-  const normalizedCookie = normalizeDomain(cookieDomain);
-  const normalizedTarget = normalizeDomain(targetDomain);
-
-  if (normalizedCookie === normalizedTarget) return true;
-  if (normalizedTarget.endsWith("." + normalizedCookie)) return true;
-  if (normalizedCookie.endsWith("." + normalizedTarget)) return true;
-
-  return false;
-};
-
 export const isInList = (domain: string, list: string[]): boolean => {
   const normalizedDomain = normalizeDomain(domain);
   return list.some((item) => {

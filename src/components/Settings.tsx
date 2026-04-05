@@ -1,16 +1,14 @@
-import React from "react";
-import { useStorage } from "@/hooks/useStorage";
+import { useStorage, useTranslation } from "@/hooks";
 import { SETTINGS_KEY, DEFAULT_SETTINGS, DEFAULT_CUSTOM_THEME } from "@/lib/store";
 import type { Settings as SettingsType, CustomTheme, Locale } from "@/types";
 import { CookieClearType, LogRetention, ThemeMode, ModeType, ScheduleInterval } from "@/types";
 import { RadioGroup } from "@/components/RadioGroup";
 import { CheckboxGroup } from "@/components/CheckboxGroup";
 import { Select } from "@/components/Select";
-import { useTranslation } from "@/hooks/useTranslation";
 import { Icon } from "@/components/Icon";
 
 interface Props {
-  onMessage: (msg: string) => void;
+  onMessage: (text: string, isError?: boolean) => void;
 }
 
 export const Settings = ({ onMessage }: Props) => {

@@ -1,15 +1,18 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { Icon } from "@/components/Icon";
-import { useStorage } from "@/hooks/useStorage";
+import { useStorage, useTranslation } from "@/hooks";
+import { useConfirmDialogContext } from "@/contexts/ConfirmDialogContext";
 import { WHITELIST_KEY, BLACKLIST_KEY } from "@/lib/store";
 import type { DomainList } from "@/types";
 import { validateDomain, normalizeDomain, isInList } from "@/utils/domain";
-import { useTranslation } from "@/hooks/useTranslation";
+import { addDomainsToList } from "@/utils/domain-rules";
+
+const EMPTY_DOMAIN_LIST: DomainList = [];
 
 interface Props {
   type: "whitelist" | "blacklist";
   currentDomain: string;
-  onMessage: (msg: string) => void;
+  onMessage: (text: string, isError?: boolean) => void;
   onClearBlacklist?: () => void;
 }
 
@@ -17,69 +20,72 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
   const [inputValue, setInputValue] = useState("");
   const [list, setList] = useStorage<DomainList>(
     type === "whitelist" ? WHITELIST_KEY : BLACKLIST_KEY,
-    []
+    EMPTY_DOMAIN_LIST
   );
   const { t } = useTranslation();
+  const showConfirm = useConfirmDialogContext();
 
-  const isCurrentDomainInList = useMemo(
-    () => currentDomain && isInList(currentDomain, list),
-    [currentDomain, list]
+  const handleClearBlacklist = useCallback(
+    (triggerElement?: HTMLElement | null) => {
+      if (!onClearBlacklist) return;
+
+      showConfirm(
+        t("domainManager.clearBlacklistCookies"),
+        t("domainManager.clearBlacklistWarning"),
+        "danger",
+        onClearBlacklist,
+        { triggerElement }
+      );
+    },
+    [showConfirm, onClearBlacklist, t]
   );
 
-  const addDomain = useCallback(
-    (domain: string) => {
-      const trimmed = domain.trim();
-      const validation = validateDomain(trimmed, t);
-      if (!validation.valid) {
-        onMessage(validation.message || t("domainManager.invalidDomain"));
-        return;
-      }
-      const normalizedTrimmed = normalizeDomain(trimmed);
-      const isAlreadyInList = list.some((item) => normalizeDomain(item) === normalizedTrimmed);
-      if (isAlreadyInList) {
-        onMessage(
-          t("domainManager.alreadyInList", {
-            domain: trimmed,
-            listType: type === "whitelist" ? t("tabs.whitelist") : t("tabs.blacklist"),
-          })
-        );
-        return;
-      }
-      setList([...list, normalizedTrimmed]);
-      setInputValue("");
+  const isCurrentDomainInList = currentDomain && isInList(currentDomain, list);
+
+  const addDomain = (domain: string) => {
+    const trimmed = domain.trim();
+    const validation = validateDomain(trimmed, t);
+    if (!validation.valid) {
+      onMessage(validation.message || t("domainManager.invalidDomain"));
+      return;
+    }
+    const result = addDomainsToList([trimmed], list);
+    if (!result.changed) {
       onMessage(
-        t("domainManager.addedToList", {
+        t("domainManager.alreadyInList", {
+          domain: trimmed,
           listType: type === "whitelist" ? t("tabs.whitelist") : t("tabs.blacklist"),
         })
       );
-    },
-    [list, onMessage, setList, t, type]
-  );
+      return;
+    }
+    setList(result.nextList);
+    setInputValue("");
+    onMessage(
+      t("domainManager.addedToList", {
+        listType: type === "whitelist" ? t("tabs.whitelist") : t("tabs.blacklist"),
+      })
+    );
+  };
 
-  const removeDomain = useCallback(
-    (domain: string) => {
-      const normalizedDomain = normalizeDomain(domain);
-      setList(list.filter((d) => normalizeDomain(d) !== normalizedDomain));
-      onMessage(t("domainManager.deleted"));
-    },
-    [list, setList, onMessage, t]
-  );
+  const removeDomain = (domain: string) => {
+    const normalizedDomain = normalizeDomain(domain);
+    setList(list.filter((d) => normalizeDomain(d) !== normalizedDomain));
+    onMessage(t("domainManager.deleted"));
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter" && inputValue.trim()) {
-        e.preventDefault();
-        addDomain(inputValue);
-      }
-    },
-    [addDomain, inputValue]
-  );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && inputValue.trim()) {
+      e.preventDefault();
+      addDomain(inputValue);
+    }
+  };
 
-  const handleAddCurrentDomain = useCallback(() => {
+  const handleAddCurrentDomain = () => {
     if (currentDomain) {
       addDomain(currentDomain);
     }
-  }, [addDomain, currentDomain]);
+  };
 
   return (
     <div className={`rule-manager rule-manager-${type}`}>
@@ -163,7 +169,7 @@ export const DomainManager = ({ type, currentDomain, onMessage, onClearBlacklist
           </div>
           <p className="danger-description">{t("domainManager.clearBlacklistWarning")}</p>
           <button
-            onClick={onClearBlacklist}
+            onClick={(e) => handleClearBlacklist(e.currentTarget)}
             className="btn btn-danger btn-block"
             data-testid="rule-danger-action"
           >
