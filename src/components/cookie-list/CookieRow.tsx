@@ -55,11 +55,13 @@ export const CookieRow = memo(function CookieRow({
   return (
     <div className={`cookie-card ${isSelected ? "selected" : ""}`}>
       <div className="cookie-summary-row">
-        <label
-          className="checkbox-label cookie-checkbox"
-          aria-label={t("cookieList.selectCookie", { name: cookie.name })}
-        >
-          <input type="checkbox" checked={isSelected} onChange={() => onToggleSelection(keyProp)} />
+        <label className="checkbox-label cookie-checkbox">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelection(keyProp)}
+            aria-label={t("cookieList.selectCookie", { name: cookie.name })}
+          />
         </label>
         <div className="cookie-summary-info">
           <span className="cookie-name-text">{cookie.name}</span>

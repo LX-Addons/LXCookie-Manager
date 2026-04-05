@@ -10434,6 +10434,7 @@
     "cdn.clkmc.com",
     "cdn.cuty.io",
     "cdn.debugbear.com",
+    "cdn.eaec.fpfis.tech.ec.europa.eu",
     "cdn.freshmarketer.com",
     "cdn.gov.cfigroup.com",
     "cdn.heapanalytics.com",
@@ -12591,6 +12592,7 @@
     "d2nq0f8d9ofdwv.cloudfront.net",
     "d2o5idwacg3gyw.cloudfront.net",
     "d2o67tzzxkqap2.cloudfront.net",
+    "d2o9p5vky89u4e.cloudfront.net",
     "d2oh4tlt9mrke9.cloudfront.net",
     "d2pozfvrp52dk4.cloudfront.net",
     "d2pt12ct4kmq21.cloudfront.net",
@@ -32669,6 +32671,7 @@
     "reltrd.peteralexander.com.au",
     "relyonit.americanexpress.co.uk",
     "remailtarget.com",
+    "remarkable.com",
     "remarketing.oncourselearning.com",
     "remarketstats.com",
     "remaxmetro369.myre.io",
@@ -33071,6 +33074,7 @@
     "roaddynamics.com",
     "roadster.com",
     "roar.com",
+    "roas-service.store-services-prod.remarkable.com",
     "roblox.com",
     "robotflowermobile.com",
     "robotreplay.com",
@@ -43022,6 +43026,7 @@
     "telemetry.navispherecarrier.com",
     "telemetry.owenscorning.com",
     "telemetry.phenixrts.com",
+    "telemetry.portal.voltdeutschland.org",
     "telemetry.proton.me",
     "telemetry.reembed.com",
     "telemetry.ruthschris.com",
@@ -50845,11 +50850,11 @@
     "vwo_",
     "xs"
   ],
-  "lastUpdated": "2026-04-04T01:47:26.400Z",
+  "lastUpdated": "2026-04-05T01:19:44.421Z",
   "sources": {
     "easyprivacy": {
-      "count": 47700,
-      "version": "202604040131"
+      "count": 47705,
+      "version": "202604050111"
     },
     "peterlowe": {
       "count": 3519,

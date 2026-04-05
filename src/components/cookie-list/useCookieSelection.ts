@@ -69,25 +69,25 @@ export const useCookieSelection = ({
     });
   }, [filteredCookies]);
 
-  const toggleCookieSelection = (key: string) => {
+  const toggleCookieSelection = useCallback((key: string) => {
     setSelectedCookies((prev) => toggleSetValue(prev, key));
-  };
+  }, []);
 
-  const toggleValueVisibility = (key: string) => {
+  const toggleValueVisibility = useCallback((key: string) => {
     setVisibleValues((prev) => toggleSetValue(prev, key));
-  };
+  }, []);
 
-  const toggleDomainExpansion = (domain: string) => {
+  const toggleDomainExpansion = useCallback((domain: string) => {
     setExpandedDomains((prev) => toggleSetValue(prev, domain));
-  };
+  }, []);
 
-  const toggleCookieExpansion = (key: string) => {
+  const toggleCookieExpansion = useCallback((key: string) => {
     setExpandedCookies((prev) => toggleSetValue(prev, key));
-  };
+  }, []);
 
-  const clearSelectedCookies = () => {
+  const clearSelectedCookies = useCallback(() => {
     setSelectedCookies(new Set());
-  };
+  }, []);
 
   return {
     selectedCookies,

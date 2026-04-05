@@ -33,6 +33,7 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
 
   const executedRef = useRef(false);
   const dialogSessionRef = useRef(0);
+  const [isPending, setIsPending] = useState(false);
 
   const showConfirm = useCallback(
     (
@@ -44,6 +45,7 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
     ) => {
       executedRef.current = false;
       dialogSessionRef.current += 1;
+      setIsPending(false);
       setState({
         isOpen: true,
         title,
@@ -60,8 +62,9 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
   );
 
   const closeConfirm = useCallback(() => {
+    if (isPending) return;
     setState((prev) => ({ ...prev, isOpen: false }));
-  }, []);
+  }, [isPending]);
 
   const handleConfirm = useCallback(() => {
     if (executedRef.current) {
@@ -69,12 +72,14 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
     }
     executedRef.current = true;
     const sessionId = dialogSessionRef.current;
+    setIsPending(true);
     void Promise.resolve()
       .then(() => state.onConfirm())
       .catch((err) => {
         console.error("ConfirmDialog onConfirm error:", err);
       })
       .finally(() => {
+        setIsPending(false);
         if (dialogSessionRef.current === sessionId) {
           closeConfirm();
         }
@@ -97,6 +102,7 @@ export const ConfirmDialogProvider = ({ children }: ConfirmDialogProviderProps) 
         onConfirm={handleConfirm}
         onCancel={closeConfirm}
         triggerElement={state.triggerElement}
+        isLoading={isPending}
       />
     </ConfirmDialogContext.Provider>
   );

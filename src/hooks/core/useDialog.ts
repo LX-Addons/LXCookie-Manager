@@ -5,6 +5,8 @@ export interface UseDialogOptions {
   onClose: () => void;
   triggerElement?: HTMLElement | null;
   onOpenFocus?: () => void;
+  closeOnOutsideClick?: boolean;
+  closeOnEsc?: boolean;
 }
 
 export interface UseDialogReturn {
@@ -17,6 +19,8 @@ export function useDialog({
   onClose,
   triggerElement,
   onOpenFocus,
+  closeOnOutsideClick = true,
+  closeOnEsc = true,
 }: UseDialogOptions): UseDialogReturn {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isClosingRef = useRef(false);
@@ -59,6 +63,10 @@ export function useDialog({
     if (!dialog) return;
 
     const handleCancel = (e: Event) => {
+      if (!closeOnEsc) {
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       handleClose();
     };
@@ -71,6 +79,7 @@ export function useDialog({
     };
 
     const handleClick = (e: MouseEvent) => {
+      if (!closeOnOutsideClick) return;
       const rect = dialog.getBoundingClientRect();
       const isInDialog =
         rect.top <= e.clientY &&
@@ -91,7 +100,7 @@ export function useDialog({
       dialog.removeEventListener("close", handleCloseEvent);
       dialog.removeEventListener("click", handleClick);
     };
-  }, [handleClose]);
+  }, [handleClose, closeOnOutsideClick, closeOnEsc]);
 
   return {
     dialogRef,

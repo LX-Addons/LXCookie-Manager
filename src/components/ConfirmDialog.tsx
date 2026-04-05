@@ -13,6 +13,7 @@ interface ConfirmDialogProps {
   readonly onCancel: () => void;
   readonly variant?: "danger" | "warning" | "info" | "success";
   readonly triggerElement?: HTMLElement | null;
+  readonly isLoading?: boolean;
 }
 
 const iconNameMap: Record<
@@ -43,6 +44,7 @@ export function ConfirmDialog({
   onCancel,
   variant = "warning",
   triggerElement,
+  isLoading = false,
 }: ConfirmDialogProps) {
   const { t } = useTranslation();
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
@@ -64,6 +66,8 @@ export function ConfirmDialog({
     onClose: onCancel,
     triggerElement,
     onOpenFocus: handleOpenFocus,
+    closeOnOutsideClick: !isLoading,
+    closeOnEsc: !isLoading,
   });
 
   const handleConfirm = useCallback(() => {
@@ -102,13 +106,19 @@ export function ConfirmDialog({
         </p>
       </div>
       <div className="modal-actions">
-        <button ref={cancelButtonRef} className="btn btn-secondary" onClick={handleClose}>
+        <button
+          ref={cancelButtonRef}
+          className="btn btn-secondary"
+          onClick={handleClose}
+          disabled={isLoading}
+        >
           {cancelText ?? t("common.cancel")}
         </button>
         <button
           ref={confirmButtonRef}
           className={`btn ${confirmButtonClass}`}
           onClick={handleConfirm}
+          disabled={isLoading}
         >
           {confirmText ?? t("common.confirm")}
         </button>
