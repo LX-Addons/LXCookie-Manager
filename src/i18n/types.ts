@@ -37,7 +37,6 @@ export interface Translations {
     updateStatsFailed: string;
     permissionDenied: string;
     permissionDeniedDesc: string;
-    openExtensionSettings: string;
     clearCookiesFailed: string;
     loading: string;
     domainUnavailableDesc: string;
@@ -63,6 +62,11 @@ export interface Translations {
     trackingDetected: string;
     dangerZone: string;
     dangerZoneDesc: string;
+    permissionGuide1: string;
+    permissionStep1: string;
+    permissionStep2: string;
+    permissionStep3: string;
+    retryAfterPermission: string;
   };
   settings: {
     group: {

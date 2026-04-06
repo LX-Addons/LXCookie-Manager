@@ -115,6 +115,15 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
       } else if (isInit) {
         setLoadingState("domain-unavailable");
         setCurrentDomain("");
+        setStats({
+          total: 0,
+          current: 0,
+          session: 0,
+          persistent: 0,
+          thirdParty: 0,
+          tracking: 0,
+        });
+        setCurrentCookies([]);
       } else {
         onErrorMessageRef.current?.(t("popup.updateStatsFailed"), true);
       }
@@ -141,6 +150,16 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
         });
         if (isInit) {
           setLoadingState("load-failed");
+          setCurrentDomain("");
+          setStats({
+            total: 0,
+            current: 0,
+            session: 0,
+            persistent: 0,
+            thirdParty: 0,
+            tracking: 0,
+          });
+          setCurrentCookies([]);
         } else {
           onErrorMessageRef.current?.(t("popup.updateStatsFailed"), true);
         }
@@ -158,22 +177,38 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
   }, [loadStats]);
 
   useEffect(() => {
-    const cookieListener = () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+    const messageListener = (message: { type: string }) => {
+      if (message.type === "cookieChanged") {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          updateStats();
+        }, DEBOUNCE_DELAY_MS);
       }
-      debounceTimerRef.current = setTimeout(() => {
-        updateStats();
-      }, DEBOUNCE_DELAY_MS);
     };
 
-    chrome.cookies.onChanged.addListener(cookieListener);
+    browser.runtime.onMessage.addListener(messageListener);
 
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      chrome.cookies.onChanged.removeListener(cookieListener);
+      browser.runtime.onMessage.removeListener(messageListener);
+    };
+  }, [updateStats]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        updateStats();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [updateStats]);
 

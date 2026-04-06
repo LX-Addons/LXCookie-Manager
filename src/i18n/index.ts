@@ -1,3 +1,16 @@
+/**
+ * 自定义运行时i18n系统（方案C：双系统架构）
+ *
+ * 职责分工：
+ * - public/_locales/: Chrome原生locale文件，仅用于manifest.json的国际化
+ * - src/i18n/: 自定义运行时i18n系统，用于popup/options页面的UI文本翻译
+ *
+ * 设计理由：
+ * 1. WXT i18n模块主要用于构建时处理和manifest i18n
+ * 2. 运行时UI需要更灵活的翻译功能（动态参数、fallback等）
+ * 3. 双系统避免耦合，各自独立维护
+ */
+
 import zhCN from "./zh-CN.json";
 import enUS from "./en-US.json";
 import type { Locale as ProjectLocale } from "@/types";

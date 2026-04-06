@@ -47,15 +47,21 @@ export function useTranslation() {
     setLocaleState(newLocale);
     setLocale(newLocale);
 
-    storage
-      .getItem<Settings>(SETTINGS_KEY)
-      .then((current) => {
-        const newSettings = { ...(current || DEFAULT_SETTINGS), locale: newLocale };
-        return storage.setItem(SETTINGS_KEY, newSettings);
-      })
-      .catch((error) => {
-        console.error("Failed to persist locale:", error);
-      });
+    chrome.runtime.sendMessage(
+      {
+        type: "updateSettings",
+        payload: { locale: newLocale },
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error("Failed to update settings via message:", chrome.runtime.lastError);
+          return;
+        }
+        if (!response?.success) {
+          console.error("Failed to persist locale:", response?.error?.message);
+        }
+      }
+    );
   }, []);
 
   return {

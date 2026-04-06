@@ -16,11 +16,20 @@ import {
 } from "@/entrypoints/background/services/error-reporting";
 
 export class CookiesHandler {
+  private isValidHttpUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return (parsed.protocol === "http:" || parsed.protocol === "https:") && !!parsed.hostname;
+    } catch {
+      return false;
+    }
+  }
+
   async getCurrentTabCookies(): Promise<ApiResponse<{ cookies: Cookie[]; domain: string }>> {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let domain = "";
-      if (tab?.url) {
+      if (tab?.url && this.isValidHttpUrl(tab.url)) {
         try {
           const url = new URL(tab.url);
           domain = url.hostname;

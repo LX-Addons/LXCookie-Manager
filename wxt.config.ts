@@ -7,6 +7,7 @@ const icons = {
   128: "/icon.png",
 };
 
+// Runtime UI i18n is handled by src/i18n/, not this module
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"],

@@ -9,6 +9,11 @@ export interface ClearCookiesOptions {
 export interface ClearCookiesResult {
   count: number;
   clearedDomains: Set<string>;
+  failures: Array<{
+    domain: string;
+    cookieName: string;
+    error: string;
+  }>;
 }
 
 export interface CookieRemoveResult {
@@ -209,6 +214,7 @@ export const clearCookies = async (
   const cookies = await chrome.cookies.getAll({});
   let count = 0;
   const clearedDomains = new Set<string>();
+  const failures: ClearCookiesResult["failures"] = [];
 
   for (const cookie of cookies) {
     const cleanedDomain = cookie.domain.replace(/^\./, "");
@@ -221,10 +227,16 @@ export const clearCookies = async (
     if (result.success) {
       count++;
       clearedDomains.add(cleanedDomain);
+    } else {
+      failures.push({
+        domain: cleanedDomain,
+        cookieName: cookie.name,
+        error: result.error || "Unknown error",
+      });
     }
   }
 
-  return { count, clearedDomains };
+  return { count, clearedDomains, failures };
 };
 
 export const cleanupExpiredCookies = async (): Promise<number> => {

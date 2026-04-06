@@ -61,9 +61,8 @@ export const useCookieFilters = ({
     return map;
   }, [cookies, riskEnabled, currentDomain, t]);
 
-  const trimmedSearch = searchText.trim();
-
   const filteredCookies = useMemo(() => {
+    const trimmedSearch = searchText.trim();
     let result = cookies;
 
     if (trimmedSearch) {
@@ -107,7 +106,7 @@ export const useCookieFilters = ({
     return result;
   }, [
     cookies,
-    trimmedSearch,
+    searchText,
     riskFilter,
     typeFilter,
     domainScopeFilter,
@@ -123,11 +122,11 @@ export const useCookieFilters = ({
 
   const hasActiveFilters = useMemo(
     () =>
-      trimmedSearch !== "" ||
+      searchText.trim() !== "" ||
       riskFilter !== "all" ||
       typeFilter !== "all" ||
       domainScopeFilter !== "all",
-    [trimmedSearch, riskFilter, typeFilter, domainScopeFilter]
+    [searchText, riskFilter, typeFilter, domainScopeFilter]
   );
 
   const clearFilters = useCallback(() => {

@@ -672,7 +672,36 @@ function handleFreshnessFailure(freshness: FreshnessCheckResult, allowFailure: b
   return false;
 }
 
-function writeTrackerData(data: TrackerData, outputPath: string, tempPath: string): void {
+function isCoreDataChanged(newData: TrackerData, existingData: TrackerData | null): boolean {
+  if (!existingData) return true;
+
+  const domainsChanged =
+    newData.trackingDomains.length !== existingData.trackingDomains.length ||
+    newData.trackingDomains.some((domain, i) => domain !== existingData.trackingDomains[i]);
+
+  const keywordsChanged =
+    newData.trackingCookieKeywords.length !== existingData.trackingCookieKeywords.length ||
+    newData.trackingCookieKeywords.some(
+      (keyword, i) => keyword !== existingData.trackingCookieKeywords[i]
+    );
+
+  return domainsChanged || keywordsChanged;
+}
+
+function writeTrackerData(
+  data: TrackerData,
+  outputPath: string,
+  tempPath: string,
+  existingData: TrackerData | null
+): boolean {
+  if (!isCoreDataChanged(data, existingData)) {
+    console.log("\n✅ 数据内容未变化，跳过文件更新（避免无意义 diff）");
+    console.log("   - 追踪域名数量: " + data.trackingDomains.length);
+    console.log("   - Cookie关键词数量: " + data.trackingCookieKeywords.length);
+    console.log("   - EasyPrivacy版本: " + data.sources.easyprivacy.version);
+    return false;
+  }
+
   if (!existsSync(DATA_DIR)) {
     mkdirSync(DATA_DIR, { recursive: true });
   }
@@ -680,6 +709,7 @@ function writeTrackerData(data: TrackerData, outputPath: string, tempPath: strin
   writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
   renameSync(tempPath, outputPath);
   console.log("\n✅ 数据已保存到: " + outputPath);
+  return true;
 }
 
 function printSourceStatus(
@@ -709,7 +739,8 @@ function printSourceStatus(
 function printStats(
   data: TrackerData,
   stats: Awaited<ReturnType<typeof fetchData>>["stats"],
-  finalDataIsStale: boolean
+  finalDataIsStale: boolean,
+  dataUpdated: boolean
 ): void {
   console.log("\n📊 数据更新结果:");
   console.log("----------------------------------------");
@@ -720,7 +751,13 @@ function printStats(
   console.log("   最终唯一域名: " + stats.merged.count);
   console.log("   去重数量: " + stats.merged.duplicates);
   console.log("   Cookie关键词: " + data.trackingCookieKeywords.length);
-  console.log("   本地生成时间: " + data.lastUpdated);
+
+  if (dataUpdated) {
+    console.log("   本地生成时间: " + data.lastUpdated);
+    console.log("\n✅ 文件已更新（追踪域名或Cookie关键词发生变化）");
+  } else {
+    console.log("\n⏭️  文件未更新（域名和关键词均无变化，避免无意义 diff）");
+  }
 
   console.log("\n📋 快速判断:");
   console.log("   数据可信: " + (stats.easyPrivacy.success ? "✅ 是" : "❌ 否"));
@@ -806,8 +843,8 @@ async function main(
       return;
     }
 
-    writeTrackerData(data, outputPath, tempPath);
-    printStats(data, stats, freshness.isStale);
+    const dataUpdated = writeTrackerData(data, outputPath, tempPath, existingData);
+    printStats(data, stats, freshness.isStale, dataUpdated);
   } catch (error) {
     console.error("❌ 更新失败:", error);
     if (allowFailure) {

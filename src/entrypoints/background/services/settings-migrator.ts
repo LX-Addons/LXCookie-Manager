@@ -24,9 +24,16 @@ const migrations: Migration[] = [
 ];
 
 export class SettingsMigrator {
+  private cachedSettings: Settings | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_TTL_MS = 5000;
+
   async migrateSettings(): Promise<Settings> {
+    let existingSnapshot: Partial<Settings> | null = null;
+
     try {
       const currentSettings = await storage.getItem<Partial<Settings>>(SETTINGS_KEY);
+      existingSnapshot = currentSettings ? { ...currentSettings } : null;
 
       if (!currentSettings) {
         await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
@@ -59,14 +66,30 @@ export class SettingsMigrator {
 
       return finalSettings;
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      console.error("Settings migration failed:", errorMessage);
       classifyError(e, "settings migration");
-      await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
+
+      if (existingSnapshot && Object.keys(existingSnapshot).length > 0) {
+        console.warn("Preserving existing settings due to migration failure");
+        return { ...DEFAULT_SETTINGS, ...existingSnapshot } as Settings;
+      }
+
+      console.warn("No existing settings available, falling back to defaults");
       return DEFAULT_SETTINGS;
     }
   }
 
   async getSettings(): Promise<Settings> {
-    return this.migrateSettings();
+    const now = Date.now();
+    if (this.cachedSettings && now - this.cacheTimestamp < this.CACHE_TTL_MS) {
+      return this.cachedSettings;
+    }
+
+    const settings = await this.migrateSettings();
+    this.cachedSettings = settings;
+    this.cacheTimestamp = now;
+    return settings;
   }
 
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {
@@ -77,6 +100,15 @@ export class SettingsMigrator {
       settingsVersion: CURRENT_SETTINGS_VERSION,
     };
     await storage.setItem(SETTINGS_KEY, newSettings);
+    this.cachedSettings = newSettings;
+    this.cacheTimestamp = Date.now();
     return newSettings;
   }
+
+  invalidateCache(): void {
+    this.cachedSettings = null;
+    this.cacheTimestamp = 0;
+  }
 }
+
+export const settingsMigratorSingleton = new SettingsMigrator();

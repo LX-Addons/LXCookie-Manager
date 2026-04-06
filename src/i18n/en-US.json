@@ -35,7 +35,11 @@
     "updateStatsFailed": "Failed to update stats",
     "permissionDenied": "Permission denied, unable to access cookies",
     "permissionDeniedDesc": "Please grant \"Access your data on all websites\" permission to this extension in browser extension management page.",
-    "openExtensionSettings": "Open Extension Settings",
+    "permissionGuide1": "Please follow these steps to restore permissions:",
+    "permissionStep1": "Enter chrome://extensions in the browser address bar and press Enter",
+    "permissionStep2": "Find this extension and click \"Details\"",
+    "permissionStep3": "Enable \"Read and change data on all sites\" under \"Site access\"",
+    "retryAfterPermission": "Retry After Granting Permission",
     "clearCookiesFailed": "Failed to clear cookies",
     "loading": "Loading...",
     "domainUnavailableDesc": "Please open a webpage to view and manage cookies",
@@ -312,7 +316,9 @@
     "httpOnlyOnly": "HttpOnly (JavaScript access disabled)",
     "secureRequiredForNone": "Required for SameSite=None",
     "createSuccess": "Cookie created successfully!",
-    "createFailed": "Failed to create cookie!"
+    "createFailed": "Failed to create cookie!",
+    "saveFailed": "Save failed, please retry",
+    "closeErrorHint": "Close error hint"
   },
   "errorBoundary": {
     "error": "Something went wrong",

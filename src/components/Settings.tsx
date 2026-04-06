@@ -1,6 +1,7 @@
-import { useStorage, useTranslation } from "@/hooks";
-import { SETTINGS_KEY, DEFAULT_SETTINGS, DEFAULT_CUSTOM_THEME } from "@/lib/store";
-import type { Settings as SettingsType, CustomTheme, Locale } from "@/types";
+import { useTranslation } from "@/hooks";
+import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
+import { DEFAULT_CUSTOM_THEME } from "@/lib/store";
+import type { Locale } from "@/types";
 import { CookieClearType, LogRetention, ThemeMode, ModeType, ScheduleInterval } from "@/types";
 import { RadioGroup } from "@/components/RadioGroup";
 import { CheckboxGroup } from "@/components/CheckboxGroup";
@@ -12,30 +13,22 @@ interface Props {
 }
 
 export const Settings = ({ onMessage }: Props) => {
-  const [settings, setSettings] = useStorage<SettingsType>(SETTINGS_KEY, DEFAULT_SETTINGS);
+  // 注释：此处使用 useSettingsPersistence hook 封装了存储逻辑
+  // 原因同上（低频操作、无竞争风险）
+  const {
+    settings,
+    updateSetting,
+    updateCustomTheme,
+    resetCustomTheme,
+    updateCleanupOptions,
+    updateAutoCleanupOptions,
+  } = useSettingsPersistence();
   const { t } = useTranslation();
 
   const showCustomTheme = settings.themeMode === ThemeMode.CUSTOM;
 
-  const updateSetting = <K extends keyof SettingsType>(key: K, value: SettingsType[K]) => {
-    const cleanSettings = Object.fromEntries(
-      Object.entries(settings).filter(([, v]) => v !== undefined)
-    ) as SettingsType;
-    setSettings({ ...cleanSettings, [key]: value });
-  };
-
-  const updateCustomTheme = (key: keyof CustomTheme, value: string) => {
-    setSettings({
-      ...settings,
-      customTheme: { ...(settings.customTheme || DEFAULT_CUSTOM_THEME), [key]: value },
-    });
-  };
-
-  const resetCustomTheme = () => {
-    setSettings({
-      ...settings,
-      customTheme: { ...DEFAULT_CUSTOM_THEME },
-    });
+  const handleResetCustomTheme = () => {
+    resetCustomTheme();
     onMessage(t("settings.resetTheme"));
   };
 
@@ -103,12 +96,11 @@ export const Settings = ({ onMessage }: Props) => {
               },
             ]}
             onChange={(values) => {
-              setSettings((prev) => ({
-                ...prev,
+              updateCleanupOptions({
                 clearCache: values.includes("clearCache"),
                 clearLocalStorage: values.includes("clearLocalStorage"),
                 clearIndexedDB: values.includes("clearIndexedDB"),
-              }));
+              });
             }}
           />
         </div>
@@ -197,8 +189,7 @@ export const Settings = ({ onMessage }: Props) => {
               },
             ]}
             onChange={(values) => {
-              setSettings((prev) => ({
-                ...prev,
+              updateAutoCleanupOptions({
                 enableAutoCleanup: values.includes("enableAutoCleanup"),
                 cleanupOnTabClose: values.includes("cleanupOnTabClose"),
                 cleanupOnBrowserClose: values.includes("cleanupOnBrowserClose"),
@@ -206,7 +197,7 @@ export const Settings = ({ onMessage }: Props) => {
                 cleanupOnStartup: values.includes("cleanupOnStartup"),
                 cleanupOnTabDiscard: values.includes("cleanupOnTabDiscard"),
                 cleanupExpiredCookies: values.includes("cleanupExpiredCookies"),
-              }));
+              });
             }}
           />
         </div>
@@ -356,7 +347,7 @@ export const Settings = ({ onMessage }: Props) => {
                 />
               </div>
             </div>
-            <button className="reset-theme-btn" onClick={resetCustomTheme}>
+            <button className="reset-theme-btn" onClick={handleResetCustomTheme}>
               {t("settings.resetTheme")}
             </button>
           </div>

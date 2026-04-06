@@ -45,6 +45,7 @@ const CookieEditorContent = ({
     };
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { t } = useTranslation();
   const nameInputRef = useRef<HTMLInputElement>(null);
   const valueInputRef = useRef<HTMLTextAreaElement>(null);
@@ -53,10 +54,7 @@ const CookieEditorContent = ({
   const wasOpenRef = useRef(false);
   const savedRef = useRef(false);
   const allowCloseRef = useRef(false);
-
-  // isSaving: 请求中防重复提交
-  // savedRef: 成功后关闭完成前防重复点击
-  // allowCloseRef: 只有保存成功后才允许关闭
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleOpenFocus = useCallback(() => {
     if (cookie) {
@@ -96,6 +94,14 @@ const CookieEditorContent = ({
     }
   }, [isOpen, cookie, currentDomain]);
 
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving || savedRef.current) return;
@@ -105,6 +111,7 @@ const CookieEditorContent = ({
     try {
       const success = await onSave(formData);
       if (success) {
+        setErrorMessage(null);
         allowCloseRef.current = true;
         handleClose();
       } else {
@@ -113,6 +120,15 @@ const CookieEditorContent = ({
     } catch (error) {
       console.error("Failed to save cookie:", error);
       savedRef.current = false;
+
+      const userMessage = error instanceof Error ? error.message : t("cookieEditor.saveFailed");
+      setErrorMessage(userMessage);
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+      }
+      errorTimerRef.current = setTimeout(() => {
+        setErrorMessage(null);
+      }, 5000);
     } finally {
       setIsSaving(false);
     }
@@ -145,6 +161,42 @@ const CookieEditorContent = ({
         </button>
       </div>
       <form onSubmit={handleSubmit}>
+        {errorMessage && (
+          <div
+            className="cookie-editor-error"
+            role="alert"
+            style={{
+              backgroundColor: "var(--danger-50)",
+              border: "1px solid var(--danger-100)",
+              color: "var(--danger-700)",
+              padding: "8px 12px",
+              marginBottom: "12px",
+              borderRadius: "4px",
+              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>⚠️ {errorMessage}</span>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--danger-600)",
+                cursor: "pointer",
+                fontSize: "16px",
+                fontWeight: "bold",
+                padding: "0 4px",
+              }}
+              aria-label={t("cookieEditor.closeErrorHint")}
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className="modal-body cookie-editor-body">
           <div className="form-group">
             <label className="form-label" htmlFor="cookie-name">

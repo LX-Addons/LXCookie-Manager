@@ -1,7 +1,12 @@
 import type { CleanupExecutionResult, CleanupTrigger, ApiResponse, Settings } from "@/types";
 import { CookieClearType, ErrorCode } from "@/types";
-import { cleanupExecutor, type CleanupOptions } from "../services/cleanup-executor";
+import { cleanupExecutor, type CleanupOverrides } from "../services/cleanup-executor";
 import { SettingsMigrator } from "../services/settings-migrator";
+import {
+  getGlobalCleanupQueue,
+  CleanupQueueError,
+  type CleanupQueueErrorCode,
+} from "@/lib/distributed-lock";
 
 export class CleanupHandler {
   private readonly settingsMigrator: SettingsMigrator;
@@ -21,23 +26,73 @@ export class CleanupHandler {
       clearIndexedDB?: boolean;
     }
   ): Promise<ApiResponse<CleanupExecutionResult>> {
-    const result = await cleanupExecutor.executeByDomain(
-      domain,
-      trigger,
-      settings,
-      options as CleanupOptions
-    );
+    try {
+      const queue = getGlobalCleanupQueue();
+      const result = await queue.enqueue(async () => {
+        return await cleanupExecutor.executeByDomain(
+          domain,
+          trigger,
+          settings,
+          options as CleanupOverrides
+        );
+      }, "manual");
 
-    if (result.success) {
-      return { success: true, data: result.data };
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return {
+        success: false,
+        error: {
+          code: result.error?.code || ErrorCode.INTERNAL_ERROR,
+          message: result.error?.message || "Unknown error",
+        },
+      };
+    } catch (error) {
+      let errorCode = ErrorCode.INTERNAL_ERROR;
+      let userMessage = "Cleanup queue error";
+
+      if (error instanceof CleanupQueueError) {
+        const errorMap: Record<CleanupQueueErrorCode, { code: ErrorCode; message: string }> = {
+          QUEUE_FULL: {
+            code: ErrorCode.QUEUE_FULL,
+            message: "Cleanup queue is full, please try again later",
+          },
+          GLOBAL_HARD_CAP_REACHED: {
+            code: ErrorCode.QUEUE_FULL,
+            message: "Global queue limit reached, please try again later",
+          },
+          TASK_EXPIRED: {
+            code: ErrorCode.TASK_EXPIRED,
+            message: "Cleanup task expired, please try again",
+          },
+          LOCK_RETRY_FAILED: {
+            code: ErrorCode.LOCK_RETRY_FAILED,
+            message: "Failed to acquire cleanup lock after retries",
+          },
+          TASK_EVICTED: {
+            code: ErrorCode.QUEUE_FULL,
+            message: "Task was evicted by higher priority task",
+          },
+          QUEUE_CLEARED: {
+            code: ErrorCode.QUEUE_CLEARED,
+            message: "Queue was cleared, please try again",
+          },
+        };
+        const mappedError = errorMap[error.code];
+        if (mappedError) {
+          errorCode = mappedError.code;
+          userMessage = mappedError.message;
+        }
+      }
+
+      return {
+        success: false,
+        error: {
+          code: errorCode,
+          message: userMessage,
+        },
+      };
     }
-    return {
-      success: false,
-      error: {
-        code: result.error?.code || ErrorCode.INTERNAL_ERROR,
-        message: result.error?.message || "Unknown error",
-      },
-    };
   }
 
   async cleanupWithFilter(
@@ -53,24 +108,74 @@ export class CleanupHandler {
       clearIndexedDB?: boolean;
     }
   ): Promise<ApiResponse<CleanupExecutionResult>> {
-    const result = await cleanupExecutor.executeWithFilter(
-      filterType,
-      filterValue,
-      domainList,
-      trigger,
-      settings,
-      options as CleanupOptions
-    );
+    try {
+      const queue = getGlobalCleanupQueue();
+      const result = await queue.enqueue(async () => {
+        return await cleanupExecutor.executeWithFilter(
+          filterType,
+          filterValue,
+          domainList,
+          trigger,
+          settings,
+          options as CleanupOverrides
+        );
+      }, "manual");
 
-    if (result.success) {
-      return { success: true, data: result.data };
+      if (result.success) {
+        return { success: true, data: result.data };
+      }
+      return {
+        success: false,
+        error: {
+          code: result.error?.code || ErrorCode.INTERNAL_ERROR,
+          message: result.error?.message || "Unknown error",
+        },
+      };
+    } catch (error) {
+      let errorCode = ErrorCode.INTERNAL_ERROR;
+      let userMessage = "Cleanup queue error";
+
+      if (error instanceof CleanupQueueError) {
+        const errorMap: Record<CleanupQueueErrorCode, { code: ErrorCode; message: string }> = {
+          QUEUE_FULL: {
+            code: ErrorCode.QUEUE_FULL,
+            message: "Cleanup queue is full, please try again later",
+          },
+          GLOBAL_HARD_CAP_REACHED: {
+            code: ErrorCode.QUEUE_FULL,
+            message: "Global queue limit reached, please try again later",
+          },
+          TASK_EXPIRED: {
+            code: ErrorCode.TASK_EXPIRED,
+            message: "Cleanup task expired, please try again",
+          },
+          LOCK_RETRY_FAILED: {
+            code: ErrorCode.LOCK_RETRY_FAILED,
+            message: "Failed to acquire cleanup lock after retries",
+          },
+          TASK_EVICTED: {
+            code: ErrorCode.QUEUE_FULL,
+            message: "Task was evicted by higher priority task",
+          },
+          QUEUE_CLEARED: {
+            code: ErrorCode.QUEUE_CLEARED,
+            message: "Queue was cleared, please try again",
+          },
+        };
+        const mappedError = errorMap[error.code];
+        if (mappedError) {
+          errorCode = mappedError.code;
+          userMessage = mappedError.message;
+        }
+      }
+
+      return {
+        success: false,
+        error: {
+          code: errorCode,
+          message: userMessage,
+        },
+      };
     }
-    return {
-      success: false,
-      error: {
-        code: result.error?.code || ErrorCode.INTERNAL_ERROR,
-        message: result.error?.message || "Unknown error",
-      },
-    };
   }
 }

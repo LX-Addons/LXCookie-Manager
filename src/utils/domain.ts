@@ -8,7 +8,6 @@ export const isDomainMatch = (cookieDomain: string, targetDomain: string): boole
 
   if (normalizedCookie === normalizedTarget) return true;
   if (normalizedTarget.endsWith("." + normalizedCookie)) return true;
-  if (normalizedCookie.endsWith("." + normalizedTarget)) return true;
 
   return false;
 };
@@ -56,4 +55,13 @@ export const validateDomain = (
     return { valid: false, message: t ? t("domainManager.invalidDomain") : "域名格式不正确" };
   }
   return { valid: true };
+};
+
+export const isValidHttpUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && !!parsed.hostname;
+  } catch {
+    return false;
+  }
 };

@@ -99,8 +99,61 @@
 
 ### 🌍 国际化支持
 
-- **多语言**：支持中文（简体）和英文
-- **自动检测**：跟随浏览器语言设置
+项目采用**双 i18n 方案**（方案C：双系统架构），职责明确分离：
+
+#### 📦 浏览器原生 i18n（Manifest 级别）
+
+- **位置**：`public/_locales/`
+- **命名规范**：使用下划线格式（如 `zh_CN`, `en`）
+- **用途**：
+  - 扩展名称（`extensionName`）
+  - 扩展描述（`extensionDescription`）
+  - 其他浏览器 UI 文案
+- **机制**：Chrome/Firefox 原生 `_()` API 解析 `__MSG_xxx__` 占位符
+- **WXT模块**：由 `@wxt-dev/i18n/module` 在构建时处理
+
+#### 🎨 自定义运行时 i18n（Popup/UI 级别）
+
+- **位置**：`src/i18n/`
+- **命名规范**：使用连字符格式（如 `zh-CN`, `en-US`）
+- **用途**：
+  - Popup 界面所有文本
+  - 设置面板文案
+  - 错误提示消息
+  - 用户交互反馈
+- **机制**：完全自定义的 TypeScript i18n 系统
+- **特性**：
+  - 动态参数替换：`{name}` 占位符
+  - 自动 fallback：缺失翻译时回退到默认语言
+  - 运行时语言切换：无需重启扩展
+  - 类型安全：完整的 TypeScript 类型定义
+
+#### 🔧 WXT 模块配置说明
+
+```typescript
+// wxt.config.ts
+modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"]
+```
+
+| 模块 | 职责 | 使用场景 |
+|:----:|:-----|:---------|
+| `@wxt-dev/module-react` | React编译支持、JSX、HMR | 所有React组件 |
+| `@wxt-dev/i18n/module` | 构建时i18n处理、locale管理 | manifest.json国际化 |
+
+> 💡 **设计决策理由**：
+> 1. WXT i18n模块专注于构建时处理和manifest i18n，对运行时UI支持有限
+> 2. 自定义运行时系统提供更灵活的功能（动态参数、fallback链、运行时切换）
+> 3. 双系统解耦，各自独立维护，避免相互影响
+
+#### 🌐 支持语言
+
+- **中文（简体）**：默认语言，跟随系统自动检测
+- **英文**：完整翻译支持
+
+> ⚠️ **重要约定**：两套 i18n 资源职责严格分离，不可混用！
+> - Manifest 相关文案只能放在 `public/_locales/`
+> - UI 运行时文案只能放在 `src/i18n/`
+> - 详细实现见 [src/i18n/index.ts](./src/i18n/index.ts)
 
 ### 🎨 个性化体验
 
@@ -117,7 +170,12 @@
 LXCookie_Manager/
 
 ├── 📂 public/
-│   └── 🖼️ icon.png                    # 扩展图标资源
+│   ├── 🖼️ icon.png                    # 扩展图标资源
+│   └── 📂 _locales/                   # 🌐 浏览器原生 i18n 资源
+│       ├── 📂 zh_CN/                  # 中文（默认语言）
+│       │   └── messages.json          # Manifest 名称/描述等浏览器级文案
+│       └── 📂 en/                     # 英文
+│           └── messages.json          # Manifest 名称/描述等浏览器级文案
 │
 ├── 📂 scripts/                         # 🔧 构建脚本
 │   ├── tracking-cookie-keywords.json   # 追踪 Cookie 关键词数据
@@ -217,15 +275,11 @@ LXCookie_Manager/
 │   │   │   └── useTranslation.ts       # 国际化 Hook
 │   │   └── index.ts                    # Hooks 导出入口
 │   │
-│   ├── 📂 i18n/                        # 🌍 国际化资源（WXT i18n）
-│   │   ├── en-US.json                  # 英文语言包
-│   │   ├── zh-CN.json                  # 中文语言包
+│   ├── 📂 i18n/                        # 🌍 运行时国际化资源
+│   │   ├── en-US.json                  # 英文语言包（Popup/UI 文案）
+│   │   ├── zh-CN.json                  # 中文语言包（Popup/UI 文案）
 │   │   ├── index.ts                    # i18n 入口
 │   │   └── types.ts                    # 类型定义
-│   │
-│   ├── 📂 locales/                     # 🌐 语言包（备用）
-│   │   ├── en.json                     # 英文语言包
-│   │   └── zh_CN.json                 # 中文语言包
 │   │
 │   ├── 📂 lib/                         # 📚 核心库
 │   │   ├── background-service.ts       # 后台通信服务
@@ -287,7 +341,7 @@ LXCookie_Manager/
 
 | 目录 | 职责 | 主要内容 |
 |:----:|:----:|:---------|
-| `public/` | 静态资源 | 扩展图标 |
+| `public/` | 静态资源与浏览器 i18n | 扩展图标、浏览器原生 locale 资源 |
 | `scripts/` | 构建脚本 | 追踪数据更新、Cookie 基线验证 |
 | `src/components/` | UI 组件 | React 可复用组件（含 Cookie 列表子模块） |
 | `src/contexts/` | React Context | 确认对话框上下文与提供者 |
@@ -295,8 +349,7 @@ LXCookie_Manager/
 | `src/entrypoints/popup/` | 弹出窗口 | Popup UI、Hooks、分区组件及样式 |
 | `src/entrypoints/background/` | 后台服务 | Service Worker 及消息处理 |
 | `src/hooks/` | 自定义 Hooks | 状态管理、国际化、对话框等核心 Hooks |
-| `src/i18n/` | 国际化 | WXT i18n 多语言支持 |
-| `src/locales/` | 语言包 | 备用语言包文件 |
+| `src/i18n/` | 自定义运行时 i18n | Popup/UI 界面文案（完全自定义系统） |
 | `src/lib/` | 核心库 | 后台通信、常量、存储、数据验证 |
 | `src/types/` | 类型定义 | TypeScript 类型 |
 | `src/utils/` | 工具函数 | 清理逻辑、风险评估、域名工具等 |

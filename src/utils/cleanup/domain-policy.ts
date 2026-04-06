@@ -28,6 +28,9 @@ export const getCleanupSettings = async (
   whitelist: string[];
   blacklist: string[];
 }> => {
+  // 注意：此处的列表读取可能与 DomainManager 的写入存在极低概率的并发
+  // 详细分析见 src/components/DomainManager.tsx 顶部的架构决策说明
+  // 当前评估：可接受的风险（写入频率 < 0.01 Hz，cleanup 读取耗时 < 100ms）
   const whitelist = (await storage.getItem<string[]>(WHITELIST_KEY)) || [];
   const blacklist = (await storage.getItem<string[]>(BLACKLIST_KEY)) || [];
 

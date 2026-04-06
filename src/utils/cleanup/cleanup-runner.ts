@@ -120,15 +120,6 @@ const handleCookieClearError = (domain?: string, error?: unknown): never => {
     throw error;
   }
 
-  if (
-    error instanceof Error &&
-    (error.message.includes("permission") ||
-      error.message.includes("Permission") ||
-      error.message.includes("access denied"))
-  ) {
-    throw new CleanupError(ErrorCode.PERMISSION_DENIED, CleanupStage.COOKIES, message);
-  }
-
   throw new CleanupError(ErrorCode.COOKIE_REMOVE_FAILED, CleanupStage.COOKIES, message);
 };
 
@@ -177,6 +168,16 @@ export const runCleanup = async (options: CleanupOptions): Promise<CleanupExecut
     result.cookiesRemoved = cookieResult.count;
     result.matchedDomains = Array.from(cookieResult.clearedDomains);
 
+    if (cookieResult.failures.length > 0) {
+      for (const failure of cookieResult.failures) {
+        result.partialFailures.push({
+          stage: CleanupStage.COOKIES,
+          domain: failure.domain,
+          reason: `[${failure.cookieName}] ${failure.error}`,
+        });
+      }
+    }
+
     const domainsToClean = options.domain ? new Set([options.domain]) : cookieResult.clearedDomains;
 
     if (domainsToClean.size > 0) {
@@ -223,6 +224,16 @@ export const runCleanupWithFilter = async (
 
     result.cookiesRemoved = cookieResult.count;
     result.matchedDomains = Array.from(cookieResult.clearedDomains);
+
+    if (cookieResult.failures.length > 0) {
+      for (const failure of cookieResult.failures) {
+        result.partialFailures.push({
+          stage: CleanupStage.COOKIES,
+          domain: failure.domain,
+          reason: `[${failure.cookieName}] ${failure.error}`,
+        });
+      }
+    }
 
     const domainsToClean =
       targetDomains && targetDomains.length > 0

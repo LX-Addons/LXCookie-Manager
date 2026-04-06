@@ -1,30 +1,24 @@
-import type { BackgroundRequest, ApiResponse, CleanupTrigger, Cookie } from "@/types";
-import { ErrorCode, CookieClearType } from "@/types";
+import type { BackgroundRequest, ApiResponse, CleanupTrigger, Cookie, Settings } from "@/types";
+import {
+  ErrorCode,
+  CookieClearType,
+  LogRetention,
+  ThemeMode,
+  ModeType,
+  ScheduleInterval,
+  Locale,
+} from "@/types";
 import { CookiesHandler } from "../handlers/cookies";
 import { CleanupHandler } from "../handlers/cleanup";
+import { SettingsHandler } from "../handlers/settings";
 import { logExportService } from "./log-export-service";
-import { SettingsMigrator } from "./settings-migrator";
+import { settingsMigratorSingleton } from "./settings-migrator";
 
-let cookiesHandler: CookiesHandler | null = null;
-let cleanupHandler: CleanupHandler | null = null;
-let settingsMigrator: SettingsMigrator | null = null;
+const cookiesHandler = new CookiesHandler();
+const cleanupHandler = new CleanupHandler(settingsMigratorSingleton);
+const settingsHandler = new SettingsHandler();
 
 const VALID_CLEAR_TYPES = new Set(Object.values(CookieClearType));
-
-const getCookiesHandler = (): CookiesHandler => {
-  cookiesHandler ??= new CookiesHandler();
-  return cookiesHandler;
-};
-
-const getSettingsMigrator = (): SettingsMigrator => {
-  settingsMigrator ??= new SettingsMigrator();
-  return settingsMigrator;
-};
-
-const getCleanupHandler = (): CleanupHandler => {
-  cleanupHandler ??= new CleanupHandler(getSettingsMigrator());
-  return cleanupHandler;
-};
 
 export const createSuccessResponse = <T>(data?: T): ApiResponse<T> => ({
   success: true,
@@ -151,14 +145,14 @@ function validateCleanupWithFilterPayload(payload: unknown): payload is {
 type MessageHandler = (request: BackgroundRequest) => Promise<ApiResponse>;
 
 const handleGetCurrentTabCookies: MessageHandler = async () => {
-  return await getCookiesHandler().getCurrentTabCookies();
+  return await cookiesHandler.getCurrentTabCookies();
 };
 
 const handleGetStats: MessageHandler = async (request) => {
   if ("domain" in request && request.domain !== undefined && typeof request.domain !== "string") {
     return createErrorResponse(ErrorCode.INVALID_PARAMETERS, "Invalid domain for getStats");
   }
-  return await getCookiesHandler().getStats(
+  return await cookiesHandler.getStats(
     "domain" in request ? (request as { domain?: string }).domain : undefined
   );
 };
@@ -170,7 +164,7 @@ const handleCreateCookie: MessageHandler = async (request) => {
       "Invalid payload for createCookie: name, domain, and value are required"
     );
   }
-  return await getCookiesHandler().createCookie(request.payload);
+  return await cookiesHandler.createCookie(request.payload);
 };
 
 const handleUpdateCookie: MessageHandler = async (request) => {
@@ -180,7 +174,7 @@ const handleUpdateCookie: MessageHandler = async (request) => {
       "Invalid payload for updateCookie: original (with name, domain, path, value, secure) and updates are required"
     );
   }
-  return await getCookiesHandler().updateCookie(
+  return await cookiesHandler.updateCookie(
     request.payload.original as Cookie,
     request.payload.updates
   );
@@ -193,7 +187,7 @@ const handleDeleteCookie: MessageHandler = async (request) => {
       "Invalid payload for deleteCookie: name, domain, path, and secure are required"
     );
   }
-  return await getCookiesHandler().deleteCookie(request.payload as Cookie);
+  return await cookiesHandler.deleteCookie(request.payload as Cookie);
 };
 
 const handleCleanupByDomain: MessageHandler = async (request) => {
@@ -203,8 +197,8 @@ const handleCleanupByDomain: MessageHandler = async (request) => {
       "Invalid payload for cleanupByDomain: domain and trigger are required"
     );
   }
-  const settings = await getSettingsMigrator().getSettings();
-  return await getCleanupHandler().cleanupByDomain(
+  const settings = await settingsMigratorSingleton.getSettings();
+  return await cleanupHandler.cleanupByDomain(
     request.payload.domain,
     request.payload.trigger as CleanupTrigger,
     settings,
@@ -224,8 +218,8 @@ const handleCleanupWithFilter: MessageHandler = async (request) => {
       "Invalid payload for cleanupWithFilter: filterType and trigger are required"
     );
   }
-  const settings = await getSettingsMigrator().getSettings();
-  return await getCleanupHandler().cleanupWithFilter(
+  const settings = await settingsMigratorSingleton.getSettings();
+  return await cleanupHandler.cleanupWithFilter(
     request.payload.filterType as "all" | "domain" | "domain-list",
     request.payload.filterValue,
     request.payload.domainList,
@@ -256,6 +250,132 @@ const handleExportLogs: MessageHandler = async (request) => {
   return createErrorResponse(ErrorCode.INTERNAL_ERROR, result.error || "Export failed");
 };
 
+const handleGetSettings: MessageHandler = async () => {
+  try {
+    const settings = await settingsHandler.getSettings();
+    return createSuccessResponse(settings);
+  } catch (error) {
+    return createErrorResponse(
+      ErrorCode.INTERNAL_ERROR,
+      `Failed to get settings: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+};
+
+const VALID_LOG_RETENTIONS = new Set(Object.values(LogRetention));
+const VALID_THEME_MODES = new Set(Object.values(ThemeMode));
+const VALID_MODE_TYPES = new Set(Object.values(ModeType));
+const VALID_SCHEDULE_INTERVALS = new Set(Object.values(ScheduleInterval));
+const VALID_LOCALES = new Set<object>(["zh-CN", "en-US"]);
+
+function validateUpdateSettingsPayload(payload: unknown): payload is Partial<Settings> {
+  if (typeof payload !== "object" || payload === null) return false;
+
+  const updates = payload as Record<string, unknown>;
+  const validKeys = new Set<string>([
+    "settingsVersion",
+    "clearType",
+    "logRetention",
+    "themeMode",
+    "mode",
+    "clearLocalStorage",
+    "clearIndexedDB",
+    "clearCache",
+    "enableAutoCleanup",
+    "cleanupOnTabDiscard",
+    "cleanupOnStartup",
+    "cleanupExpiredCookies",
+    "cleanupOnTabClose",
+    "cleanupOnBrowserClose",
+    "cleanupOnNavigate",
+    "customTheme",
+    "scheduleInterval",
+    "lastScheduledCleanup",
+    "showCookieRisk",
+    "locale",
+  ]);
+
+  for (const key of Object.keys(updates)) {
+    if (!validKeys.has(key)) return false;
+  }
+
+  if (updates.settingsVersion !== undefined && typeof updates.settingsVersion !== "number")
+    return false;
+  if (
+    updates.clearType !== undefined &&
+    !VALID_CLEAR_TYPES.has(updates.clearType as CookieClearType)
+  )
+    return false;
+  if (
+    updates.logRetention !== undefined &&
+    !VALID_LOG_RETENTIONS.has(updates.logRetention as LogRetention)
+  )
+    return false;
+  if (updates.themeMode !== undefined && !VALID_THEME_MODES.has(updates.themeMode as ThemeMode))
+    return false;
+  if (updates.mode !== undefined && !VALID_MODE_TYPES.has(updates.mode as ModeType)) return false;
+  if (updates.clearLocalStorage !== undefined && typeof updates.clearLocalStorage !== "boolean")
+    return false;
+  if (updates.clearIndexedDB !== undefined && typeof updates.clearIndexedDB !== "boolean")
+    return false;
+  if (updates.clearCache !== undefined && typeof updates.clearCache !== "boolean") return false;
+  if (updates.enableAutoCleanup !== undefined && typeof updates.enableAutoCleanup !== "boolean")
+    return false;
+  if (updates.cleanupOnTabDiscard !== undefined && typeof updates.cleanupOnTabDiscard !== "boolean")
+    return false;
+  if (updates.cleanupOnStartup !== undefined && typeof updates.cleanupOnStartup !== "boolean")
+    return false;
+  if (
+    updates.cleanupExpiredCookies !== undefined &&
+    typeof updates.cleanupExpiredCookies !== "boolean"
+  )
+    return false;
+  if (updates.cleanupOnTabClose !== undefined && typeof updates.cleanupOnTabClose !== "boolean")
+    return false;
+  if (
+    updates.cleanupOnBrowserClose !== undefined &&
+    typeof updates.cleanupOnBrowserClose !== "boolean"
+  )
+    return false;
+  if (updates.cleanupOnNavigate !== undefined && typeof updates.cleanupOnNavigate !== "boolean")
+    return false;
+  if (
+    updates.scheduleInterval !== undefined &&
+    !VALID_SCHEDULE_INTERVALS.has(updates.scheduleInterval as ScheduleInterval)
+  )
+    return false;
+  if (
+    updates.lastScheduledCleanup !== undefined &&
+    typeof updates.lastScheduledCleanup !== "number"
+  )
+    return false;
+  if (updates.showCookieRisk !== undefined && typeof updates.showCookieRisk !== "boolean")
+    return false;
+  if (updates.locale !== undefined && !VALID_LOCALES.has(updates.locale as Locale)) return false;
+
+  return true;
+}
+
+const handleUpdateSettings: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateUpdateSettingsPayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for updateSettings: updates object is required"
+    );
+  }
+
+  try {
+    const updates = request.payload;
+    const updatedSettings = await settingsHandler.updateSettings(updates);
+    return createSuccessResponse(updatedSettings);
+  } catch (error) {
+    return createErrorResponse(
+      ErrorCode.INTERNAL_ERROR,
+      `Failed to update settings: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+};
+
 const messageHandlers: Record<string, MessageHandler> = {
   getCurrentTabCookies: handleGetCurrentTabCookies,
   getStats: handleGetStats,
@@ -265,6 +385,8 @@ const messageHandlers: Record<string, MessageHandler> = {
   cleanupByDomain: handleCleanupByDomain,
   cleanupWithFilter: handleCleanupWithFilter,
   exportLogs: handleExportLogs,
+  getSettings: handleGetSettings,
+  updateSettings: handleUpdateSettings,
 };
 
 export const handleMessage = async (request: unknown): Promise<ApiResponse> => {

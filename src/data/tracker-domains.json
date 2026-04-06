@@ -15749,6 +15749,7 @@
     "error-analytics-production.shopifysvc.com",
     "error-analytics-sessions-production.shopifysvc.com",
     "error-collector.ted.com",
+    "error-tracker.pages.dev",
     "error.fc2.com",
     "error.videonow.ru",
     "errorreports.couponcabin.com",
@@ -50850,11 +50851,11 @@
     "vwo_",
     "xs"
   ],
-  "lastUpdated": "2026-04-05T01:19:44.421Z",
+  "lastUpdated": "2026-04-05T11:49:41.951Z",
   "sources": {
     "easyprivacy": {
-      "count": 47705,
-      "version": "202604050111"
+      "count": 47706,
+      "version": "202604051141"
     },
     "peterlowe": {
       "count": 3519,
