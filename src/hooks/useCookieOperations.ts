@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { Cookie } from "@/types";
 import { ErrorCode } from "@/types";
 import { BackgroundService } from "@/lib/background-service";
+import { EDITABLE_COOKIE_FIELDS } from "@/lib/constants";
 import { isSensitiveCookie } from "@/utils/cookie-risk";
 import { getCookieKey } from "@/utils/format";
 import { getSelectedDomains, filterRedundantDomains } from "@/components/cookie-list/utils";
@@ -109,15 +110,8 @@ export function useCookieOperations({
 
   const updateCookie = useCallback(
     async (original: Cookie, updatedCookie: Cookie): Promise<boolean> => {
-      const supportedFields = [
-        "value",
-        "httpOnly",
-        "secure",
-        "sameSite",
-        "expirationDate",
-      ] as const;
       const updates: Partial<Cookie> = {};
-      for (const field of supportedFields) {
+      for (const field of EDITABLE_COOKIE_FIELDS) {
         if (field in updatedCookie) {
           (updates as Record<string, unknown>)[field] = updatedCookie[field];
         }
@@ -189,6 +183,7 @@ export function useCookieOperations({
     let deleted = 0;
     let failed = 0;
     let lastError: string | undefined;
+    const failedKeys = new Set<string>();
 
     for (const cookie of cookies) {
       const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
@@ -199,11 +194,13 @@ export function useCookieOperations({
             deleted++;
           } else {
             failed++;
+            failedKeys.add(key);
             lastError = getErrorMessage(response.error?.code);
           }
         } catch (e) {
           console.error("Failed to delete cookie:", e);
           failed++;
+          failedKeys.add(key);
         }
       }
     }
@@ -217,7 +214,9 @@ export function useCookieOperations({
         });
       }
       onMessage?.(message, failed > 0);
-      clearSelectedCookies();
+      if (failed === 0) {
+        clearSelectedCookies();
+      }
       onUpdate?.();
     } else if (failed > 0) {
       onMessage?.(

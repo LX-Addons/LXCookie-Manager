@@ -2367,3 +2367,36 @@
   background: var(--surface-2);
   border-color: var(--line-soft);
 }
+
+.cookie-editor-error {
+  background-color: var(--danger-50);
+  border: 1px solid var(--danger-100);
+  color: var(--danger-700);
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cookie-editor-error-close-btn {
+  background: none;
+  border: none;
+  color: var(--danger-600);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 0 4px;
+}
+
+.theme-dark .cookie-editor-error {
+  background-color: var(--danger-tint-10);
+  border-color: var(--danger-tint-20);
+  color: var(--danger-400);
+}
+
+.theme-dark .cookie-editor-error-close-btn {
+  color: var(--danger-300);
+}

@@ -29,6 +29,7 @@ export class SettingsMigrator {
   private cachedSettings: Settings | null = null;
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL_MS = 5000;
+  private pendingMigration: Promise<Settings> | null = null;
 
   async migrateSettings(): Promise<Settings> {
     let existingSnapshot: Partial<Settings> | null = null;
@@ -88,10 +89,19 @@ export class SettingsMigrator {
       return this.cachedSettings;
     }
 
-    const settings = await this.migrateSettings();
-    this.cachedSettings = settings;
-    this.cacheTimestamp = now;
-    return settings;
+    if (this.pendingMigration) {
+      return this.pendingMigration;
+    }
+
+    this.pendingMigration = this.migrateSettings();
+    try {
+      const settings = await this.pendingMigration;
+      this.cachedSettings = settings;
+      this.cacheTimestamp = now;
+      return settings;
+    } finally {
+      this.pendingMigration = null;
+    }
   }
 
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {

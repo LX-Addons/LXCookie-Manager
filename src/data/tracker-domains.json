@@ -27062,6 +27062,7 @@
     "metrics.diy.com",
     "metrics.diynetwork.com",
     "metrics.dockers.com",
+    "metrics.documentfoundation.org",
     "metrics.dog.com",
     "metrics.dollar.com",
     "metrics.dollargeneral.com",
@@ -50853,11 +50854,11 @@
     "vwo_",
     "xs"
   ],
-  "lastUpdated": "2026-04-06T09:04:44.040Z",
+  "lastUpdated": "2026-04-06T12:12:02.382Z",
   "sources": {
     "easyprivacy": {
-      "count": 47708,
-      "version": "202604060851"
+      "count": 47709,
+      "version": "202604061201"
     },
     "peterlowe": {
       "count": 3519,

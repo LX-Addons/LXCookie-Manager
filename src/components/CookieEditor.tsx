@@ -171,35 +171,12 @@ const CookieEditorContent = ({
       </div>
       <form onSubmit={handleSubmit}>
         {errorMessage && (
-          <div
-            className="cookie-editor-error"
-            role="alert"
-            style={{
-              backgroundColor: "var(--danger-50)",
-              border: "1px solid var(--danger-100)",
-              color: "var(--danger-700)",
-              padding: "8px 12px",
-              marginBottom: "12px",
-              borderRadius: "4px",
-              fontSize: "14px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
+          <div className="cookie-editor-error" role="alert">
             <span>⚠️ {errorMessage}</span>
             <button
               type="button"
+              className="cookie-editor-error-close-btn"
               onClick={() => setErrorMessage(null)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "var(--danger-600)",
-                cursor: "pointer",
-                fontSize: "16px",
-                fontWeight: "bold",
-                padding: "0 4px",
-              }}
               aria-label={t("cookieEditor.closeErrorHint")}
             >
               ×

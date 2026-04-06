@@ -2,7 +2,7 @@ import { storage } from "wxt/utils/storage";
 
 type StorageKey = `local:${string}` | `session:${string}` | `sync:${string}` | `managed:${string}`;
 
-const DEFAULT_LOCK_TIMEOUT_MS = 30 * 1000;
+const DEFAULT_LOCK_TIMEOUT_MS = 120 * 1000;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 50;
 
@@ -221,7 +221,7 @@ export class DistributedLock {
 }
 
 export function createCleanupLock(): DistributedLock {
-  return new DistributedLock("scheduled-cleanup", 2 * 30 * 1000);
+  return new DistributedLock("scheduled-cleanup", 2 * 60 * 1000);
 }
 
 export type CleanupTriggerType =
@@ -313,6 +313,7 @@ export class CleanupTaskQueue {
   private currentTask: CleanupTask<unknown> | null = null;
   private readonly taskLog: TaskLogEntry[] = [];
   private readonly maxLogEntries = 100;
+  private clearVersion = 0;
 
   constructor(maxQueueSize = 50, maxTaskAgeMs = 5 * 60 * 1000) {
     this.lock = createCleanupLock();
@@ -452,20 +453,10 @@ export class CleanupTaskQueue {
     triggerType: CleanupTriggerType,
     reject: (reason?: Error) => void
   ): boolean {
-    if (waitingCount >= this.globalHardCap) {
+    const totalCount = this.getQueueLength();
+    if (totalCount >= this.globalHardCap) {
       const evictIndex = this.findEvictableTaskIndex(triggerType);
-      if (evictIndex !== -1) {
-        const removed = this.queue[evictIndex];
-        this.evictTask(
-          evictIndex,
-          triggerType,
-          "TASK_EVICTED",
-          `Global hard cap reached, ${removed.triggerType} task evicted by ${triggerType} (higher priority)`,
-          `evicted by ${triggerType} (global hard cap, priority ${PRIORITY_WEIGHTS[triggerType]} > ${PRIORITY_WEIGHTS[removed.triggerType]})`,
-          this.globalHardCap,
-          waitingCount
-        );
-      } else {
+      if (evictIndex === -1) {
         this.rejectAndLog(
           reject,
           triggerType,
@@ -476,6 +467,17 @@ export class CleanupTaskQueue {
           waitingCount
         );
         return false;
+      } else {
+        const removed = this.queue[evictIndex];
+        this.evictTask(
+          evictIndex,
+          triggerType,
+          "TASK_EVICTED",
+          `Global hard cap reached, ${removed.triggerType} task evicted by ${triggerType} (higher priority)`,
+          `evicted by ${triggerType} (global hard cap, priority ${PRIORITY_WEIGHTS[triggerType]} > ${PRIORITY_WEIGHTS[removed.triggerType]})`,
+          this.globalHardCap,
+          waitingCount
+        );
       }
     } else {
       const tabCloseCount = this.queue.filter((t) => t.triggerType === "tab-close").length;
@@ -514,17 +516,6 @@ export class CleanupTaskQueue {
         this.maxQueueSize,
         waitingCount
       );
-    } else if (waitingCount >= this.globalHardCap) {
-      this.rejectAndLog(
-        reject,
-        triggerType,
-        "GLOBAL_HARD_CAP_REACHED",
-        `Global queue hard cap (${this.globalHardCap}) reached, no evictable task for ${triggerType}`,
-        `global hard cap (${this.globalHardCap}) reached`,
-        this.globalHardCap,
-        waitingCount
-      );
-      return false;
     } else {
       this.rejectAndLog(
         reject,
@@ -543,12 +534,26 @@ export class CleanupTaskQueue {
   async enqueue<T>(fn: () => Promise<T>, triggerType: CleanupTriggerType = "manual"): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const waitingCount = this.queue.length;
+      const totalCount = this.getQueueLength();
+
+      if (totalCount >= this.globalHardCap) {
+        this.rejectAndLog(
+          reject,
+          triggerType,
+          "GLOBAL_HARD_CAP_REACHED",
+          `Global queue hard cap (${this.globalHardCap}) reached`,
+          `global hard cap (${this.globalHardCap}) reached`,
+          this.globalHardCap,
+          waitingCount
+        );
+        return;
+      }
 
       if (waitingCount >= this.maxQueueSize) {
         if (triggerType === "tab-close") {
           if (!this.handleQueueFullForTabClose(waitingCount, triggerType, reject)) return;
-        } else {
-          if (!this.handleQueueFullForOther(waitingCount, triggerType, reject)) return;
+        } else if (!this.handleQueueFullForOther(waitingCount, triggerType, reject)) {
+          return;
         }
       }
 
@@ -638,6 +643,7 @@ export class CleanupTaskQueue {
   }
 
   private async handleLockNotAcquired(task: CleanupTask<unknown>): Promise<void> {
+    const clearVersion = this.clearVersion;
     const maxRetries = MAX_RETRIES_BY_PRIORITY[task.triggerType];
 
     if (task.retryCount >= maxRetries) {
@@ -663,6 +669,13 @@ export class CleanupTaskQueue {
       `lock not acquired, retry ${task.retryCount}/${maxRetries}`
     );
     await this.delay(500);
+
+    if (clearVersion !== this.clearVersion) {
+      task.reject(new CleanupQueueError("QUEUE_CLEARED", "Queue cleared"));
+      this.currentTask = null;
+      return;
+    }
+
     this.queue.push(task);
     this.currentTask = null;
   }
@@ -765,6 +778,7 @@ export class CleanupTaskQueue {
   }
 
   clearQueue(): void {
+    this.clearVersion++;
     for (const task of this.queue) {
       task.reject(new CleanupQueueError("QUEUE_CLEARED", "Queue cleared"));
       this.logTaskStatus(task.id, task.triggerType, "discarded", "queue cleared");

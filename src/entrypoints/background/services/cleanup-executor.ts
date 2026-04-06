@@ -6,7 +6,7 @@ import { metricsService } from "@/entrypoints/background/services/metrics";
 import { logService } from "@/entrypoints/background/services/log-service";
 import { classifyError } from "@/entrypoints/background/services/error-reporting";
 
-export type { CleanupOverrides };
+export type { CleanupOverrides } from "@/types";
 
 export interface CleanupResult {
   success: boolean;

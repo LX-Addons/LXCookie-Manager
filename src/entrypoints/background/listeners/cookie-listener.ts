@@ -1,9 +1,5 @@
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingChanges: Array<{
-  removed: boolean;
-  cookie: chrome.cookies.Cookie;
-  cause: string;
-}> = [];
+let hasPendingChanges = false;
 const DEBOUNCE_MS = 100;
 let isListenerSetup = false;
 
@@ -14,27 +10,23 @@ export function setupCookieChangeListener(): void {
   }
   isListenerSetup = true;
 
-  browser.cookies.onChanged.addListener((changeInfo) => {
+  browser.cookies.onChanged.addListener(() => {
     try {
-      pendingChanges.push({
-        removed: changeInfo.removed,
-        cookie: changeInfo.cookie as chrome.cookies.Cookie,
-        cause: changeInfo.cause,
-      });
+      hasPendingChanges = true;
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
       debounceTimer = setTimeout(() => {
-        const changes = [...pendingChanges];
-        pendingChanges = [];
-        browser.runtime
-          .sendMessage({
-            type: "cookieChanged",
-            payload: changes,
-          })
-          .catch((error) => {
-            console.debug("Failed to send cookie change message:", error);
-          });
+        if (hasPendingChanges) {
+          hasPendingChanges = false;
+          browser.runtime
+            .sendMessage({
+              type: "cookieChanged",
+            })
+            .catch((error) => {
+              console.debug("Failed to send cookie change message:", error);
+            });
+        }
         debounceTimer = null;
       }, DEBOUNCE_MS);
     } catch (error) {

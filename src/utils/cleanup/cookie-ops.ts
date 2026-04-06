@@ -1,5 +1,6 @@
 import { CookieClearType } from "@/types";
 import { toChromeSameSite } from "@/utils/format";
+import { EDITABLE_COOKIE_FIELDS, EDITABLE_COOKIE_FIELDS_SET } from "@/lib/constants";
 
 export interface ClearCookiesOptions {
   clearType?: CookieClearType;
@@ -152,28 +153,19 @@ export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
 ): Promise<chrome.cookies.Cookie> => {
-  const supportedFields = new Set(["value", "httpOnly", "secure", "sameSite", "expirationDate"]);
-  const unsupportedKeys = Object.keys(updates).filter((key) => !supportedFields.has(key));
+  const unsupportedKeys = Object.keys(updates).filter(
+    (key) => !EDITABLE_COOKIE_FIELDS_SET.has(key)
+  );
   if (unsupportedKeys.length > 0) {
     throw new Error(`Unsupported cookie fields: ${unsupportedKeys.join(", ")}`);
   }
 
   const safeUpdates: Partial<chrome.cookies.Cookie> = {};
 
-  if ("value" in updates) {
-    safeUpdates.value = updates.value;
-  }
-  if ("httpOnly" in updates) {
-    safeUpdates.httpOnly = updates.httpOnly;
-  }
-  if ("secure" in updates) {
-    safeUpdates.secure = updates.secure;
-  }
-  if ("sameSite" in updates) {
-    safeUpdates.sameSite = updates.sameSite;
-  }
-  if ("expirationDate" in updates) {
-    safeUpdates.expirationDate = updates.expirationDate;
+  for (const field of EDITABLE_COOKIE_FIELDS) {
+    if (field in updates) {
+      (safeUpdates as Record<string, unknown>)[field] = (updates as Record<string, unknown>)[field];
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
