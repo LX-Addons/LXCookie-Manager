@@ -1,1 +1,1 @@
-export { handleMessage } from "../services/message-router";
+export { handleMessage, createErrorResponse } from "../services/message-router";

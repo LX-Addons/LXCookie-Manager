@@ -15,8 +15,11 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "#i18n": [".wxt/i18n/index.ts"],
+      "#i18n/*": [".wxt/i18n/index.ts/*"]
     }
   },
-  "include": [".wxt/**/*", "**/*.ts", "**/*.tsx"]
+  "include": [".wxt/**/*", "**/*.ts", "**/*.tsx"],
+  "files": [".wxt/wxt.d.ts"]
 }

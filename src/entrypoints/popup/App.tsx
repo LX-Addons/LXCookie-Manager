@@ -26,7 +26,7 @@ function IndexPopup() {
   const [whitelist, setWhitelist] = useStorage<DomainList>(WHITELIST_KEY, EMPTY_DOMAIN_LIST);
   const [blacklist, setBlacklist] = useStorage<DomainList>(BLACKLIST_KEY, EMPTY_DOMAIN_LIST);
   const [settings] = useStorage<SettingsType>(SETTINGS_KEY, DEFAULT_SETTINGS);
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
 
   const { message, showMessage } = usePopupMessage();
 
@@ -67,8 +67,8 @@ function IndexPopup() {
   }, [init]);
 
   useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+    document.documentElement.lang = browser.i18n.getUILanguage();
+  }, []);
 
   return (
     <div className={themeClasses}>

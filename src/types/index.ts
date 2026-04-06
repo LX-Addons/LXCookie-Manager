@@ -81,8 +81,6 @@ export interface CleanupOverrides {
   clearIndexedDB?: boolean;
 }
 
-export type Locale = "zh-CN" | "en-US";
-
 export interface Settings {
   settingsVersion: number;
   clearType: CookieClearType;
@@ -103,7 +101,6 @@ export interface Settings {
   scheduleInterval: ScheduleInterval;
   lastScheduledCleanup?: number;
   showCookieRisk: boolean;
-  locale: Locale;
 }
 
 export interface ClearLogEntry {

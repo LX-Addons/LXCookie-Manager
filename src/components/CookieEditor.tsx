@@ -95,12 +95,21 @@ const CookieEditorContent = ({
   }, [isOpen, cookie, currentDomain]);
 
   useEffect(() => {
+    if (isOpen) {
+      setErrorMessage(null);
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+    }
+
     return () => {
       if (errorTimerRef.current) {
         clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
       }
     };
-  }, []);
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

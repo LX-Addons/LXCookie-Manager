@@ -2,6 +2,8 @@ import { storage, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import type { Settings } from "@/types";
 import { classifyError } from "./error-reporting";
 
+let unwatchSettings: (() => void) | null = null;
+
 const CURRENT_SETTINGS_VERSION = 1;
 
 type MigrationFunction = (settings: Partial<Settings>) => Partial<Settings>;
@@ -108,6 +110,13 @@ export class SettingsMigrator {
   invalidateCache(): void {
     this.cachedSettings = null;
     this.cacheTimestamp = 0;
+  }
+
+  initWatcher(): void {
+    if (unwatchSettings) return;
+    unwatchSettings = storage.watch<Settings>(SETTINGS_KEY, () => {
+      this.invalidateCache();
+    });
   }
 }
 

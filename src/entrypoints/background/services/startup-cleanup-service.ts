@@ -36,7 +36,7 @@ export class StartupCleanupService {
     settings: Settings,
     domainsToClean: string[]
   ): Promise<void> {
-    const snapshot = domainsToClean;
+    const snapshot = [...domainsToClean];
 
     try {
       await storage.removeItem(CLEANUP_ON_STARTUP_KEY);

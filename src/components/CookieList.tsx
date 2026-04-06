@@ -82,7 +82,6 @@ export const CookieList = memo(
       handleBatchBlacklist,
     } = useCookieOperations({
       cookies,
-      currentDomain: currentDomain || "",
       selectedCookies,
       onUpdate,
       onMessage,

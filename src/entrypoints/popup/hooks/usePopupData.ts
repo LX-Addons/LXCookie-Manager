@@ -201,13 +201,21 @@ export function usePopupData({ onErrorMessage }: UsePopupDataProps = {}): UsePop
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        updateStats();
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          updateStats();
+        }, DEBOUNCE_DELAY_MS);
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [updateStats]);

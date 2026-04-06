@@ -16,9 +16,9 @@ export class ScheduledCleanupService {
       }, "scheduled");
     } catch (error) {
       if (error instanceof Error) {
-        console.warn(`[ScheduledCleanup] Failed to enqueue scheduled cleanup: ${error.message}`);
+        console.warn(`[ScheduledCleanup] Scheduled cleanup failed: ${error.message}`);
       } else {
-        console.warn("[ScheduledCleanup] Failed to enqueue scheduled cleanup (unknown error)");
+        console.warn("[ScheduledCleanup] Scheduled cleanup failed (unknown error)");
       }
     }
   }

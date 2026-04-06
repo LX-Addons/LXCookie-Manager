@@ -5,8 +5,15 @@ let pendingChanges: Array<{
   cause: string;
 }> = [];
 const DEBOUNCE_MS = 100;
+let isListenerSetup = false;
 
 export function setupCookieChangeListener(): void {
+  if (isListenerSetup) {
+    console.debug("[CookieListener] Listener already setup, skipping");
+    return;
+  }
+  isListenerSetup = true;
+
   browser.cookies.onChanged.addListener((changeInfo) => {
     try {
       pendingChanges.push({

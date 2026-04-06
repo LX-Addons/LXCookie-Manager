@@ -1,8 +1,8 @@
-import type { Settings, CookieClearType, CleanupOverrides } from "@/types";
+import type { Settings, CleanupOverrides } from "@/types";
 
 export function getCleanupOptionsFromSettings(settings: Settings): CleanupOverrides {
   return {
-    clearType: settings.clearType as CookieClearType,
+    clearType: settings.clearType,
     clearCache: settings.clearCache,
     clearLocalStorage: settings.clearLocalStorage,
     clearIndexedDB: settings.clearIndexedDB,

@@ -3,25 +3,29 @@ import { useStorage } from "@/hooks/core/useStorage";
 import { SETTINGS_KEY, DEFAULT_SETTINGS, DEFAULT_CUSTOM_THEME } from "@/lib/store";
 import type { Settings as SettingsType, CustomTheme } from "@/types";
 
+type CleanupOptionsUpdate = Partial<
+  Pick<SettingsType, "clearCache" | "clearLocalStorage" | "clearIndexedDB">
+>;
+type AutoCleanupOptionsUpdate = Partial<
+  Pick<
+    SettingsType,
+    | "enableAutoCleanup"
+    | "cleanupOnTabClose"
+    | "cleanupOnBrowserClose"
+    | "cleanupOnNavigate"
+    | "cleanupOnStartup"
+    | "cleanupOnTabDiscard"
+    | "cleanupExpiredCookies"
+  >
+>;
+
 interface UseSettingsPersistenceReturn {
   settings: SettingsType;
   updateSetting: <K extends keyof SettingsType>(key: K, value: SettingsType[K]) => void;
   updateCustomTheme: (key: keyof CustomTheme, value: string) => void;
   resetCustomTheme: () => void;
-  updateCleanupOptions: (options: {
-    clearCache?: boolean;
-    clearLocalStorage?: boolean;
-    clearIndexedDB?: boolean;
-  }) => void;
-  updateAutoCleanupOptions: (options: {
-    enableAutoCleanup?: boolean;
-    cleanupOnTabClose?: boolean;
-    cleanupOnBrowserClose?: boolean;
-    cleanupOnNavigate?: boolean;
-    cleanupOnStartup?: boolean;
-    cleanupOnTabDiscard?: boolean;
-    cleanupExpiredCookies?: boolean;
-  }) => void;
+  updateCleanupOptions: (options: CleanupOptionsUpdate) => void;
+  updateAutoCleanupOptions: (options: AutoCleanupOptionsUpdate) => void;
 }
 
 export function useSettingsPersistence(): UseSettingsPersistenceReturn {
@@ -57,7 +61,7 @@ export function useSettingsPersistence(): UseSettingsPersistenceReturn {
   }, [setSettings]);
 
   const updateCleanupOptions = useCallback(
-    (options: { clearCache?: boolean; clearLocalStorage?: boolean; clearIndexedDB?: boolean }) => {
+    (options: CleanupOptionsUpdate) => {
       setSettings((prev) => ({
         ...prev,
         ...options,
@@ -67,15 +71,7 @@ export function useSettingsPersistence(): UseSettingsPersistenceReturn {
   );
 
   const updateAutoCleanupOptions = useCallback(
-    (options: {
-      enableAutoCleanup?: boolean;
-      cleanupOnTabClose?: boolean;
-      cleanupOnBrowserClose?: boolean;
-      cleanupOnNavigate?: boolean;
-      cleanupOnStartup?: boolean;
-      cleanupOnTabDiscard?: boolean;
-      cleanupExpiredCookies?: boolean;
-    }) => {
+    (options: AutoCleanupOptionsUpdate) => {
       setSettings((prev) => ({
         ...prev,
         ...options,

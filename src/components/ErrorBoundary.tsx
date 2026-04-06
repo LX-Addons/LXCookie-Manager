@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
       stack: error.stack,
       componentStack: errorInfo.componentStack,
       timestamp: new Date().toISOString(),
-      url: typeof window !== "undefined" ? window.location.href : "unknown",
+      url: typeof globalThis.window !== "undefined" ? globalThis.location.href : "unknown",
     });
 
     console.warn(`Error type: ${error.name || "UnknownError"}`);

@@ -193,9 +193,7 @@ export const ClearLog = ({ onMessage }: Props) => {
                     {getActionIcon(log.action)}
                     <span>{getActionText(log.action, t)}</span>
                   </span>
-                  <span className="log-entry-time">
-                    {formatLogTime(log.timestamp, settings.locale)}
-                  </span>
+                  <span className="log-entry-time">{formatLogTime(log.timestamp)}</span>
                 </div>
                 <div className="log-entry-domain">{getDomainDisplay(log.domains, log.domain)}</div>
                 <div className="log-entry-meta">

@@ -8,7 +8,6 @@ import { getSelectedDomains, filterRedundantDomains } from "@/components/cookie-
 
 interface UseCookieOperationsProps {
   cookies: Cookie[];
-  currentDomain: string;
   selectedCookies: Set<string>;
   onUpdate?: () => void;
   onMessage?: (msg: string, isError?: boolean) => void;
@@ -29,7 +28,6 @@ interface UseCookieOperationsProps {
 
 export function useCookieOperations({
   cookies,
-  currentDomain: _currentDomain,
   selectedCookies,
   onUpdate,
   onMessage,
@@ -56,6 +54,14 @@ export function useCookieOperations({
           return t("cookieList.errorCookieCreateFailed");
         case ErrorCode.COOKIE_UPDATE_FAILED:
           return t("cookieList.errorCookieUpdateFailed");
+        case ErrorCode.QUEUE_FULL:
+          return t("cookieList.errorQueueFull");
+        case ErrorCode.TASK_EXPIRED:
+          return t("cookieList.errorTaskExpired");
+        case ErrorCode.LOCK_RETRY_FAILED:
+          return t("cookieList.errorLockRetryFailed");
+        case ErrorCode.QUEUE_CLEARED:
+          return t("cookieList.errorQueueCleared");
         default:
           return defaultMessage || t("cookieList.errorOperationFailed");
       }

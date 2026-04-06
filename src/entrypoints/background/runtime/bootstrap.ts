@@ -153,6 +153,7 @@ export class BackgroundBootstrap {
     this.setupTabRemovedListener();
     this.setupStartupListener();
     this.setupAlarmListener();
+    this.settingsMigrator.initWatcher();
     this.setupSettingsWatcher();
     this.setupCookieChangeListener();
   }

@@ -1,7 +1,6 @@
 import { useTranslation } from "@/hooks";
 import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
 import { DEFAULT_CUSTOM_THEME } from "@/lib/store";
-import type { Locale } from "@/types";
 import { CookieClearType, LogRetention, ThemeMode, ModeType, ScheduleInterval } from "@/types";
 import { RadioGroup } from "@/components/RadioGroup";
 import { CheckboxGroup } from "@/components/CheckboxGroup";
@@ -358,25 +357,9 @@ export const Settings = ({ onMessage }: Props) => {
         <div className="settings-group-header">
           <h3 className="settings-group-title">
             <Icon name="info" size={16} className="settings-group-icon" />
-            {t("settings.group.languageLogs")}
+            {t("settings.group.logs")}
           </h3>
-          <p className="settings-group-desc">{t("settings.group.languageLogsDesc")}</p>
-        </div>
-
-        <div className="settings-subsection">
-          <h4 className="settings-subsection-title">{t("settings.language")}</h4>
-          <RadioGroup
-            name="locale"
-            options={[
-              { value: "zh-CN", label: "简体中文" },
-              { value: "en-US", label: "English" },
-            ]}
-            value={settings.locale}
-            onChange={(value) => {
-              updateSetting("locale", value as Locale);
-            }}
-            variant="card"
-          />
+          <p className="settings-group-desc">{t("settings.group.logsDesc")}</p>
         </div>
 
         <div className="settings-subsection">

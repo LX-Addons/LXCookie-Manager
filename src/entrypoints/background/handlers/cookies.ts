@@ -1,7 +1,7 @@
 import type { Cookie, CookieStats, ApiResponse } from "@/types";
 import { ErrorCode, CookieRemoveError, CookieRemoveErrorType } from "@/types";
 import { isTrackingCookie, isThirdPartyCookie } from "@/utils/cookie-risk";
-import { isDomainMatch, normalizeDomain } from "@/utils/domain";
+import { isDomainMatch, normalizeDomain, isValidHttpUrl } from "@/utils/domain";
 import {
   clearSingleCookie,
   createCookie as createCookieInStore,
@@ -16,20 +16,11 @@ import {
 } from "@/entrypoints/background/services/error-reporting";
 
 export class CookiesHandler {
-  private isValidHttpUrl(url: string): boolean {
-    try {
-      const parsed = new URL(url);
-      return (parsed.protocol === "http:" || parsed.protocol === "https:") && !!parsed.hostname;
-    } catch {
-      return false;
-    }
-  }
-
   async getCurrentTabCookies(): Promise<ApiResponse<{ cookies: Cookie[]; domain: string }>> {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let domain = "";
-      if (tab?.url && this.isValidHttpUrl(tab.url)) {
+      if (tab?.url && isValidHttpUrl(tab.url)) {
         try {
           const url = new URL(tab.url);
           domain = url.hostname;

@@ -7,6 +7,7 @@ export const isDomainMatch = (cookieDomain: string, targetDomain: string): boole
   const normalizedTarget = normalizeDomain(targetDomain);
 
   if (normalizedCookie === normalizedTarget) return true;
+  if (normalizedCookie.endsWith("." + normalizedTarget)) return true;
   if (normalizedTarget.endsWith("." + normalizedCookie)) return true;
 
   return false;

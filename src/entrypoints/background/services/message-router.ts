@@ -6,7 +6,6 @@ import {
   ThemeMode,
   ModeType,
   ScheduleInterval,
-  Locale,
 } from "@/types";
 import { CookiesHandler } from "../handlers/cookies";
 import { CleanupHandler } from "../handlers/cleanup";
@@ -266,92 +265,41 @@ const VALID_LOG_RETENTIONS = new Set(Object.values(LogRetention));
 const VALID_THEME_MODES = new Set(Object.values(ThemeMode));
 const VALID_MODE_TYPES = new Set(Object.values(ModeType));
 const VALID_SCHEDULE_INTERVALS = new Set(Object.values(ScheduleInterval));
-const VALID_LOCALES = new Set<object>(["zh-CN", "en-US"]);
+
+type ValidatorFn = (value: unknown) => boolean;
+
+const SETTINGS_VALIDATORS: Record<string, ValidatorFn> = {
+  settingsVersion: (v) => typeof v === "number",
+  clearType: (v) => VALID_CLEAR_TYPES.has(v as CookieClearType),
+  logRetention: (v) => VALID_LOG_RETENTIONS.has(v as LogRetention),
+  themeMode: (v) => VALID_THEME_MODES.has(v as ThemeMode),
+  mode: (v) => VALID_MODE_TYPES.has(v as ModeType),
+  clearLocalStorage: (v) => typeof v === "boolean",
+  clearIndexedDB: (v) => typeof v === "boolean",
+  clearCache: (v) => typeof v === "boolean",
+  enableAutoCleanup: (v) => typeof v === "boolean",
+  cleanupOnTabDiscard: (v) => typeof v === "boolean",
+  cleanupOnStartup: (v) => typeof v === "boolean",
+  cleanupExpiredCookies: (v) => typeof v === "boolean",
+  cleanupOnTabClose: (v) => typeof v === "boolean",
+  cleanupOnBrowserClose: (v) => typeof v === "boolean",
+  cleanupOnNavigate: (v) => typeof v === "boolean",
+  customTheme: (v) => typeof v === "object" && v !== null,
+  scheduleInterval: (v) => VALID_SCHEDULE_INTERVALS.has(v as ScheduleInterval),
+  lastScheduledCleanup: (v) => typeof v === "number",
+  showCookieRisk: (v) => typeof v === "boolean",
+};
 
 function validateUpdateSettingsPayload(payload: unknown): payload is Partial<Settings> {
   if (typeof payload !== "object" || payload === null) return false;
 
   const updates = payload as Record<string, unknown>;
-  const validKeys = new Set<string>([
-    "settingsVersion",
-    "clearType",
-    "logRetention",
-    "themeMode",
-    "mode",
-    "clearLocalStorage",
-    "clearIndexedDB",
-    "clearCache",
-    "enableAutoCleanup",
-    "cleanupOnTabDiscard",
-    "cleanupOnStartup",
-    "cleanupExpiredCookies",
-    "cleanupOnTabClose",
-    "cleanupOnBrowserClose",
-    "cleanupOnNavigate",
-    "customTheme",
-    "scheduleInterval",
-    "lastScheduledCleanup",
-    "showCookieRisk",
-    "locale",
-  ]);
 
-  for (const key of Object.keys(updates)) {
-    if (!validKeys.has(key)) return false;
+  for (const [key, value] of Object.entries(updates)) {
+    const validator = SETTINGS_VALIDATORS[key];
+    if (!validator) return false;
+    if (value !== undefined && !validator(value)) return false;
   }
-
-  if (updates.settingsVersion !== undefined && typeof updates.settingsVersion !== "number")
-    return false;
-  if (
-    updates.clearType !== undefined &&
-    !VALID_CLEAR_TYPES.has(updates.clearType as CookieClearType)
-  )
-    return false;
-  if (
-    updates.logRetention !== undefined &&
-    !VALID_LOG_RETENTIONS.has(updates.logRetention as LogRetention)
-  )
-    return false;
-  if (updates.themeMode !== undefined && !VALID_THEME_MODES.has(updates.themeMode as ThemeMode))
-    return false;
-  if (updates.mode !== undefined && !VALID_MODE_TYPES.has(updates.mode as ModeType)) return false;
-  if (updates.clearLocalStorage !== undefined && typeof updates.clearLocalStorage !== "boolean")
-    return false;
-  if (updates.clearIndexedDB !== undefined && typeof updates.clearIndexedDB !== "boolean")
-    return false;
-  if (updates.clearCache !== undefined && typeof updates.clearCache !== "boolean") return false;
-  if (updates.enableAutoCleanup !== undefined && typeof updates.enableAutoCleanup !== "boolean")
-    return false;
-  if (updates.cleanupOnTabDiscard !== undefined && typeof updates.cleanupOnTabDiscard !== "boolean")
-    return false;
-  if (updates.cleanupOnStartup !== undefined && typeof updates.cleanupOnStartup !== "boolean")
-    return false;
-  if (
-    updates.cleanupExpiredCookies !== undefined &&
-    typeof updates.cleanupExpiredCookies !== "boolean"
-  )
-    return false;
-  if (updates.cleanupOnTabClose !== undefined && typeof updates.cleanupOnTabClose !== "boolean")
-    return false;
-  if (
-    updates.cleanupOnBrowserClose !== undefined &&
-    typeof updates.cleanupOnBrowserClose !== "boolean"
-  )
-    return false;
-  if (updates.cleanupOnNavigate !== undefined && typeof updates.cleanupOnNavigate !== "boolean")
-    return false;
-  if (
-    updates.scheduleInterval !== undefined &&
-    !VALID_SCHEDULE_INTERVALS.has(updates.scheduleInterval as ScheduleInterval)
-  )
-    return false;
-  if (
-    updates.lastScheduledCleanup !== undefined &&
-    typeof updates.lastScheduledCleanup !== "number"
-  )
-    return false;
-  if (updates.showCookieRisk !== undefined && typeof updates.showCookieRisk !== "boolean")
-    return false;
-  if (updates.locale !== undefined && !VALID_LOCALES.has(updates.locale as Locale)) return false;
 
   return true;
 }
