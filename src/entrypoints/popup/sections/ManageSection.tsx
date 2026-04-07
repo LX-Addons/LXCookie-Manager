@@ -63,15 +63,18 @@ export const ManageSection = ({
             title={t("popup.permissionDenied")}
             message={t("popup.permissionDeniedDesc")}
             action={
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  chrome.runtime.openOptionsPage();
-                }}
-              >
-                <Icon name="settings" size={14} />
-                {t("popup.openExtensionSettings")}
-              </button>
+              <div className="permission-guide">
+                <p className="permission-guide-text">{t("popup.permissionGuide1")}</p>
+                <ol className="permission-guide-steps">
+                  <li>{t("popup.permissionStep1")}</li>
+                  <li>{t("popup.permissionStep2")}</li>
+                  <li>{t("popup.permissionStep3")}</li>
+                </ol>
+                <button className="btn btn-primary" onClick={updateStats}>
+                  <Icon name="refresh" size={14} />
+                  {t("popup.retryAfterPermission")}
+                </button>
+              </div>
             }
           />
         </section>

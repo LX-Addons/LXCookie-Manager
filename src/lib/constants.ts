@@ -9,6 +9,16 @@ export const DEBOUNCE_DELAY_MS = 300;
 
 export const ALARM_INTERVAL_MINUTES = 60;
 
+export const EDITABLE_COOKIE_FIELDS = [
+  "value",
+  "httpOnly",
+  "secure",
+  "sameSite",
+  "expirationDate",
+] as const;
+
+export const EDITABLE_COOKIE_FIELDS_SET = new Set(EDITABLE_COOKIE_FIELDS);
+
 export const SENSITIVE_COOKIE_KEYWORDS = ["session", "auth", "token", "jwt", "sid", "sessid"];
 
 export const COOKIE_VALUE_MASK = "••••••••••••";

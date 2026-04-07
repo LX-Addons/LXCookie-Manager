@@ -1,5 +1,11 @@
 import { CookieClearType } from "@/types";
 import { toChromeSameSite } from "@/utils/format";
+import { EDITABLE_COOKIE_FIELDS, EDITABLE_COOKIE_FIELDS_SET } from "@/lib/constants";
+
+type EditableCookieField = (typeof EDITABLE_COOKIE_FIELDS)[number];
+
+const isEditableCookieField = (key: string): key is EditableCookieField =>
+  EDITABLE_COOKIE_FIELDS_SET.has(key as EditableCookieField);
 
 export interface ClearCookiesOptions {
   clearType?: CookieClearType;
@@ -9,6 +15,11 @@ export interface ClearCookiesOptions {
 export interface ClearCookiesResult {
   count: number;
   clearedDomains: Set<string>;
+  failures: Array<{
+    domain: string;
+    cookieName: string;
+    error: string;
+  }>;
 }
 
 export interface CookieRemoveResult {
@@ -147,28 +158,17 @@ export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
 ): Promise<chrome.cookies.Cookie> => {
-  const supportedFields = new Set(["value", "httpOnly", "secure", "sameSite", "expirationDate"]);
-  const unsupportedKeys = Object.keys(updates).filter((key) => !supportedFields.has(key));
+  const unsupportedKeys = Object.keys(updates).filter((key) => !isEditableCookieField(key));
   if (unsupportedKeys.length > 0) {
     throw new Error(`Unsupported cookie fields: ${unsupportedKeys.join(", ")}`);
   }
 
   const safeUpdates: Partial<chrome.cookies.Cookie> = {};
 
-  if ("value" in updates) {
-    safeUpdates.value = updates.value;
-  }
-  if ("httpOnly" in updates) {
-    safeUpdates.httpOnly = updates.httpOnly;
-  }
-  if ("secure" in updates) {
-    safeUpdates.secure = updates.secure;
-  }
-  if ("sameSite" in updates) {
-    safeUpdates.sameSite = updates.sameSite;
-  }
-  if ("expirationDate" in updates) {
-    safeUpdates.expirationDate = updates.expirationDate;
+  for (const field of EDITABLE_COOKIE_FIELDS) {
+    if (field in updates) {
+      (safeUpdates as Record<string, unknown>)[field] = (updates as Record<string, unknown>)[field];
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -209,6 +209,7 @@ export const clearCookies = async (
   const cookies = await chrome.cookies.getAll({});
   let count = 0;
   const clearedDomains = new Set<string>();
+  const failures: ClearCookiesResult["failures"] = [];
 
   for (const cookie of cookies) {
     const cleanedDomain = cookie.domain.replace(/^\./, "");
@@ -221,10 +222,16 @@ export const clearCookies = async (
     if (result.success) {
       count++;
       clearedDomains.add(cleanedDomain);
+    } else {
+      failures.push({
+        domain: cleanedDomain,
+        cookieName: cookie.name,
+        error: result.error || "Unknown error",
+      });
     }
   }
 
-  return { count, clearedDomains };
+  return { count, clearedDomains, failures };
 };
 
 export const cleanupExpiredCookies = async (): Promise<number> => {

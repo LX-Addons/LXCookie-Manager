@@ -1,33 +1,27 @@
 import type { Settings } from "@/types";
-import { cleanupExecutor, type CleanupOptions } from "./cleanup-executor";
-
-const isValidHttpUrl = (url: URL): boolean => {
-  return (url.protocol === "http:" || url.protocol === "https:") && !!url.hostname;
-};
+import { cleanupExecutor } from "./cleanup-executor";
+import { getGlobalCleanupQueue } from "@/lib/distributed-lock";
+import { isValidHttpUrl } from "@/utils/domain";
+import { getCleanupOptionsFromSettings } from "@/utils/cleanup/cleanup-options";
 
 export class TabEventCleanupService {
-  private getCleanupOptions(settings: Settings): CleanupOptions {
-    return {
-      clearType: settings.clearType,
-      clearCache: settings.clearCache,
-      clearLocalStorage: settings.clearLocalStorage,
-      clearIndexedDB: settings.clearIndexedDB,
-    };
-  }
-
   async handleTabDiscard(tab: chrome.tabs.Tab, settings: Settings): Promise<void> {
     if (!settings.cleanupOnTabDiscard || !tab.url) return;
 
     try {
+      if (!isValidHttpUrl(tab.url)) return;
+
+      const queue = getGlobalCleanupQueue();
       const url = new URL(tab.url);
-      if (!isValidHttpUrl(url)) return;
-      const trigger = "tab-discard" as const;
-      await cleanupExecutor.executeByDomain(
-        url.hostname,
-        trigger,
-        settings,
-        this.getCleanupOptions(settings)
-      );
+      await queue.enqueue(async () => {
+        const trigger = "tab-discard" as const;
+        await cleanupExecutor.executeByDomain(
+          url.hostname,
+          trigger,
+          settings,
+          getCleanupOptionsFromSettings(settings)
+        );
+      }, "tab-discard");
     } catch (e) {
       console.error(`Failed to cleanup on tab discard for ${tab.url}:`, e);
     }
@@ -46,19 +40,22 @@ export class TabEventCleanupService {
     }
 
     try {
+      if (!isValidHttpUrl(previousUrl) || !isValidHttpUrl(changeInfo.url)) return;
+
       const previous = new URL(previousUrl);
       const current = new URL(changeInfo.url);
 
-      if (!isValidHttpUrl(previous) || !isValidHttpUrl(current)) return;
-
       if (previous.hostname !== current.hostname) {
-        const trigger = "navigate" as const;
-        await cleanupExecutor.executeByDomain(
-          previous.hostname,
-          trigger,
-          settings,
-          this.getCleanupOptions(settings)
-        );
+        const queue = getGlobalCleanupQueue();
+        await queue.enqueue(async () => {
+          const trigger = "navigate" as const;
+          await cleanupExecutor.executeByDomain(
+            previous.hostname,
+            trigger,
+            settings,
+            getCleanupOptionsFromSettings(settings)
+          );
+        }, "navigate");
       }
     } catch (e) {
       console.error("Failed to cleanup on navigation:", e);
@@ -68,13 +65,16 @@ export class TabEventCleanupService {
   async cleanupClosedTab(hostname: string, settings: Settings): Promise<void> {
     if (!hostname) return;
     try {
-      const trigger = "tab-close" as const;
-      await cleanupExecutor.executeByDomain(
-        hostname,
-        trigger,
-        settings,
-        this.getCleanupOptions(settings)
-      );
+      const queue = getGlobalCleanupQueue();
+      await queue.enqueue(async () => {
+        const trigger = "tab-close" as const;
+        await cleanupExecutor.executeByDomain(
+          hostname,
+          trigger,
+          settings,
+          getCleanupOptionsFromSettings(settings)
+        );
+      }, "tab-close");
     } catch (e) {
       console.error(`Failed to cleanup on tab close for ${hostname}:`, e);
     }

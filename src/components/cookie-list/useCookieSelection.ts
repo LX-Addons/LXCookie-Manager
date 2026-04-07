@@ -17,6 +17,7 @@ interface UseCookieSelectionReturn {
   selectAll: boolean;
   toggleSelectAll: () => void;
   clearSelectedCookies: () => void;
+  removeSelectedCookies: (keys: string[]) => void;
   toggleCookieSelection: (key: string) => void;
   toggleValueVisibility: (key: string) => void;
   toggleDomainExpansion: (domain: string) => void;
@@ -89,6 +90,14 @@ export const useCookieSelection = ({
     setSelectedCookies(new Set());
   }, []);
 
+  const removeSelectedCookies = useCallback((keys: string[]) => {
+    setSelectedCookies((prev) => {
+      const next = new Set(prev);
+      keys.forEach((key) => next.delete(key));
+      return next;
+    });
+  }, []);
+
   return {
     selectedCookies,
     visibleValues,
@@ -97,6 +106,7 @@ export const useCookieSelection = ({
     selectAll,
     toggleSelectAll,
     clearSelectedCookies,
+    removeSelectedCookies,
     toggleCookieSelection,
     toggleValueVisibility,
     toggleDomainExpansion,

@@ -49,7 +49,8 @@
 | **Peter Lowe's** | ~3,500 | 经典广告服务器和追踪服务器列表 |
 | **合并去重** | ~50,700 | 总计唯一追踪域名 |
 
-#### 风险评分系统
+<details>
+<summary>风险评分系统</summary>
 
 | 风险等级 | 评分范围 | 说明 |
 |:--------:|:--------:|------|
@@ -58,7 +59,10 @@
 | 🟡 **中风险** | 20-39 | 存在安全属性问题 |
 | 🟢 **低风险** | 0-19 | 安全状态良好 |
 
-#### 风险因素检测
+</details>
+
+<details>
+<summary>风险因素检测</summary>
 
 | 因素 | 分数 | 说明 |
 |:-----|:----:|------|
@@ -70,6 +74,8 @@
 | SameSite=None | +8 | 允许跨站发送 |
 | 长期有效 | +8 | 有效期超过 90 天 |
 | 会话 Cookie | -5 | 浏览器关闭即失效（降低风险） |
+
+</details>
 
 ### 🍪 Cookie 精准控制
 
@@ -96,11 +102,6 @@
 | PR 构建 | 允许失败模式 |
 | 主分支推送 | 严格模式 + 新鲜度检查 |
 | 正式发布 | 严格模式 + 新鲜度强制 |
-
-### 🌍 国际化支持
-
-- **多语言**：支持中文（简体）和英文
-- **自动检测**：跟随浏览器语言设置
 
 ### 🎨 个性化体验
 
@@ -213,20 +214,9 @@ LXCookie_Manager/
 │   │   ├── 📂 core/                    # 核心 Hooks
 │   │   │   ├── useDialog.ts            # 对话框 Hook
 │   │   │   ├── useSiteStatus.ts        # 站点状态 Hook
-│   │   │   ├── useStorage.ts           # 存储 Hook
-│   │   │   └── useTranslation.ts       # 国际化 Hook
+│   │   │   └── useStorage.ts           # 存储 Hook
 │   │   └── index.ts                    # Hooks 导出入口
-│   │
-│   ├── 📂 i18n/                        # 🌍 国际化资源（WXT i18n）
-│   │   ├── en-US.json                  # 英文语言包
-│   │   ├── zh-CN.json                  # 中文语言包
-│   │   ├── index.ts                    # i18n 入口
-│   │   └── types.ts                    # 类型定义
-│   │
-│   ├── 📂 locales/                     # 🌐 语言包（备用）
-│   │   ├── en.json                     # 英文语言包
-│   │   └── zh_CN.json                 # 中文语言包
-│   │
+│
 │   ├── 📂 lib/                         # 📚 核心库
 │   │   ├── background-service.ts       # 后台通信服务
 │   │   ├── constants.ts                # 常量定义（含追踪数据）
@@ -294,9 +284,7 @@ LXCookie_Manager/
 | `src/data/` | 数据文件 | 追踪域名数据 |
 | `src/entrypoints/popup/` | 弹出窗口 | Popup UI、Hooks、分区组件及样式 |
 | `src/entrypoints/background/` | 后台服务 | Service Worker 及消息处理 |
-| `src/hooks/` | 自定义 Hooks | 状态管理、国际化、对话框等核心 Hooks |
-| `src/i18n/` | 国际化 | WXT i18n 多语言支持 |
-| `src/locales/` | 语言包 | 备用语言包文件 |
+| `src/hooks/` | 自定义 Hooks | 状态管理、对话框等核心 Hooks |
 | `src/lib/` | 核心库 | 后台通信、常量、存储、数据验证 |
 | `src/types/` | 类型定义 | TypeScript 类型 |
 | `src/utils/` | 工具函数 | 清理逻辑、风险评估、域名工具等 |

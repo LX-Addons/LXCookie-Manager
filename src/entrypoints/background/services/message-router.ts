@@ -1,30 +1,23 @@
-import type { BackgroundRequest, ApiResponse, CleanupTrigger, Cookie } from "@/types";
-import { ErrorCode, CookieClearType } from "@/types";
+import type { BackgroundRequest, ApiResponse, CleanupTrigger, Cookie, Settings } from "@/types";
+import {
+  ErrorCode,
+  CookieClearType,
+  LogRetention,
+  ThemeMode,
+  ModeType,
+  ScheduleInterval,
+} from "@/types";
 import { CookiesHandler } from "../handlers/cookies";
 import { CleanupHandler } from "../handlers/cleanup";
+import { SettingsHandler } from "../handlers/settings";
 import { logExportService } from "./log-export-service";
-import { SettingsMigrator } from "./settings-migrator";
+import { settingsMigratorSingleton } from "./settings-migrator";
 
-let cookiesHandler: CookiesHandler | null = null;
-let cleanupHandler: CleanupHandler | null = null;
-let settingsMigrator: SettingsMigrator | null = null;
+const cookiesHandler = new CookiesHandler();
+const cleanupHandler = new CleanupHandler(settingsMigratorSingleton);
+const settingsHandler = new SettingsHandler();
 
 const VALID_CLEAR_TYPES = new Set(Object.values(CookieClearType));
-
-const getCookiesHandler = (): CookiesHandler => {
-  cookiesHandler ??= new CookiesHandler();
-  return cookiesHandler;
-};
-
-const getSettingsMigrator = (): SettingsMigrator => {
-  settingsMigrator ??= new SettingsMigrator();
-  return settingsMigrator;
-};
-
-const getCleanupHandler = (): CleanupHandler => {
-  cleanupHandler ??= new CleanupHandler(getSettingsMigrator());
-  return cleanupHandler;
-};
 
 export const createSuccessResponse = <T>(data?: T): ApiResponse<T> => ({
   success: true,
@@ -151,14 +144,14 @@ function validateCleanupWithFilterPayload(payload: unknown): payload is {
 type MessageHandler = (request: BackgroundRequest) => Promise<ApiResponse>;
 
 const handleGetCurrentTabCookies: MessageHandler = async () => {
-  return await getCookiesHandler().getCurrentTabCookies();
+  return await cookiesHandler.getCurrentTabCookies();
 };
 
 const handleGetStats: MessageHandler = async (request) => {
   if ("domain" in request && request.domain !== undefined && typeof request.domain !== "string") {
     return createErrorResponse(ErrorCode.INVALID_PARAMETERS, "Invalid domain for getStats");
   }
-  return await getCookiesHandler().getStats(
+  return await cookiesHandler.getStats(
     "domain" in request ? (request as { domain?: string }).domain : undefined
   );
 };
@@ -170,7 +163,7 @@ const handleCreateCookie: MessageHandler = async (request) => {
       "Invalid payload for createCookie: name, domain, and value are required"
     );
   }
-  return await getCookiesHandler().createCookie(request.payload);
+  return await cookiesHandler.createCookie(request.payload);
 };
 
 const handleUpdateCookie: MessageHandler = async (request) => {
@@ -180,7 +173,7 @@ const handleUpdateCookie: MessageHandler = async (request) => {
       "Invalid payload for updateCookie: original (with name, domain, path, value, secure) and updates are required"
     );
   }
-  return await getCookiesHandler().updateCookie(
+  return await cookiesHandler.updateCookie(
     request.payload.original as Cookie,
     request.payload.updates
   );
@@ -193,7 +186,7 @@ const handleDeleteCookie: MessageHandler = async (request) => {
       "Invalid payload for deleteCookie: name, domain, path, and secure are required"
     );
   }
-  return await getCookiesHandler().deleteCookie(request.payload as Cookie);
+  return await cookiesHandler.deleteCookie(request.payload as Cookie);
 };
 
 const handleCleanupByDomain: MessageHandler = async (request) => {
@@ -203,8 +196,8 @@ const handleCleanupByDomain: MessageHandler = async (request) => {
       "Invalid payload for cleanupByDomain: domain and trigger are required"
     );
   }
-  const settings = await getSettingsMigrator().getSettings();
-  return await getCleanupHandler().cleanupByDomain(
+  const settings = await settingsMigratorSingleton.getSettings();
+  return await cleanupHandler.cleanupByDomain(
     request.payload.domain,
     request.payload.trigger as CleanupTrigger,
     settings,
@@ -224,8 +217,8 @@ const handleCleanupWithFilter: MessageHandler = async (request) => {
       "Invalid payload for cleanupWithFilter: filterType and trigger are required"
     );
   }
-  const settings = await getSettingsMigrator().getSettings();
-  return await getCleanupHandler().cleanupWithFilter(
+  const settings = await settingsMigratorSingleton.getSettings();
+  return await cleanupHandler.cleanupWithFilter(
     request.payload.filterType as "all" | "domain" | "domain-list",
     request.payload.filterValue,
     request.payload.domainList,
@@ -256,6 +249,81 @@ const handleExportLogs: MessageHandler = async (request) => {
   return createErrorResponse(ErrorCode.INTERNAL_ERROR, result.error || "Export failed");
 };
 
+const handleGetSettings: MessageHandler = async () => {
+  try {
+    const settings = await settingsHandler.getSettings();
+    return createSuccessResponse(settings);
+  } catch (error) {
+    return createErrorResponse(
+      ErrorCode.INTERNAL_ERROR,
+      `Failed to get settings: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+};
+
+const VALID_LOG_RETENTIONS = new Set(Object.values(LogRetention));
+const VALID_THEME_MODES = new Set(Object.values(ThemeMode));
+const VALID_MODE_TYPES = new Set(Object.values(ModeType));
+const VALID_SCHEDULE_INTERVALS = new Set(Object.values(ScheduleInterval));
+
+type ValidatorFn = (value: unknown) => boolean;
+
+const SETTINGS_VALIDATORS: Record<string, ValidatorFn> = {
+  settingsVersion: (v) => typeof v === "number",
+  clearType: (v) => VALID_CLEAR_TYPES.has(v as CookieClearType),
+  logRetention: (v) => VALID_LOG_RETENTIONS.has(v as LogRetention),
+  themeMode: (v) => VALID_THEME_MODES.has(v as ThemeMode),
+  mode: (v) => VALID_MODE_TYPES.has(v as ModeType),
+  clearLocalStorage: (v) => typeof v === "boolean",
+  clearIndexedDB: (v) => typeof v === "boolean",
+  clearCache: (v) => typeof v === "boolean",
+  enableAutoCleanup: (v) => typeof v === "boolean",
+  cleanupOnTabDiscard: (v) => typeof v === "boolean",
+  cleanupOnStartup: (v) => typeof v === "boolean",
+  cleanupExpiredCookies: (v) => typeof v === "boolean",
+  cleanupOnTabClose: (v) => typeof v === "boolean",
+  cleanupOnBrowserClose: (v) => typeof v === "boolean",
+  cleanupOnNavigate: (v) => typeof v === "boolean",
+  customTheme: (v) => typeof v === "object" && v !== null,
+  scheduleInterval: (v) => VALID_SCHEDULE_INTERVALS.has(v as ScheduleInterval),
+  lastScheduledCleanup: (v) => typeof v === "number",
+  showCookieRisk: (v) => typeof v === "boolean",
+};
+
+function validateUpdateSettingsPayload(payload: unknown): payload is Partial<Settings> {
+  if (typeof payload !== "object" || payload === null) return false;
+
+  const updates = payload as Record<string, unknown>;
+
+  for (const [key, value] of Object.entries(updates)) {
+    const validator = SETTINGS_VALIDATORS[key];
+    if (!validator) return false;
+    if (value !== undefined && !validator(value)) return false;
+  }
+
+  return true;
+}
+
+const handleUpdateSettings: MessageHandler = async (request) => {
+  if (!hasPayload(request) || !validateUpdateSettingsPayload(request.payload)) {
+    return createErrorResponse(
+      ErrorCode.INVALID_PARAMETERS,
+      "Invalid payload for updateSettings: updates object is required"
+    );
+  }
+
+  try {
+    const updates = request.payload;
+    const updatedSettings = await settingsHandler.updateSettings(updates);
+    return createSuccessResponse(updatedSettings);
+  } catch (error) {
+    return createErrorResponse(
+      ErrorCode.INTERNAL_ERROR,
+      `Failed to update settings: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+};
+
 const messageHandlers: Record<string, MessageHandler> = {
   getCurrentTabCookies: handleGetCurrentTabCookies,
   getStats: handleGetStats,
@@ -265,6 +333,8 @@ const messageHandlers: Record<string, MessageHandler> = {
   cleanupByDomain: handleCleanupByDomain,
   cleanupWithFilter: handleCleanupWithFilter,
   exportLogs: handleExportLogs,
+  getSettings: handleGetSettings,
+  updateSettings: handleUpdateSettings,
 };
 
 export const handleMessage = async (request: unknown): Promise<ApiResponse> => {

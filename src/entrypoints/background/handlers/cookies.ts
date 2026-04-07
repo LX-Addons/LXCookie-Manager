@@ -1,7 +1,7 @@
 import type { Cookie, CookieStats, ApiResponse } from "@/types";
 import { ErrorCode, CookieRemoveError, CookieRemoveErrorType } from "@/types";
 import { isTrackingCookie, isThirdPartyCookie } from "@/utils/cookie-risk";
-import { isDomainMatch, normalizeDomain } from "@/utils/domain";
+import { isDomainMatch, normalizeDomain, isValidHttpUrl } from "@/utils/domain";
 import {
   clearSingleCookie,
   createCookie as createCookieInStore,
@@ -20,7 +20,7 @@ export class CookiesHandler {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let domain = "";
-      if (tab?.url) {
+      if (tab?.url && isValidHttpUrl(tab.url)) {
         try {
           const url = new URL(tab.url);
           domain = url.hostname;

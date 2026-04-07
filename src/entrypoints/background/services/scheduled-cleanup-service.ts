@@ -1,29 +1,25 @@
 import type { Settings } from "@/types";
 import { storage, LAST_SCHEDULED_CLEANUP_KEY } from "@/lib/store";
-import { cleanupExecutor, type CleanupOptions } from "./cleanup-executor";
+import { cleanupExecutor } from "./cleanup-executor";
 import { shouldPerformCleanup } from "@/utils/cleanup";
-import { createCleanupLock } from "@/lib/distributed-lock";
+import { getGlobalCleanupQueue } from "@/lib/distributed-lock";
+import { getCleanupOptionsFromSettings } from "@/utils/cleanup/cleanup-options";
 
 export class ScheduledCleanupService {
-  private getCleanupOptions(settings: Settings): CleanupOptions {
-    return {
-      clearType: settings.clearType,
-      clearCache: settings.clearCache,
-      clearLocalStorage: settings.clearLocalStorage,
-      clearIndexedDB: settings.clearIndexedDB,
-    };
-  }
-
   async runScheduledCleanup(settings: Settings): Promise<void> {
     if (!settings.enableAutoCleanup) return;
 
-    const lock = createCleanupLock();
-    const { acquired } = await lock.withLock(async () => {
-      await this.runScheduledCleanupInternal(settings);
-    });
-
-    if (!acquired) {
-      console.log("[ScheduledCleanup] Another cleanup is in progress, skipping");
+    const queue = getGlobalCleanupQueue();
+    try {
+      await queue.enqueue(async () => {
+        await this.runScheduledCleanupInternal(settings);
+      }, "scheduled");
+    } catch (error) {
+      if (error instanceof Error) {
+        console.warn(`[ScheduledCleanup] Scheduled cleanup failed: ${error.message}`);
+      } else {
+        console.warn("[ScheduledCleanup] Scheduled cleanup failed (unknown error)");
+      }
     }
   }
 
@@ -40,7 +36,7 @@ export class ScheduledCleanupService {
           undefined,
           trigger,
           settings,
-          this.getCleanupOptions(settings)
+          getCleanupOptionsFromSettings(settings)
         );
 
         if (result.success) {

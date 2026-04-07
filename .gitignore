@@ -63,5 +63,4 @@ NON_CORE_FILES.md
 # Other IDEs
 .qodo
 .pnpm-store
-
-shili
+.agents

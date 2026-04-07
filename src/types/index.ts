@@ -74,7 +74,12 @@ export interface CustomTheme {
   textSecondary: string;
 }
 
-export type Locale = "zh-CN" | "en-US";
+export interface CleanupOverrides {
+  clearType?: CookieClearType;
+  clearCache?: boolean;
+  clearLocalStorage?: boolean;
+  clearIndexedDB?: boolean;
+}
 
 export interface Settings {
   settingsVersion: number;
@@ -96,7 +101,6 @@ export interface Settings {
   scheduleInterval: ScheduleInterval;
   lastScheduledCleanup?: number;
   showCookieRisk: boolean;
-  locale: Locale;
 }
 
 export interface ClearLogEntry {
@@ -254,6 +258,15 @@ export interface ExportLogsRequest extends BackgroundMessage {
   };
 }
 
+export interface GetSettingsRequest extends BackgroundMessage {
+  type: "getSettings";
+}
+
+export interface UpdateSettingsRequest extends BackgroundMessage {
+  type: "updateSettings";
+  payload: Partial<Settings>;
+}
+
 export type BackgroundRequest =
   | GetCurrentTabCookiesRequest
   | GetStatsRequest
@@ -262,7 +275,9 @@ export type BackgroundRequest =
   | CreateCookieRequest
   | UpdateCookieRequest
   | DeleteCookieRequest
-  | ExportLogsRequest;
+  | ExportLogsRequest
+  | GetSettingsRequest
+  | UpdateSettingsRequest;
 
 export enum ErrorCode {
   SUCCESS = "SUCCESS",
@@ -278,6 +293,10 @@ export enum ErrorCode {
   TAB_QUERY_FAILED = "TAB_QUERY_FAILED",
   COOKIE_CREATE_FAILED = "COOKIE_CREATE_FAILED",
   COOKIE_UPDATE_FAILED = "COOKIE_UPDATE_FAILED",
+  QUEUE_FULL = "QUEUE_FULL",
+  TASK_EXPIRED = "TASK_EXPIRED",
+  LOCK_RETRY_FAILED = "LOCK_RETRY_FAILED",
+  QUEUE_CLEARED = "QUEUE_CLEARED",
 }
 
 export enum CleanupStage {

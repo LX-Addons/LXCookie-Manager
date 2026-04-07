@@ -1,14 +1,12 @@
-import { SettingsMigrator } from "../services/settings-migrator";
+import { settingsMigratorSingleton } from "../services/settings-migrator";
 import type { Settings } from "@/types";
-
-const migrator = new SettingsMigrator();
 
 export class SettingsHandler {
   async getSettings(): Promise<Settings> {
-    return await migrator.getSettings();
+    return await settingsMigratorSingleton.getSettings();
   }
 
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {
-    return await migrator.updateSettings(updates);
+    return await settingsMigratorSingleton.updateSettings(updates);
   }
 }

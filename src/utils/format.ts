@@ -1,23 +1,13 @@
 import type { RiskLevel } from "@/types";
 
-export const getCookieTypeName = (type: string, t?: (key: string) => string): string => {
-  if (t) {
-    switch (type) {
-      case "session":
-        return t("cookieTypes.session");
-      case "persistent":
-        return t("cookieTypes.persistent");
-      default:
-        return t("cookieTypes.all");
-    }
-  }
+export const getCookieTypeName = (type: string, t: (key: string) => string): string => {
   switch (type) {
     case "session":
-      return "会话Cookie";
+      return t("cookieTypes.session");
     case "persistent":
-      return "持久Cookie";
+      return t("cookieTypes.persistent");
     default:
-      return "所有Cookie";
+      return t("cookieTypes.all");
   }
 };
 
@@ -34,61 +24,33 @@ export const getRiskLevelColor = (level: RiskLevel): string => {
   }
 };
 
-export const getRiskLevelText = (level: RiskLevel, t?: (key: string) => string): string => {
-  if (t) {
-    switch (level) {
-      case "critical":
-        return t("cookieList.criticalRisk");
-      case "high":
-        return t("cookieList.highRisk");
-      case "medium":
-        return t("cookieList.mediumRisk");
-      default:
-        return t("cookieList.lowRisk");
-    }
-  }
+export const getRiskLevelText = (level: RiskLevel, t: (key: string) => string): string => {
   switch (level) {
     case "critical":
-      return "极高风险";
+      return t("cookieList.criticalRisk");
     case "high":
-      return "高风险";
+      return t("cookieList.highRisk");
     case "medium":
-      return "中风险";
+      return t("cookieList.mediumRisk");
     default:
-      return "低风险";
+      return t("cookieList.lowRisk");
   }
 };
 
-export const getActionText = (action: string, t?: (key: string) => string): string => {
-  if (t) {
-    switch (action) {
-      case "clear":
-        return t("actions.clear");
-      case "edit":
-        return t("actions.edit");
-      case "delete":
-        return t("actions.delete");
-      case "import":
-        return t("actions.import");
-      case "export":
-        return t("actions.export");
-      default:
-        return t("actions.action");
-    }
-  }
+export const getActionText = (action: string, t: (key: string) => string): string => {
   switch (action) {
     case "clear":
-      return "清除";
+      return t("actions.clear");
     case "edit":
-      return "编辑";
+      return t("actions.edit");
     case "delete":
-      return "删除";
+      return t("actions.delete");
     case "import":
-      return "导入";
+      return t("actions.import");
     case "export":
-      return "导出";
+      return t("actions.export");
     default:
-      return "操作";
+      return t("actions.action");
   }
 };
 
@@ -109,9 +71,9 @@ export const getActionColor = (action: string): string => {
   }
 };
 
-export const formatLogTime = (timestamp: number, locale: string = "zh-CN"): string => {
+export const formatLogTime = (timestamp: number): string => {
   const date = new Date(timestamp);
-  return date.toLocaleString(locale, {
+  return date.toLocaleString(navigator.language, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

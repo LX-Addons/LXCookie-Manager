@@ -8,9 +8,10 @@ import { ExpiredCookieService } from "../services/expired-cookie-service";
 import { StorageInitializer } from "../services/storage-initializer";
 import { TabManagementService } from "../services/tab-management-service";
 import { StartupService } from "../services/startup-service";
-import { SettingsMigrator } from "../services/settings-migrator";
+import { SettingsMigrator, settingsMigratorSingleton } from "../services/settings-migrator";
 import { handleMessage, createErrorResponse } from "../services/message-router";
 import { storage, SETTINGS_KEY } from "@/lib/store";
+import { setupCookieChangeListener } from "../listeners/cookie-listener";
 
 export class BackgroundBootstrap {
   private readonly tabUrlManager: TabUrlManager;
@@ -30,7 +31,7 @@ export class BackgroundBootstrap {
     this.tabEventCleanupService = new TabEventCleanupService();
     this.expiredCookieService = new ExpiredCookieService();
     this.storageInitializer = new StorageInitializer();
-    this.settingsMigrator = new SettingsMigrator();
+    this.settingsMigrator = settingsMigratorSingleton;
     this.tabManagementService = new TabManagementService(
       this.tabUrlManager,
       this.startupCleanupService,
@@ -140,6 +141,10 @@ export class BackgroundBootstrap {
     });
   }
 
+  private setupCookieChangeListener(): void {
+    setupCookieChangeListener();
+  }
+
   public initialize(): void {
     this.tabUrlManager.initializeFromTabs();
     this.setupMessageListener();
@@ -148,6 +153,12 @@ export class BackgroundBootstrap {
     this.setupTabRemovedListener();
     this.setupStartupListener();
     this.setupAlarmListener();
+    this.settingsMigrator.initWatcher();
     this.setupSettingsWatcher();
+    this.setupCookieChangeListener();
+  }
+
+  public dispose(): void {
+    this.settingsMigrator.disposeWatcher();
   }
 }

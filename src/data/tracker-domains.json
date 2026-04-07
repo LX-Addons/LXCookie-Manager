@@ -10520,6 +10520,7 @@
     "cf.overblog.com",
     "cfa.fidelity.com",
     "cfaexam.quantresear.ch",
+    "cfapi.upstackdata.io",
     "cfb.8it.me",
     "cfmediaview.com",
     "cfpwood.actonservice.com",
@@ -15749,6 +15750,7 @@
     "error-analytics-production.shopifysvc.com",
     "error-analytics-sessions-production.shopifysvc.com",
     "error-collector.ted.com",
+    "error-tracker.pages.dev",
     "error.fc2.com",
     "error.videonow.ru",
     "errorreports.couponcabin.com",
@@ -27060,6 +27062,7 @@
     "metrics.diy.com",
     "metrics.diynetwork.com",
     "metrics.dockers.com",
+    "metrics.documentfoundation.org",
     "metrics.dog.com",
     "metrics.dollar.com",
     "metrics.dollargeneral.com",
@@ -48878,6 +48881,7 @@
     "wetrack.it",
     "wevbgr.vidaxl.it",
     "wezbvq.heine-shop.nl",
+    "wf-box.net",
     "wf.typesquare.com",
     "wfinterface.com",
     "wfla.com",
@@ -50850,11 +50854,11 @@
     "vwo_",
     "xs"
   ],
-  "lastUpdated": "2026-04-05T01:19:44.421Z",
+  "lastUpdated": "2026-04-06T12:12:02.382Z",
   "sources": {
     "easyprivacy": {
-      "count": 47705,
-      "version": "202604050111"
+      "count": 47709,
+      "version": "202604061201"
     },
     "peterlowe": {
       "count": 3519,

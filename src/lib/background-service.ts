@@ -7,6 +7,7 @@ import type {
   BackgroundRequest,
   ApiResponse,
   GetCurrentTabCookiesData,
+  Settings,
 } from "@/types";
 import { ErrorCode } from "@/types";
 
@@ -19,24 +20,16 @@ export class BackgroundService {
   }
 
   private static async sendMessage<T>(request: BackgroundRequest): Promise<ApiResponse<T>> {
-    return new Promise((resolve) => {
-      chrome.runtime.sendMessage(request, (response) => {
-        if (chrome.runtime.lastError) {
-          resolve(
-            this.createErrorResponse<T>(
-              ErrorCode.INTERNAL_ERROR,
-              chrome.runtime.lastError.message || "Unknown error"
-            )
-          );
-        } else if (response) {
-          resolve(response as ApiResponse<T>);
-        } else {
-          resolve(
-            this.createErrorResponse<T>(ErrorCode.INTERNAL_ERROR, "No response from background")
-          );
-        }
-      });
-    });
+    try {
+      const response = await browser.runtime.sendMessage(request);
+      if (response) {
+        return response as ApiResponse<T>;
+      }
+      return this.createErrorResponse<T>(ErrorCode.INTERNAL_ERROR, "No response from background");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return this.createErrorResponse<T>(ErrorCode.INTERNAL_ERROR, message);
+    }
   }
 
   static async getCurrentTabCookies(): Promise<ApiResponse<GetCurrentTabCookiesData>> {
@@ -117,6 +110,19 @@ export class BackgroundService {
     return await this.sendMessage<string>({
       type: "exportLogs",
       payload: { options },
+    });
+  }
+
+  static async getSettings(): Promise<ApiResponse<Settings>> {
+    return await this.sendMessage<Settings>({
+      type: "getSettings",
+    });
+  }
+
+  static async updateSettings(updates: Partial<Settings>): Promise<ApiResponse<Settings>> {
+    return await this.sendMessage<Settings>({
+      type: "updateSettings",
+      payload: updates,
     });
   }
 }

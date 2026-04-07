@@ -1,4 +1,4 @@
-import type { CleanupExecutionResult, CleanupTrigger, Settings } from "@/types";
+import type { CleanupExecutionResult, CleanupTrigger, CleanupOverrides, Settings } from "@/types";
 import { CookieClearType, CleanupError, CleanupStage, ErrorCode } from "@/types";
 import { runCleanup, runCleanupWithFilter } from "@/utils/cleanup/cleanup-runner";
 import { isDomainMatch } from "@/utils/domain";
@@ -6,12 +6,7 @@ import { metricsService } from "@/entrypoints/background/services/metrics";
 import { logService } from "@/entrypoints/background/services/log-service";
 import { classifyError } from "@/entrypoints/background/services/error-reporting";
 
-export interface CleanupOptions {
-  clearType?: CookieClearType;
-  clearCache?: boolean;
-  clearLocalStorage?: boolean;
-  clearIndexedDB?: boolean;
-}
+export type { CleanupOverrides } from "@/types";
 
 export interface CleanupResult {
   success: boolean;
@@ -58,7 +53,7 @@ class CleanupExecutorImpl {
     domain: string,
     trigger: CleanupTrigger,
     settings: Settings,
-    options: CleanupOptions = {}
+    options: CleanupOverrides = {}
   ): Promise<CleanupResult> {
     const startTime = Date.now();
     try {
@@ -113,7 +108,7 @@ class CleanupExecutorImpl {
     domainList: string[] | undefined,
     trigger: CleanupTrigger,
     settings: Settings,
-    options: CleanupOptions = {}
+    options: CleanupOverrides = {}
   ): Promise<CleanupResult> {
     const startTime = Date.now();
 

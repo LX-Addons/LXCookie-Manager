@@ -51,7 +51,7 @@
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vite": "^8.0.3"
+    "vite": "^8.0.5"
   },
   "pnpm": {
     "overrides": {
@@ -62,7 +62,8 @@
       "flatted": ">=3.4.2",
       "node-forge": ">=1.4.0",
       "picomatch": ">=4.0.4",
-      "defu": ">=6.1.5"
+      "defu": ">=6.1.5",
+      "vite": "8.0.5"
     }
   }
 }

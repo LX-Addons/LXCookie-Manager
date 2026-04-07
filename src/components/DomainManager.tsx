@@ -7,6 +7,64 @@ import type { DomainList } from "@/types";
 import { validateDomain, normalizeDomain, isInList } from "@/utils/domain";
 import { addDomainsToList } from "@/utils/domain-rules";
 
+/*
+ * ⚠️ 架构决策说明：直接写存储的可接受性分析
+ *
+ * 当前实现：DomainManager 通过 setList() 直接写入 chrome.storage.local
+ * - WHITELIST_KEY: 白名单域名列表
+ * - BLACKLIST_KEY: 黑名单域名列表
+ *
+ * 为什么此处直接写存储是可接受的：
+ *
+ * 1. 触发频率极低
+ *    - 列表修改由用户主动触发（点击"添加"/"删除"按钮）
+ *    - 不存在自动化高频写入场景
+ *    - 用户操作间隔通常 > 1秒
+ *
+ * 2. 写入时机可控
+ *    - 仅在用户明确交互时写入（非响应式/非批量）
+ *    - 写入前通常有确认对话框
+ *    - 单次操作只涉及一个列表（白名单或黑名单）
+ *
+ * 3. 与 cleanup 并发概率可忽略
+ *    - Cleanup 操作读取列表用于判断是否跳过某域名
+ *    - Cleanup 执行时间通常 < 100ms
+ *    - 用户在同一毫秒内修改列表并触发 cleanup 的概率 ≈ 0
+ *
+ * 4. 数据一致性要求相对宽松
+ *    - 白/黑名单是策略配置，非实时交易数据
+ *    - 即使出现短暂不一致，下次 cleanup 会使用最新值
+ *    - 用户预期：修改后"很快生效"，而非"立即强一致"
+ *
+ * 5. 实现复杂度考量
+ *    - 改为 background 消息路由需要：新增消息类型、handler、错误处理
+ *    - 收益有限（消除理论上的竞态风险）
+ *    - 成本较高（增加代码复杂度和维护负担）
+ *
+ * 未来改进路径（如需彻底解决）：
+ * ────────────────────────────────────────────────
+ * 方案 A：将列表写入路由至 background 消息
+ *   - 新增消息类型：updateWhitelist / updateBlacklist
+ *   - Handler 中使用 distributed-lock 或队列序列化写入
+ *   - 优点：完全消除前端竞争
+ *   - 缺点：增加复杂度，需要异步等待
+ *
+ * 方案 B：使用 storage.watch 监听变更
+ *   - Background 监听列表 key 变更，自动刷新缓存
+ *   - 优点：无需修改前端写入逻辑
+ *   - 缺点：仍有极小时间窗口的不一致
+ *
+ * 方案 C：保持现状 + 监控
+ *   - 添加 metrics 记录列表读写频率
+ *   - 如发现频率升高再优化
+ *   - 优点：零成本，按需优化
+ *   - 缺点：被动响应
+ *
+ * 决策时间：2026-04-06
+ * 决策者：架构评审（P0-P2 修复计划）
+ * 下次评估触发条件：用户反馈列表丢失或 cleanup 行为异常
+ */
+
 const EMPTY_DOMAIN_LIST: DomainList = [];
 
 interface Props {

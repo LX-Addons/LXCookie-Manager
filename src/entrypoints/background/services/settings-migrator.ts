@@ -24,9 +24,19 @@ const migrations: Migration[] = [
 ];
 
 export class SettingsMigrator {
+  private cachedSettings: Settings | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_TTL_MS = 5000;
+  private pendingMigration: Promise<Settings> | null = null;
+  private unwatchSettings: (() => void) | null = null;
+  private ignoreNextCacheInvalidation: boolean = false;
+
   async migrateSettings(): Promise<Settings> {
+    let existingSnapshot: Partial<Settings> | null = null;
+
     try {
       const currentSettings = await storage.getItem<Partial<Settings>>(SETTINGS_KEY);
+      existingSnapshot = currentSettings ? { ...currentSettings } : null;
 
       if (!currentSettings) {
         await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
@@ -59,14 +69,38 @@ export class SettingsMigrator {
 
       return finalSettings;
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      console.error("Settings migration failed:", errorMessage);
       classifyError(e, "settings migration");
-      await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
+
+      if (existingSnapshot && Object.keys(existingSnapshot).length > 0) {
+        console.warn("Preserving existing settings due to migration failure");
+        return { ...DEFAULT_SETTINGS, ...existingSnapshot } as Settings;
+      }
+
+      console.warn("No existing settings available, falling back to defaults");
       return DEFAULT_SETTINGS;
     }
   }
 
   async getSettings(): Promise<Settings> {
-    return this.migrateSettings();
+    if (this.cachedSettings && Date.now() - this.cacheTimestamp < this.CACHE_TTL_MS) {
+      return this.cachedSettings;
+    }
+
+    if (this.pendingMigration) {
+      return this.pendingMigration;
+    }
+
+    this.pendingMigration = this.migrateSettings();
+    try {
+      const settings = await this.pendingMigration;
+      this.cachedSettings = settings;
+      this.cacheTimestamp = Date.now();
+      return settings;
+    } finally {
+      this.pendingMigration = null;
+    }
   }
 
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {
@@ -76,7 +110,41 @@ export class SettingsMigrator {
       ...updates,
       settingsVersion: CURRENT_SETTINGS_VERSION,
     };
-    await storage.setItem(SETTINGS_KEY, newSettings);
+    this.ignoreNextCacheInvalidation = true;
+    try {
+      await storage.setItem(SETTINGS_KEY, newSettings);
+      this.cachedSettings = newSettings;
+      this.cacheTimestamp = Date.now();
+    } catch (e) {
+      this.ignoreNextCacheInvalidation = false;
+      throw e;
+    }
     return newSettings;
   }
+
+  invalidateCache(): void {
+    this.cachedSettings = null;
+    this.cacheTimestamp = 0;
+    this.pendingMigration = null;
+  }
+
+  initWatcher(): void {
+    if (this.unwatchSettings) return;
+    this.unwatchSettings = storage.watch<Settings>(SETTINGS_KEY, () => {
+      if (this.ignoreNextCacheInvalidation) {
+        this.ignoreNextCacheInvalidation = false;
+        return;
+      }
+      this.invalidateCache();
+    });
+  }
+
+  disposeWatcher(): void {
+    if (this.unwatchSettings) {
+      this.unwatchSettings();
+      this.unwatchSettings = null;
+    }
+  }
 }
+
+export const settingsMigratorSingleton = new SettingsMigrator();
