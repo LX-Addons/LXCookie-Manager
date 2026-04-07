@@ -111,9 +111,14 @@ export class SettingsMigrator {
       settingsVersion: CURRENT_SETTINGS_VERSION,
     };
     this.ignoreNextCacheInvalidation = true;
-    await storage.setItem(SETTINGS_KEY, newSettings);
-    this.cachedSettings = newSettings;
-    this.cacheTimestamp = Date.now();
+    try {
+      await storage.setItem(SETTINGS_KEY, newSettings);
+      this.cachedSettings = newSettings;
+      this.cacheTimestamp = Date.now();
+    } catch (e) {
+      this.ignoreNextCacheInvalidation = false;
+      throw e;
+    }
     return newSettings;
   }
 

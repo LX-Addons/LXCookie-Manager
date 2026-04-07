@@ -6,6 +6,7 @@ import { EDITABLE_COOKIE_FIELDS } from "@/lib/constants";
 import { isSensitiveCookie } from "@/utils/cookie-risk";
 import { getCookieKey } from "@/utils/format";
 import { getSelectedDomains, filterRedundantDomains } from "@/components/cookie-list/utils";
+import type { TranslationFunction } from "@/hooks/core/useTranslation";
 
 interface UseCookieOperationsProps {
   cookies: Cookie[];
@@ -17,6 +18,7 @@ interface UseCookieOperationsProps {
   onAddToWhitelist?: (domains: string[]) => void;
   onAddToBlacklist?: (domains: string[]) => void;
   clearSelectedCookies: () => void;
+  removeSelectedCookies: (keys: string[]) => void;
   showConfirm: (
     title: string,
     message: string,
@@ -24,7 +26,7 @@ interface UseCookieOperationsProps {
     onConfirm: () => void,
     options?: { triggerElement?: HTMLElement | null }
   ) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: TranslationFunction;
 }
 
 export function useCookieOperations({
@@ -37,6 +39,7 @@ export function useCookieOperations({
   onAddToWhitelist,
   onAddToBlacklist,
   clearSelectedCookies,
+  removeSelectedCookies,
   showConfirm,
   t,
 }: UseCookieOperationsProps) {
@@ -229,6 +232,7 @@ export function useCookieOperations({
     let deleted = 0;
     let failed = 0;
     let lastError: string | undefined;
+    const deletedKeys: string[] = [];
 
     for (const cookie of cookies) {
       const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
@@ -236,17 +240,18 @@ export function useCookieOperations({
         const result = await deleteSingleCookie(cookie);
         if (result.success) {
           deleted++;
+          deletedKeys.push(key);
         } else {
           failed++;
           lastError = result.error;
         }
       }
     }
-    return { deleted, failed, lastError };
+    return { deleted, failed, lastError, deletedKeys };
   }, [cookies, selectedCookies, deleteSingleCookie]);
 
   const handleBatchResults = useCallback(
-    (deleted: number, failed: number, lastError: string | undefined) => {
+    (deleted: number, failed: number, lastError: string | undefined, deletedKeys: string[]) => {
       if (deleted === 0 && failed === 0) {
         return;
       }
@@ -255,16 +260,18 @@ export function useCookieOperations({
       if (deleted > 0) {
         if (failed === 0) {
           clearSelectedCookies();
+        } else {
+          removeSelectedCookies(deletedKeys);
         }
         onUpdate?.();
       }
     },
-    [buildBatchDeleteMessage, onMessage, clearSelectedCookies, onUpdate]
+    [buildBatchDeleteMessage, onMessage, clearSelectedCookies, removeSelectedCookies, onUpdate]
   );
 
   const performBatchDelete = useCallback(async () => {
-    const { deleted, failed, lastError } = await processBatchDeletions();
-    handleBatchResults(deleted, failed, lastError);
+    const { deleted, failed, lastError, deletedKeys } = await processBatchDeletions();
+    handleBatchResults(deleted, failed, lastError, deletedKeys);
   }, [processBatchDeletions, handleBatchResults]);
 
   const handleBatchDelete = useCallback(

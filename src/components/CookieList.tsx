@@ -67,6 +67,7 @@ export const CookieList = memo(
       selectAll,
       toggleSelectAll,
       clearSelectedCookies,
+      removeSelectedCookies,
       toggleCookieSelection,
       toggleValueVisibility,
       toggleDomainExpansion,
@@ -90,6 +91,7 @@ export const CookieList = memo(
       onAddToWhitelist,
       onAddToBlacklist,
       clearSelectedCookies,
+      removeSelectedCookies,
       showConfirm,
       t,
     });

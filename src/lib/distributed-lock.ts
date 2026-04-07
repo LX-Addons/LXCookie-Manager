@@ -79,7 +79,7 @@ export class DistributedLock {
       return false;
     }
 
-    const lockId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const lockId = crypto.randomUUID();
 
     const lockData: LockData = {
       lockId: lockId,
@@ -146,7 +146,9 @@ export class DistributedLock {
     return true;
   }
 
-  async withLock<T>(fn: () => Promise<T>): Promise<{ acquired: boolean; result?: T }> {
+  async withLock<T>(
+    fn: () => Promise<T>
+  ): Promise<{ acquired: true; result: T } | { acquired: false }> {
     const acquired = await this.acquire();
 
     if (!acquired) {
@@ -166,7 +168,7 @@ export class DistributedLock {
     fn: () => Promise<T>,
     maxWaitTimeMs: number = 5000,
     pollIntervalMs: number = 200
-  ): Promise<{ acquired: boolean; result?: T }> {
+  ): Promise<{ acquired: true; result: T } | { acquired: false }> {
     const deadline = Date.now() + maxWaitTimeMs;
 
     while (Date.now() < deadline) {
@@ -534,7 +536,7 @@ export class CleanupTaskQueue {
       }
 
       const task: CleanupTask<T> = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+        id: crypto.randomUUID(),
         fn: async (): Promise<T> => {
           return await fn();
         },
