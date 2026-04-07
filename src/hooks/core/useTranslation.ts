@@ -6,7 +6,7 @@ export type TranslationFunction = (key: string, params?: Record<string, string |
 function applyParams(str: string, params: Record<string, string | number>): string {
   return str.replace(/\{(\w+)\}/g, (_, key: string) => {
     const val = params[key];
-    return val !== undefined ? String(val) : `{${key}}`;
+    return val === undefined ? `{${key}}` : String(val);
   });
 }
 

@@ -157,4 +157,8 @@ export class BackgroundBootstrap {
     this.setupSettingsWatcher();
     this.setupCookieChangeListener();
   }
+
+  public dispose(): void {
+    this.settingsMigrator.disposeWatcher();
+  }
 }

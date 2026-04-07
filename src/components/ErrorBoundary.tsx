@@ -57,9 +57,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const safeUrl =
-      typeof globalThis.window !== "undefined"
-        ? `${globalThis.location.origin}${globalThis.location.pathname}`
-        : "unknown";
+      globalThis.window === undefined
+        ? "unknown"
+        : `${globalThis.location.origin}${globalThis.location.pathname}`;
 
     console.error("ErrorBoundary caught an error:", {
       message: error.message,

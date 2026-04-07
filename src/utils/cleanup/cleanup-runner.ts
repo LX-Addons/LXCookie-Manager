@@ -120,6 +120,11 @@ const handleCookieClearError = (domain?: string, error?: unknown): never => {
     throw error;
   }
 
+  const isPermissionDenied = /permission|access denied|not allowed/i.test(message);
+  if (isPermissionDenied) {
+    throw new CleanupError(ErrorCode.INSUFFICIENT_PERMISSIONS, CleanupStage.COOKIES, message);
+  }
+
   throw new CleanupError(ErrorCode.COOKIE_REMOVE_FAILED, CleanupStage.COOKIES, message);
 };
 

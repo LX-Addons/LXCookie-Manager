@@ -43,6 +43,10 @@ export function useCookieOperations({
   const getErrorMessage = useCallback(
     (errorCode?: ErrorCode, defaultMessage?: string): string => {
       switch (errorCode) {
+        case ErrorCode.PERMISSION_DENIED:
+          return t("cookieList.errorPermissionDenied");
+        case ErrorCode.INVALID_URL:
+          return t("cookieList.errorInvalidUrl");
         case ErrorCode.INSUFFICIENT_PERMISSIONS:
           return t("cookieList.errorInsufficientPermissions");
         case ErrorCode.INVALID_PARAMETERS:
@@ -179,7 +183,49 @@ export function useCookieOperations({
     [createCookie, onMessage, t]
   );
 
-  const performBatchDelete = useCallback(async () => {
+  const deleteSingleCookie = useCallback(
+    async (cookie: Cookie): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const response = await BackgroundService.deleteCookie(cookie);
+        if (response.success) {
+          return { success: true };
+        }
+        return { success: false, error: getErrorMessage(response.error?.code) };
+      } catch (e) {
+        console.error("Failed to delete cookie:", e);
+        return { success: false, error: getErrorMessage(undefined) };
+      }
+    },
+    [getErrorMessage]
+  );
+
+  const buildBatchDeleteMessage = useCallback(
+    (
+      deleted: number,
+      failed: number,
+      lastError?: string
+    ): { message: string; isError: boolean } => {
+      if (deleted > 0) {
+        let message = t("cookieList.deletedSelected", { count: deleted });
+        if (failed > 0) {
+          message += t("cookieList.partialDeleteFailed", {
+            failed,
+            reason: lastError || t("common.unknownError"),
+          });
+        }
+        return { message, isError: failed > 0 };
+      }
+      return {
+        message: t("cookieList.deleteFailedWithReason", {
+          reason: lastError || t("common.unknownError"),
+        }),
+        isError: true,
+      };
+    },
+    [t]
+  );
+
+  const processBatchDeletions = useCallback(async () => {
     let deleted = 0;
     let failed = 0;
     let lastError: string | undefined;
@@ -187,48 +233,47 @@ export function useCookieOperations({
     for (const cookie of cookies) {
       const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
       if (selectedCookies.has(key)) {
-        try {
-          const response = await BackgroundService.deleteCookie(cookie);
-          if (response.success) {
-            deleted++;
-          } else {
-            failed++;
-            lastError = getErrorMessage(response.error?.code);
-          }
-        } catch (e) {
-          console.error("Failed to delete cookie:", e);
+        const result = await deleteSingleCookie(cookie);
+        if (result.success) {
+          deleted++;
+        } else {
           failed++;
-          lastError = getErrorMessage(undefined);
+          lastError = result.error;
         }
       }
     }
+    return { deleted, failed, lastError };
+  }, [cookies, selectedCookies, deleteSingleCookie]);
 
-    if (deleted > 0) {
-      let message = t("cookieList.deletedSelected", { count: deleted });
-      if (failed > 0) {
-        message += t("cookieList.partialDeleteFailed", {
-          failed,
-          reason: lastError || t("common.unknownError"),
-        });
+  const handleBatchResults = useCallback(
+    (deleted: number, failed: number, lastError: string | undefined) => {
+      if (deleted === 0 && failed === 0) {
+        return;
       }
-      onMessage?.(message, failed > 0);
-      if (failed === 0) {
-        clearSelectedCookies();
+      const { message, isError } = buildBatchDeleteMessage(deleted, failed, lastError);
+      onMessage?.(message, isError);
+      if (deleted > 0) {
+        if (failed === 0) {
+          clearSelectedCookies();
+        }
+        onUpdate?.();
       }
-      onUpdate?.();
-    } else if (failed > 0) {
-      onMessage?.(
-        t("cookieList.deleteFailedWithReason", { reason: lastError || t("common.unknownError") }),
-        true
-      );
-    }
-  }, [cookies, selectedCookies, onUpdate, onMessage, clearSelectedCookies, getErrorMessage, t]);
+    },
+    [buildBatchDeleteMessage, onMessage, clearSelectedCookies, onUpdate]
+  );
+
+  const performBatchDelete = useCallback(async () => {
+    const { deleted, failed, lastError } = await processBatchDeletions();
+    handleBatchResults(deleted, failed, lastError);
+  }, [processBatchDeletions, handleBatchResults]);
 
   const handleBatchDelete = useCallback(
     (triggerElement?: HTMLElement | null) => {
-      const sensitiveCount = cookies
-        .filter((c) => selectedCookies.has(getCookieKey(c.name, c.domain, c.path, c.storeId)))
-        .filter((c) => isSensitiveCookie(c)).length;
+      const sensitiveCount = cookies.filter(
+        (c) =>
+          selectedCookies.has(getCookieKey(c.name, c.domain, c.path, c.storeId)) &&
+          isSensitiveCookie(c)
+      ).length;
 
       const title =
         sensitiveCount > 0
@@ -248,41 +293,46 @@ export function useCookieOperations({
     [cookies, selectedCookies, performBatchDelete, showConfirm, t]
   );
 
-  const handleBatchWhitelist = useCallback(() => {
-    if (!onAddToWhitelist) {
-      onMessage?.(t("cookieList.functionUnavailable"), true);
-      return;
-    }
-    const domains = getSelectedDomains(cookies, selectedCookies);
-    const domainArray = Array.from(domains);
-    const newDomains = filterRedundantDomains(domainArray, whitelist);
-    if (newDomains.length > 0) {
-      onAddToWhitelist(newDomains);
-      onMessage?.(t("cookieList.addedDomainsToWhitelist", { count: newDomains.length }));
-    } else if (domainArray.length > 0) {
-      onMessage?.(t("cookieList.domainsAlreadyInWhitelist"));
-    } else {
-      onMessage?.(t("cookieList.selectDomainsFirst"), true);
-    }
-  }, [cookies, selectedCookies, whitelist, onAddToWhitelist, onMessage, t]);
+  const handleBatchListAction = useCallback(
+    (
+      listType: "whitelist" | "blacklist",
+      list: string[] | undefined,
+      onAdd: ((domains: string[]) => void) | undefined
+    ) => {
+      if (!onAdd) {
+        onMessage?.(t("cookieList.functionUnavailable"), true);
+        return;
+      }
+      const domains = getSelectedDomains(cookies, selectedCookies);
+      const domainArray = Array.from(domains);
+      const newDomains = filterRedundantDomains(domainArray, list);
+      if (newDomains.length > 0) {
+        onAdd(newDomains);
+        onMessage?.(
+          t(`cookieList.addedDomainsTo${listType === "whitelist" ? "Whitelist" : "Blacklist"}`, {
+            count: newDomains.length,
+          })
+        );
+      } else if (domainArray.length > 0) {
+        onMessage?.(
+          t(`cookieList.domainsAlreadyIn${listType === "whitelist" ? "Whitelist" : "Blacklist"}`)
+        );
+      } else {
+        onMessage?.(t("cookieList.selectDomainsFirst"), true);
+      }
+    },
+    [cookies, selectedCookies, onMessage, t]
+  );
 
-  const handleBatchBlacklist = useCallback(() => {
-    if (!onAddToBlacklist) {
-      onMessage?.(t("cookieList.functionUnavailable"), true);
-      return;
-    }
-    const domains = getSelectedDomains(cookies, selectedCookies);
-    const domainArray = Array.from(domains);
-    const newDomains = filterRedundantDomains(domainArray, blacklist);
-    if (newDomains.length > 0) {
-      onAddToBlacklist(newDomains);
-      onMessage?.(t("cookieList.addedDomainsToBlacklist", { count: newDomains.length }));
-    } else if (domainArray.length > 0) {
-      onMessage?.(t("cookieList.domainsAlreadyInBlacklist"));
-    } else {
-      onMessage?.(t("cookieList.selectDomainsFirst"), true);
-    }
-  }, [cookies, selectedCookies, blacklist, onAddToBlacklist, onMessage, t]);
+  const handleBatchWhitelist = useCallback(
+    () => handleBatchListAction("whitelist", whitelist, onAddToWhitelist),
+    [handleBatchListAction, whitelist, onAddToWhitelist]
+  );
+
+  const handleBatchBlacklist = useCallback(
+    () => handleBatchListAction("blacklist", blacklist, onAddToBlacklist),
+    [handleBatchListAction, blacklist, onAddToBlacklist]
+  );
 
   return {
     handleDelete,

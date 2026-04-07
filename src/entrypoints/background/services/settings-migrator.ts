@@ -2,8 +2,6 @@ import { storage, SETTINGS_KEY, DEFAULT_SETTINGS } from "@/lib/store";
 import type { Settings } from "@/types";
 import { classifyError } from "./error-reporting";
 
-let unwatchSettings: (() => void) | null = null;
-
 const CURRENT_SETTINGS_VERSION = 1;
 
 type MigrationFunction = (settings: Partial<Settings>) => Partial<Settings>;
@@ -30,6 +28,8 @@ export class SettingsMigrator {
   private cacheTimestamp: number = 0;
   private readonly CACHE_TTL_MS = 5000;
   private pendingMigration: Promise<Settings> | null = null;
+  private unwatchSettings: (() => void) | null = null;
+  private ignoreNextCacheInvalidation: boolean = false;
 
   async migrateSettings(): Promise<Settings> {
     let existingSnapshot: Partial<Settings> | null = null;
@@ -110,6 +110,7 @@ export class SettingsMigrator {
       ...updates,
       settingsVersion: CURRENT_SETTINGS_VERSION,
     };
+    this.ignoreNextCacheInvalidation = true;
     await storage.setItem(SETTINGS_KEY, newSettings);
     this.cachedSettings = newSettings;
     this.cacheTimestamp = Date.now();
@@ -119,19 +120,24 @@ export class SettingsMigrator {
   invalidateCache(): void {
     this.cachedSettings = null;
     this.cacheTimestamp = 0;
+    this.pendingMigration = null;
   }
 
   initWatcher(): void {
-    if (unwatchSettings) return;
-    unwatchSettings = storage.watch<Settings>(SETTINGS_KEY, () => {
+    if (this.unwatchSettings) return;
+    this.unwatchSettings = storage.watch<Settings>(SETTINGS_KEY, () => {
+      if (this.ignoreNextCacheInvalidation) {
+        this.ignoreNextCacheInvalidation = false;
+        return;
+      }
       this.invalidateCache();
     });
   }
 
   disposeWatcher(): void {
-    if (unwatchSettings) {
-      unwatchSettings();
-      unwatchSettings = null;
+    if (this.unwatchSettings) {
+      this.unwatchSettings();
+      this.unwatchSettings = null;
     }
   }
 }

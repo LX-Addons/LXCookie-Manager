@@ -506,19 +506,18 @@ export class CleanupTaskQueue {
         this.maxQueueSize,
         waitingCount
       );
-    } else {
-      this.rejectAndLog(
-        reject,
-        triggerType,
-        "QUEUE_FULL",
-        `Queue full (${waitingCount}/${this.maxQueueSize}), no evictable task for ${triggerType} (priority ${PRIORITY_WEIGHTS[triggerType]})`,
-        `queue full (${waitingCount}/${this.maxQueueSize}), cannot evict`,
-        this.maxQueueSize,
-        waitingCount
-      );
-      return false;
+      return true;
     }
-    return true;
+    this.rejectAndLog(
+      reject,
+      triggerType,
+      "QUEUE_FULL",
+      `Queue full (${waitingCount}/${this.maxQueueSize}), no evictable task for ${triggerType} (priority ${PRIORITY_WEIGHTS[triggerType]})`,
+      `queue full (${waitingCount}/${this.maxQueueSize}), cannot evict`,
+      this.maxQueueSize,
+      waitingCount
+    );
+    return false;
   }
 
   async enqueue<T>(fn: () => Promise<T>, triggerType: CleanupTriggerType = "manual"): Promise<T> {
@@ -754,6 +753,10 @@ export class CleanupTaskQueue {
     };
   }
 
+  /**
+   * 清空等待队列中的所有任务，但不会中断正在执行的任务。
+   * 正在执行的任务将正常完成，但退避等待中的任务不会被重新入队。
+   */
   clearQueue(): void {
     this.clearVersion++;
     for (const task of this.queue) {
