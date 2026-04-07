@@ -84,8 +84,7 @@ export class SettingsMigrator {
   }
 
   async getSettings(): Promise<Settings> {
-    const now = Date.now();
-    if (this.cachedSettings && now - this.cacheTimestamp < this.CACHE_TTL_MS) {
+    if (this.cachedSettings && Date.now() - this.cacheTimestamp < this.CACHE_TTL_MS) {
       return this.cachedSettings;
     }
 
@@ -97,7 +96,7 @@ export class SettingsMigrator {
     try {
       const settings = await this.pendingMigration;
       this.cachedSettings = settings;
-      this.cacheTimestamp = now;
+      this.cacheTimestamp = Date.now();
       return settings;
     } finally {
       this.pendingMigration = null;
@@ -127,6 +126,13 @@ export class SettingsMigrator {
     unwatchSettings = storage.watch<Settings>(SETTINGS_KEY, () => {
       this.invalidateCache();
     });
+  }
+
+  disposeWatcher(): void {
+    if (unwatchSettings) {
+      unwatchSettings();
+      unwatchSettings = null;
+    }
   }
 }
 

@@ -183,7 +183,6 @@ export function useCookieOperations({
     let deleted = 0;
     let failed = 0;
     let lastError: string | undefined;
-    const failedKeys = new Set<string>();
 
     for (const cookie of cookies) {
       const key = getCookieKey(cookie.name, cookie.domain, cookie.path, cookie.storeId);
@@ -194,13 +193,12 @@ export function useCookieOperations({
             deleted++;
           } else {
             failed++;
-            failedKeys.add(key);
             lastError = getErrorMessage(response.error?.code);
           }
         } catch (e) {
           console.error("Failed to delete cookie:", e);
           failed++;
-          failedKeys.add(key);
+          lastError = getErrorMessage(undefined);
         }
       }
     }

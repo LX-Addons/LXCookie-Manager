@@ -167,25 +167,11 @@ export class DistributedLock {
     maxWaitTimeMs: number = 5000,
     pollIntervalMs: number = 200
   ): Promise<{ acquired: boolean; result?: T }> {
-    const acquired = await this.acquire();
+    const deadline = Date.now() + maxWaitTimeMs;
 
-    if (acquired) {
-      try {
-        const result = await fn();
-        return { acquired: true, result };
-      } finally {
-        this.releasePromise = this.release();
-        await this.releasePromise;
-      }
-    }
-
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < maxWaitTimeMs) {
-      await this.delay(pollIntervalMs);
-
-      const retryAcquired = await this.acquire();
-      if (retryAcquired) {
+    while (Date.now() < deadline) {
+      const acquired = await this.tryAcquire();
+      if (acquired) {
         try {
           const result = await fn();
           return { acquired: true, result };
@@ -194,6 +180,10 @@ export class DistributedLock {
           await this.releasePromise;
         }
       }
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      await this.delay(Math.min(pollIntervalMs, remaining));
     }
 
     return { acquired: false };
@@ -536,20 +526,7 @@ export class CleanupTaskQueue {
       const waitingCount = this.queue.length;
       const totalCount = this.getQueueLength();
 
-      if (totalCount >= this.globalHardCap) {
-        this.rejectAndLog(
-          reject,
-          triggerType,
-          "GLOBAL_HARD_CAP_REACHED",
-          `Global queue hard cap (${this.globalHardCap}) reached`,
-          `global hard cap (${this.globalHardCap}) reached`,
-          this.globalHardCap,
-          waitingCount
-        );
-        return;
-      }
-
-      if (waitingCount >= this.maxQueueSize) {
+      if (totalCount >= this.globalHardCap || waitingCount >= this.maxQueueSize) {
         if (triggerType === "tab-close") {
           if (!this.handleQueueFullForTabClose(waitingCount, triggerType, reject)) return;
         } else if (!this.handleQueueFullForOther(waitingCount, triggerType, reject)) {

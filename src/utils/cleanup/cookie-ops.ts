@@ -2,6 +2,11 @@ import { CookieClearType } from "@/types";
 import { toChromeSameSite } from "@/utils/format";
 import { EDITABLE_COOKIE_FIELDS, EDITABLE_COOKIE_FIELDS_SET } from "@/lib/constants";
 
+type EditableCookieField = (typeof EDITABLE_COOKIE_FIELDS)[number];
+
+const isEditableCookieField = (key: string): key is EditableCookieField =>
+  EDITABLE_COOKIE_FIELDS_SET.has(key as EditableCookieField);
+
 export interface ClearCookiesOptions {
   clearType?: CookieClearType;
   filterFn?: (domain: string) => boolean;
@@ -153,9 +158,7 @@ export const editCookie = async (
   originalCookie: chrome.cookies.Cookie,
   updates: Partial<chrome.cookies.Cookie>
 ): Promise<chrome.cookies.Cookie> => {
-  const unsupportedKeys = Object.keys(updates).filter(
-    (key) => !EDITABLE_COOKIE_FIELDS_SET.has(key)
-  );
+  const unsupportedKeys = Object.keys(updates).filter((key) => !isEditableCookieField(key));
   if (unsupportedKeys.length > 0) {
     throw new Error(`Unsupported cookie fields: ${unsupportedKeys.join(", ")}`);
   }
