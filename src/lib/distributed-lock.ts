@@ -665,47 +665,54 @@ export class CleanupTaskQueue {
 
     this.isProcessing = true;
 
-    while (this.queue.length > 0) {
-      const task = this.selectNextTask();
-      if (!task) break;
-      this.currentTask = task;
+    try {
+      while (this.queue.length > 0) {
+        const task = this.selectNextTask();
+        if (!task) break;
+        this.currentTask = task;
 
-      this.logTaskStatus(task.id, task.triggerType, "executing");
+        this.logTaskStatus(task.id, task.triggerType, "executing");
 
-      if (Date.now() - task.createdAt > this.maxTaskAgeMs) {
-        this.currentTask = null;
-        const ageMs = Date.now() - task.createdAt;
-        task.reject(new CleanupQueueError("TASK_EXPIRED", "Task expired"));
-        this.logTaskStatus(task.id, task.triggerType, "expired", `${(ageMs / 1000).toFixed(1)}s`);
-        continue;
-      }
-
-      try {
-        const result = await this.lock.withLock(async () => {
-          return await task.fn();
-        });
-
-        if (!result.acquired) {
-          await this.handleLockNotAcquired(task);
+        if (Date.now() - task.createdAt > this.maxTaskAgeMs) {
+          this.currentTask = null;
+          const ageMs = Date.now() - task.createdAt;
+          task.reject(new CleanupQueueError("TASK_EXPIRED", "Task expired"));
+          this.logTaskStatus(task.id, task.triggerType, "expired", `${(ageMs / 1000).toFixed(1)}s`);
           continue;
         }
 
-        this.currentTask = null;
-        task.resolve(result.result);
-        this.logTaskStatus(task.id, task.triggerType, "completed");
-      } catch (error) {
-        this.currentTask = null;
-        task.reject(error as Error);
-        this.logTaskStatus(
-          task.id,
-          task.triggerType,
-          "failed",
-          error instanceof Error ? error.message : String(error)
-        );
+        try {
+          const result = await this.lock.withLock(async () => {
+            return await task.fn();
+          });
+
+          if (!result.acquired) {
+            await this.handleLockNotAcquired(task);
+            continue;
+          }
+
+          this.currentTask = null;
+          task.resolve(result.result);
+          this.logTaskStatus(task.id, task.triggerType, "completed");
+        } catch (error) {
+          this.currentTask = null;
+          task.reject(error as Error);
+          this.logTaskStatus(
+            task.id,
+            task.triggerType,
+            "failed",
+            error instanceof Error ? error.message : String(error)
+          );
+        }
+      }
+    } finally {
+      this.isProcessing = false;
+      if (this.queue.length > 0) {
+        this.processQueue().catch((error) => {
+          console.error("[CleanupQueue] Error re-starting queue processing:", error);
+        });
       }
     }
-
-    this.isProcessing = false;
   }
 
   private delay(ms: number): Promise<void> {
