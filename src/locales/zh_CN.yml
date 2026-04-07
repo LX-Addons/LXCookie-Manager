@@ -290,6 +290,8 @@ cookieList:
   errorQueueFull: "清理队列已满，请稍后重试"
   errorTaskExpired: "清理任务已过期"
   errorLockRetryFailed: "获取锁重试失败，请稍后重试"
+  errorPermissionDenied: "权限被拒绝，无法执行此操作"
+  errorInvalidUrl: "URL 无效，请检查 URL 格式"
   errorQueueCleared: "清理队列已被清除"
 cookieEditor:
   editCookie: "编辑 Cookie"

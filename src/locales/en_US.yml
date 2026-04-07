@@ -290,6 +290,8 @@ cookieList:
   errorQueueFull: "Cleanup queue is full, please try again later"
   errorTaskExpired: "Cleanup task has expired"
   errorLockRetryFailed: "Lock retry failed, please try again later"
+  errorPermissionDenied: "Permission denied, unable to perform this operation"
+  errorInvalidUrl: "Invalid URL, please check the URL format"
   errorQueueCleared: "Cleanup queue has been cleared"
 cookieEditor:
   editCookie: "Edit Cookie"
