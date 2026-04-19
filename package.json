@@ -30,7 +30,7 @@
     "lucide-react": "^1.8.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "wxt": "^0.20.20"
+    "wxt": "^0.20.25"
   },
   "devDependencies": {
     "@types/chrome": "0.1.40",
