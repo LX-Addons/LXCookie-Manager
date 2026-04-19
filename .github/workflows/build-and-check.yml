@@ -425,7 +425,7 @@ jobs:
           pnpm-version: ${{ env.PNPM_VERSION }}
 
       - name: 缓存 WXT 构建缓存
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: .wxt
           key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'src/data/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
