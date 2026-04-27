@@ -181,7 +181,7 @@ jobs:
         run: bunx tsc --version
 
       - name: 生成 WXT 类型定义
-        run: bun wxt prepare
+        run: bunx wxt prepare
 
       - name: TypeScript 类型检查
         id: typecheck
@@ -366,7 +366,7 @@ jobs:
 
           echo "#### 代码安全规则检查 (ESLint)" >> $GITHUB_STEP_SUMMARY
           ESLINT_EXIT_CODE=0
-          SECURITY_OUTPUT=$(bun eslint --no-error-on-unmatched-pattern \
+          SECURITY_OUTPUT=$(bunx eslint --no-error-on-unmatched-pattern \
             --rule 'no-eval: error' \
             --rule 'no-implied-eval: error' \
             --rule 'no-new-func: error' \
@@ -420,7 +420,7 @@ jobs:
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: .wxt
-          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/bun.lockb', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'src/data/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
+          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/bun.lock', '**/bun.lockb', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'src/data/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-
             ${{ runner.os }}-wxt-

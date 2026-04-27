@@ -4,7 +4,7 @@ on:
     branches: ["main", "beta"]
     paths:
       - "package.json"
-      - "pnpm-lock.yaml"
+      - "bun.lock"
       - ".github/workflows/**"
       - ".github/dependabot.yml"
       - ".github/actions/**"
@@ -24,18 +24,16 @@ jobs:
   dependency-review:
     needs: [get-env]
     env:
-      PNPM_VERSION: ${{ needs.get-env.outputs.pnpm_version }}
-      NODE_VERSION: ${{ needs.get-env.outputs.node_version }}
+      BUN_VERSION: ${{ needs.get-env.outputs.bun_version }}
     runs-on: ubuntu-latest
     steps:
       - name: "检出代码库"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: "安装项目依赖"
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
+          bun-version: ${{ env.BUN_VERSION }}
           install-args: --frozen-lockfile --ignore-scripts
 
       - name: "依赖审查"
@@ -52,7 +50,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           AUDIT_EXIT_CODE=0
-          AUDIT_OUTPUT=$(pnpm audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
+          AUDIT_OUTPUT=$(bun audit --audit-level=moderate 2>&1) || AUDIT_EXIT_CODE=$?
 
           if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             echo "✅ 未发现已知漏洞" >> $GITHUB_STEP_SUMMARY
@@ -90,7 +88,7 @@ jobs:
           echo "## 📜 许可证合规检查" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          LICENSE_CHECKER="pnpm exec license-checker-rseidelsohn"
+          LICENSE_CHECKER="bunx license-checker-rseidelsohn"
 
           echo "### 📊 许可证摘要" >> $GITHUB_STEP_SUMMARY
           $LICENSE_CHECKER --summary >> $GITHUB_STEP_SUMMARY
@@ -121,7 +119,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           NODE_MODULES_SIZE=$(du -sh node_modules 2>/dev/null | cut -f1 || echo "unknown")
-          DEPENDENCY_COUNT=$(pnpm ls --depth=0 --json 2>/dev/null | jq '[.[0].dependencies // {}, .[0].devDependencies // {}] | add | keys | length' || echo "0")
+          DEPENDENCY_COUNT=$(bun pm ls --depth=0 --json 2>/dev/null | jq '[.[0].dependencies // {}, .[0].devDependencies // {}] | add | keys | length' || echo "0")
 
           echo "- **node_modules 体积**: $NODE_MODULES_SIZE" >> $GITHUB_STEP_SUMMARY
           echo "- **直接依赖数量**: $DEPENDENCY_COUNT" >> $GITHUB_STEP_SUMMARY

@@ -147,7 +147,7 @@ jobs:
           PREVIOUS_TAG: ${{ steps.previous-tag.outputs.tag }}
           RELEASE_KIND: ${{ github.ref == 'refs/heads/main' && '正式版' || '预发布版' }}
         run: |
-          bun << 'EOF'
+          bun run - << 'EOF'
           import { execSync } from 'child_process';
           import { writeFileSync } from 'fs';
 
@@ -255,12 +255,12 @@ jobs:
             if (category.collapsible) {
               return [
                 '<details>',
-                '<summary><strong>${category.title}</strong></summary>',
+                `<summary><strong>${category.title}</strong></summary>`,
                 '',
                 content,
                 '',
                 '</details>',
-              ].join('\n').replaceAll('${category.title}', category.title);
+              ].join('\n');
             }
 
             return [
