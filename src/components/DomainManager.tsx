@@ -42,7 +42,6 @@ import { addDomainsToList } from "@/utils/domain-rules";
  *    - 成本较高（增加代码复杂度和维护负担）
  *
  * 未来改进路径（如需彻底解决）：
- * ────────────────────────────────────────────────
  * 方案 A：将列表写入路由至 background 消息
  *   - 新增消息类型：updateWhitelist / updateBlacklist
  *   - Handler 中使用 distributed-lock 或队列序列化写入

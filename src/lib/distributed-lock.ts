@@ -1,4 +1,4 @@
-import { storage } from "wxt/utils/storage";
+import { storage } from "#imports";
 
 type StorageKey = `local:${string}` | `session:${string}` | `sync:${string}` | `managed:${string}`;
 

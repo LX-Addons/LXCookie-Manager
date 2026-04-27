@@ -1,24 +1,15 @@
 {
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "target": "esnext",
-    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "#i18n": [".wxt/i18n/index.ts"]
-    }
-  },
-  "include": [".wxt/**/*", "**/*.ts", "**/*.tsx"],
-  "files": [".wxt/wxt.d.ts"]
+    "jsx": "react-jsx"
+  }
 }

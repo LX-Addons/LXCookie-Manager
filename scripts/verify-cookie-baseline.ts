@@ -1,18 +1,17 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 /**
  * Cookie 数据基线校验
- * =====================================
  *
  * 【职责】当 Cookie 数据相关文件变更时，tracker-domains.json 必须同步更新
  *
  * 【触发文件】COOKIE_RELATED_FILES 中的文件变更时触发强制校验
  *
  * 【调用方式】
- * - tsx scripts/verify-cookie-baseline.ts --pr <base-sha> <head-sha>
- * - tsx scripts/verify-cookie-baseline.ts --push <before-sha> <after-sha>
+ * - bun scripts/verify-cookie-baseline.ts --pr <base-sha> <head-sha>
+ * - bun scripts/verify-cookie-baseline.ts --push <before-sha> <after-sha>
  */
 
-import { execFileSync } from "node:child_process";
+const textDecoder = new TextDecoder();
 
 const COOKIE_RELATED_FILES = [
   "scripts/update-tracker-data.ts",
@@ -21,7 +20,6 @@ const COOKIE_RELATED_FILES = [
   "src/lib/cookie-data-validators.ts",
 ];
 
-// 策略/CI 相关文件：变更时仅输出提示信息，不强制执行验证逻辑
 const POLICY_FILES = [
   "package.json",
   ".github/workflows/build-and-check.yml",
@@ -46,13 +44,25 @@ function validateSha(sha: string, name: string): void {
   }
 }
 
+function runGit(args: string[]): string {
+  const result = Bun.spawnSync(["git", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  if (result.exitCode !== 0) {
+    const stderr = textDecoder.decode(result.stderr).trim();
+    throw new Error(stderr || `git exited with code ${result.exitCode}`);
+  }
+
+  return textDecoder.decode(result.stdout);
+}
+
 function getChangedFiles(baseSha: string, headSha: string): string[] {
   validateSha(baseSha, "base");
   validateSha(headSha, "head");
   try {
-    const output = execFileSync("git", ["diff", "--name-only", `${baseSha}...${headSha}`], {
-      encoding: "utf-8",
-    });
+    const output = runGit(["diff", "--name-only", `${baseSha}...${headSha}`]);
     return output.trim().split("\n").filter(Boolean);
   } catch (error) {
     console.error("❌ 获取变更文件失败:", error);
@@ -63,13 +73,7 @@ function getChangedFiles(baseSha: string, headSha: string): string[] {
 function getChangedFilesForFirstPush(afterSha: string): string[] {
   validateSha(afterSha, "after");
   try {
-    const output = execFileSync(
-      "git",
-      ["diff-tree", "--no-commit-id", "--name-only", "-r", afterSha],
-      {
-        encoding: "utf-8",
-      }
-    );
+    const output = runGit(["diff-tree", "--no-commit-id", "--name-only", "-r", afterSha]);
     return output.trim().split("\n").filter(Boolean);
   } catch (error) {
     console.error("❌ 获取首次 push 变更文件失败:", error);
@@ -84,7 +88,7 @@ interface ParsedArgs {
 }
 
 function parseArgs(): ParsedArgs {
-  const args = process.argv.slice(2);
+  const args = Bun.argv.slice(2);
   if (args.length === 0) {
     console.error("❌ 请提供参数：");
     console.error("   --pr <base-sha> <head-sha> : PR 模式");
@@ -140,7 +144,7 @@ function checkConsistency(changedFiles: string[]): boolean {
     console.error("\n❌ 校验失败！");
     console.error("   Cookie 数据相关文件有变更，但 tracker-domains.json 未同步更新！");
     console.error("\n   请执行以下步骤:");
-    console.error("   1. 运行: pnpm run prepare:cookie-data");
+    console.error("   1. 运行: bun run prepare:cookie-data");
     console.error("   2. 提交: git add src/data/tracker-domains.json");
     return false;
   }

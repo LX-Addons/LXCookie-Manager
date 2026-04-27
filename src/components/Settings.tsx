@@ -12,8 +12,6 @@ interface Props {
 }
 
 export const Settings = ({ onMessage }: Props) => {
-  // 注释：此处使用 useSettingsPersistence hook 封装了存储逻辑
-  // 原因同上（低频操作、无竞争风险）
   const {
     settings,
     updateSetting,

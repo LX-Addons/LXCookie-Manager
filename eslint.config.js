@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import typescriptParser from "@typescript-eslint/parser";
 import react from "eslint-plugin-react";
@@ -10,10 +11,15 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const autoImportsConfigPath = path.join(__dirname, ".wxt", "eslint-auto-imports.mjs");
+const autoImportsConfig = fs.existsSync(autoImportsConfigPath)
+  ? (await import("./.wxt/eslint-auto-imports.mjs")).default
+  : null;
 
 export default [
+  ...(autoImportsConfig ? [autoImportsConfig] : []),
   {
-    ignores: ["node_modules/", "build/", "dist/", ".wxt/", "*.min.js", "package-lock.json"],
+    ignores: ["node_modules/", "build/", "dist/", ".output/", ".wxt/", "*.min.js", "package-lock.json"],
   },
   {
     files: ["**/*.{ts,tsx}"],
@@ -69,7 +75,7 @@ export default [
     },
     settings: {
       react: {
-        version: "19.1",
+        version: "19.2",
       },
     },
   },

@@ -1,14 +1,3 @@
-/**
- * Cookie 数据校验函数
- * =====================================
- *
- * 【使用】
- * - scripts/update-tracker-data.ts: 构建期数据生成与校验
- * - src/lib/constants.ts: 运行时数据校验
- *
- * 【注意】修改此文件必须同步刷新 src/data/tracker-domains.json
- */
-
 const IPV4_OCTET_REGEX = /^(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
 
 function isIPv4Address(hostname: string): boolean {

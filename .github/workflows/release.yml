@@ -148,8 +148,7 @@ jobs:
           RELEASE_KIND: ${{ github.ref == 'refs/heads/main' && '正式版' || '预发布版' }}
         run: |
           bun run - << 'EOF'
-          import { execSync } from 'child_process';
-          import { writeFileSync } from 'fs';
+          import { $ } from 'bun';
 
           const version = process.env.VERSION;
           const displayName = process.env.DISPLAY_NAME;
@@ -157,17 +156,13 @@ jobs:
           const releaseKind = process.env.RELEASE_KIND;
           const repoUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`;
           const currentTag = `v${version}`;
+          const releaseNotesFile = Bun.file('release-notes.md');
 
           const isValidTag = (tag) => /^v\d+\.\d+\.\d+(-[\w.]+)?$/.test(tag);
 
-          const runRaw = (command) => {
-            try {
-              return execSync(command, {
-                stdio: ['ignore', 'pipe', 'pipe'],
-              });
-            } catch {
-              return Buffer.alloc(0);
-            }
+          const runGitLog = async (...args) => {
+            const result = await $`git log ${args}`.nothrow().quiet();
+            return result.exitCode === 0 ? result.stdout.toString('utf8') : '';
           };
 
           const normalizeWhitespace = (value) => value.replace(/\s+/g, ' ').trim();
@@ -190,11 +185,9 @@ jobs:
             return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
           };
 
-          const rawCommitsBuffer = runRaw(
-            previousTag && isValidTag(previousTag)
-              ? `git log ${previousTag}..HEAD --no-merges --format=%B---COMMIT_SEP---`
-              : 'git log HEAD --no-merges --format=%B---COMMIT_SEP--- -n 50',
-          );
+          const rawCommitsText = previousTag && isValidTag(previousTag)
+            ? await runGitLog(`${previousTag}..HEAD`, '--no-merges', '--format=%B---COMMIT_SEP---')
+            : await runGitLog('HEAD', '--no-merges', '--format=%B---COMMIT_SEP---', '-n', '50');
 
           const categories = [
             { title: '核心功能升级', intro: '本次版本带来以下重点能力与体验增强：', types: ['feat'], items: [], collapsible: false },
@@ -207,8 +200,7 @@ jobs:
           const seen = new Set();
           let commitCount = 0;
 
-          const commitBodies = rawCommitsBuffer
-            .toString('utf-8')
+          const commitBodies = rawCommitsText
             .split('---COMMIT_SEP---')
             .map((s) => s.trim())
             .filter(Boolean);
@@ -304,15 +296,24 @@ jobs:
             '',
           ].join('\n');
 
-          writeFileSync('release-notes.md', `${body}\n`);
+          await Bun.write(releaseNotesFile, `${body}\n`);
           EOF
 
       - name: 输出发布说明预览
         if: steps.check_tag.outputs.exists == 'false'
         run: |
-          echo "## 📝 发布说明预览" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat release-notes.md >> $GITHUB_STEP_SUMMARY
+          bun run - << 'EOF'
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          if (!summaryPath) {
+            throw new Error('GITHUB_STEP_SUMMARY is not defined');
+          }
+
+          const summaryFile = Bun.file(summaryPath);
+          const currentSummary = await summaryFile.exists() ? await summaryFile.text() : '';
+          const releaseNotes = await Bun.file('release-notes.md').text();
+
+          await Bun.write(summaryPath, `${currentSummary}## 📝 发布说明预览\n\n${releaseNotes}`);
+          EOF
 
       - name: 创建发布版本
         if: steps.check_tag.outputs.exists == 'false'

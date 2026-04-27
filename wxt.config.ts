@@ -9,7 +9,13 @@ const icons = {
 
 export default defineConfig({
   srcDir: "src",
+  targetBrowsers: ["chrome", "edge"],
   modules: ["@wxt-dev/module-react", "@wxt-dev/i18n/module"],
+  imports: {
+    eslintrc: {
+      enabled: 9,
+    },
+  },
   manifestVersion: 3,
   i18n: {
     localesDir: "src/locales",
@@ -37,6 +43,6 @@ export default defineConfig({
     },
   }),
   zip: {
-    artifactTemplate: "{{name}}-{{version}}-{{manifestVersion}}.zip",
+    artifactTemplate: "{{name}}-{{version}}-{{browser}}-mv{{manifestVersion}}.zip",
   },
 });

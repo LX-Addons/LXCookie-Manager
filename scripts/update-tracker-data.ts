@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, existsSync, readFileSync, renameSync } from "node:fs";
+import { mkdir, rename } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isValidHostname, isValidCookieKeyword } from "../src/lib/cookie-data-validators.js";
@@ -7,7 +7,6 @@ import trackingCookieKeywordsConfig from "./tracking-cookie-keywords.json" with 
 
 /**
  * Cookie 数据维护约定（权威说明）
- * =================================
  *
  * 1. 数据结构
  *    - 仅允许 4 个顶层字段: trackingDomains, trackingCookieKeywords, lastUpdated, sources
@@ -603,10 +602,11 @@ async function fetchData(): Promise<{
   };
 }
 
-function loadExistingData(outputPath: string): TrackerData | null {
-  if (!existsSync(outputPath)) return null;
+async function loadExistingData(outputPath: string): Promise<TrackerData | null> {
+  const outputFile = Bun.file(outputPath);
+  if (!(await outputFile.exists())) return null;
   try {
-    const data = JSON.parse(readFileSync(outputPath, "utf-8")) as TrackerData;
+    const data = (await outputFile.json()) as TrackerData;
     if (data?.lastUpdated) {
       const lastUpdateDate = new Date(data.lastUpdated);
       const now = new Date();
@@ -688,12 +688,12 @@ function isCoreDataChanged(newData: TrackerData, existingData: TrackerData | nul
   return domainsChanged || keywordsChanged;
 }
 
-function writeTrackerData(
+async function writeTrackerData(
   data: TrackerData,
   outputPath: string,
   tempPath: string,
   existingData: TrackerData | null
-): boolean {
+): Promise<boolean> {
   if (!isCoreDataChanged(data, existingData)) {
     console.log("\n✅ 数据内容未变化，跳过文件更新（避免无意义 diff）");
     console.log("   - 追踪域名数量: " + data.trackingDomains.length);
@@ -702,12 +702,10 @@ function writeTrackerData(
     return false;
   }
 
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
+  await mkdir(DATA_DIR, { recursive: true });
 
-  writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf-8");
-  renameSync(tempPath, outputPath);
+  await Bun.write(tempPath, JSON.stringify(data, null, 2));
+  await rename(tempPath, outputPath);
   console.log("\n✅ 数据已保存到: " + outputPath);
   return true;
 }
@@ -809,7 +807,7 @@ async function main(
     const outputPath = join(DATA_DIR, "tracker-domains.json");
     const tempPath = join(DATA_DIR, "tracker-domains.tmp.json");
 
-    const existingData = loadExistingData(outputPath);
+    const existingData = await loadExistingData(outputPath);
     console.log("");
 
     const { data, stats } = await fetchData();
@@ -843,7 +841,7 @@ async function main(
       return;
     }
 
-    const dataUpdated = writeTrackerData(data, outputPath, tempPath, existingData);
+    const dataUpdated = await writeTrackerData(data, outputPath, tempPath, existingData);
     printStats(data, stats, freshness.isStale, dataUpdated);
   } catch (error) {
     console.error("❌ 更新失败:", error);
@@ -855,9 +853,10 @@ async function main(
   }
 }
 
-const allowFailure = process.argv.includes("--allow-failure");
-const requireEasyPrivacy = process.argv.includes("--require-easyprivacy");
-const enforceFreshness = process.argv.includes("--enforce-freshness");
+const scriptFlags = new Set(Bun.argv.slice(2));
+const allowFailure = scriptFlags.has("--allow-failure");
+const requireEasyPrivacy = scriptFlags.has("--require-easyprivacy");
+const enforceFreshness = scriptFlags.has("--enforce-freshness");
 
 try {
   await main(allowFailure, requireEasyPrivacy, enforceFreshness);

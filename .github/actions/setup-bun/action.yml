@@ -8,7 +8,7 @@ inputs:
   install-args:
     description: Additional arguments passed to bun install
     required: false
-    default: --frozen-lockfile
+    default: --frozen-lockfile --ignore-scripts
 
 runs:
   using: composite

@@ -178,14 +178,14 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
 
       - name: 显示 TypeScript 版本
-        run: bunx tsc --version
+        run: bun run tsc:version
 
       - name: 生成 WXT 类型定义
-        run: bunx wxt prepare
+        run: bun run prepare:wxt
 
       - name: TypeScript 类型检查
         id: typecheck
-        run: bunx tsc --noEmit
+        run: bun run type-check
 
       - name: ESLint 代码检查
         id: eslint
@@ -256,7 +256,6 @@ jobs:
         run: |
           echo "### 🛡️ 依赖安全审计" >> $GITHUB_STEP_SUMMARY
 
-          # 首先测试网络连接
           if ! curl -s --head --fail --connect-timeout 10 --max-time 15 "https://registry.npmjs.org" > /dev/null 2>&1; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "❌ **审计失败：无法连接到 npm registry**" >> $GITHUB_STEP_SUMMARY
@@ -267,16 +266,14 @@ jobs:
             exit 0
           fi
 
-          # 获取 JSON 格式的审计结果（仅执行一次），分离 stdout 和 stderr
           AUDIT_EXIT_CODE=0
           AUDIT_JSON=$(bun audit --json 2>/tmp/audit-stderr.log) || AUDIT_EXIT_CODE=$?
-          
-          # 从 JSON 中提取或格式化人类可读的输出
+
           JQ_AVAILABLE=0
           if command -v jq &> /dev/null; then
             JQ_AVAILABLE=1
           fi
-          
+
           if [ $JQ_AVAILABLE -eq 1 ] && echo "$AUDIT_JSON" | jq -e . &> /dev/null; then
             AUDIT_OUTPUT=$(echo "$AUDIT_JSON" | jq -r '
               if .advisories then
@@ -310,29 +307,23 @@ jobs:
             echo "✅ 未发现安全漏洞" >> $GITHUB_STEP_SUMMARY
             echo "audit_status=clean" >> $GITHUB_OUTPUT
           else
-            # 使用 jq 检查 JSON 输出中是否有漏洞（说明有漏洞而不是网络错误）
-            # 检查 .metadata.vulnerabilities.total > 0 或 .advisories 有内容
             HAS_VULNERABILITIES=0
             if [ $JQ_AVAILABLE -eq 1 ]; then
-              # 检查 metadata.vulnerabilities.total > 0
               if echo "$AUDIT_JSON" | jq -e '(.metadata.vulnerabilities.total | tonumber) > 0' > /dev/null 2>&1; then
                 HAS_VULNERABILITIES=1
-              # 或者检查 advisories 是否有内容
               elif echo "$AUDIT_JSON" | jq -e '(.advisories | length) > 0' > /dev/null 2>&1; then
                 HAS_VULNERABILITIES=1
               fi
             fi
-            
-            # 同时检查 stderr 中是否有网络错误相关信息
+
             IS_REGISTRY_ERROR=0
             if [ -f /tmp/audit-stderr.log ] && [ -s /tmp/audit-stderr.log ]; then
               if grep -i -E "(network|registry|connect|timeout|ECONNREFUSED|ENOTFOUND|503|502|429)" /tmp/audit-stderr.log > /dev/null 2>&1; then
                 IS_REGISTRY_ERROR=1
               fi
             fi
-            
+
             if [ $HAS_VULNERABILITIES -eq 1 ] || [ $IS_REGISTRY_ERROR -eq 0 ]; then
-              # 如果有漏洞检测到，或者没有明确的网络错误信号，则认为是发现了漏洞
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "⚠️ **发现安全漏洞！** 请查看上方审计报告并修复。" >> $GITHUB_STEP_SUMMARY
               echo "audit_status=warning" >> $GITHUB_OUTPUT
@@ -571,7 +562,6 @@ jobs:
           find .output -name "*.zip" -type f -exec ls -la {} \;
 
           echo ""
-          # 验证 zip 文件是否存在
           FINAL_ZIP_COUNT=$(find .output -name "*.zip" -type f 2>/dev/null | wc -l)
           if [ "$FINAL_ZIP_COUNT" -eq 0 ]; then
             echo "❌ 最终验证失败：仍然没有找到 zip 文件"
