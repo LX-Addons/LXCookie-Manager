@@ -598,7 +598,7 @@ jobs:
         run: |
           echo "🔍 验证 zip 文件是否存在..."
           ls -la "${{ steps.zip-info.outputs.zip_path }}"
-          if [ ! -f "${{ steps.zip-info.outputs.zip_path}" ]; then
+          if [ ! -f "${{ steps.zip-info.outputs.zip_path }}" ]; then
             echo "❌ zip 文件不存在: ${{ steps.zip-info.outputs.zip_path }}"
             exit 1
           fi
