@@ -123,8 +123,8 @@
 |         **React**         | 19.2.4  | 前端 UI 框架       |
 |      **TypeScript**       |  5.9.3  | 类型安全开发       |
 | **@wxt-dev/module-react** |  1.2.2  | WXT React 模块     |
-|        **Manifest**        |   V3    | Chrome 扩展规范    |
-|         **pnpm**          | 10.33.0 | 包管理器           |
+|         **Manifest**        |   V3    | Chrome 扩展规范    |
+|          **Bun**          | 1.3.13  | JavaScript 运行时 + 包管理器           |
 
 ---
 

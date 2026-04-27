@@ -1,0 +1,27 @@
+name: Setup Bun workspace
+description: Set up Bun and install dependencies
+
+inputs:
+  bun-version:
+    description: Bun version to use
+    required: true
+  install-args:
+    description: Additional arguments passed to bun install
+    required: false
+    default: --frozen-lockfile
+
+runs:
+  using: composite
+  steps:
+    - name: 安装 Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    - name: 安装依赖
+      shell: bash
+      env:
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: |
+        read -ra ARGS <<< "$INSTALL_ARGS"
+        bun install "${ARGS[@]}"
