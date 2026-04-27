@@ -1,0 +1,37 @@
+name: Setup Bun workspace
+description: Set up Bun and install dependencies
+
+inputs:
+  bun-version:
+    description: Bun version to use
+    required: true
+  install-args:
+    description: Additional arguments passed to bun install
+    required: false
+    default: --frozen-lockfile
+
+runs:
+  using: composite
+  steps:
+    - name: 安装 Bun
+      uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    - name: 缓存 Bun 依赖
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+      with:
+        path: |
+          ~/.bun/install/cache
+          node_modules
+        key: ${{ runner.os }}-bun-${{ inputs.bun-version }}-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+        restore-keys: |
+          ${{ runner.os }}-bun-${{ inputs.bun-version }}-
+
+    - name: 安装依赖
+      shell: bash
+      env:
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: |
+        read -ra ARGS <<< "$INSTALL_ARGS"
+        bun install "${ARGS[@]}"

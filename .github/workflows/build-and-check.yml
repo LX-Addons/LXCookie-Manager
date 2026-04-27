@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       clear_caches:
-        description: "清除旧的 npm 和 WXT 缓存后再构建"
+        description: "清除旧的 Bun 和 WXT 缓存后再构建"
         required: false
         default: false
         type: boolean
@@ -58,14 +58,12 @@ jobs:
       contents: read
       actions: write
     env:
-      NODE_VERSION: ${{ needs.get-env.outputs.node_version }}
-      PNPM_VERSION: ${{ needs.get-env.outputs.pnpm_version }}
+      BUN_VERSION: ${{ needs.get-env.outputs.bun_version }}
       EXTENSION_SIZE_LIMIT_MB: ${{ needs.get-env.outputs.extension_size_limit_mb }}
     outputs:
       artifact_retention: ${{ steps.retention.outputs.days }}
       ref_slug: ${{ steps.ref-slug.outputs.value }}
-      node_version: ${{ needs.get-env.outputs.node_version }}
-      pnpm_version: ${{ needs.get-env.outputs.pnpm_version }}
+      bun_version: ${{ needs.get-env.outputs.bun_version }}
       extension_size_limit_mb: ${{ needs.get-env.outputs.extension_size_limit_mb }}
     steps:
       - name: 检出仓库
@@ -98,9 +96,9 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const branchPrefix = '${{ steps.ref-slug.outputs.value }}';
-            const nodeVersion = '${{ env.NODE_VERSION }}';
+            const bunVersion = '${{ env.BUN_VERSION }}';
             const prefixes = [
-              '${{ runner.os }}-' + branchPrefix + '-node' + nodeVersion + '-',
+              '${{ runner.os }}-' + branchPrefix + '-bun' + bunVersion + '-',
               '${{ runner.os }}-' + branchPrefix + '-wxt-'
             ];
             let cachesCleared = 0;
@@ -169,35 +167,33 @@ jobs:
     permissions:
       contents: read
     env:
-      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
-      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
+      BUN_VERSION: ${{ needs.setup.outputs.bun_version }}
     steps:
       - name: 检出仓库
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 安装项目依赖
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: 显示 TypeScript 版本
-        run: pnpm exec tsc --version
+        run: bunx tsc --version
 
       - name: 生成 WXT 类型定义
-        run: pnpm wxt prepare
+        run: bunx wxt prepare
 
       - name: TypeScript 类型检查
         id: typecheck
-        run: pnpm exec tsc --noEmit
+        run: bunx tsc --noEmit
 
       - name: ESLint 代码检查
         id: eslint
-        run: pnpm run lint
+        run: bun run lint
 
       - name: Prettier 格式检查
         id: prettier
-        run: pnpm run format:check
+        run: bun run format:check
 
       - name: 输出检查摘要
         if: always()
@@ -235,8 +231,7 @@ jobs:
     outputs:
       audit_status: ${{ steps.audit.outputs.audit_status }}
     env:
-      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
-      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
+      BUN_VERSION: ${{ needs.setup.outputs.bun_version }}
     steps:
       - name: 检出仓库
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -244,10 +239,9 @@ jobs:
           fetch-depth: 0
 
       - name: 安装项目依赖
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: 检查密钥泄露
         uses: trufflesecurity/trufflehog@47e7b7cd74f578e1e3145d48f669f22fd1330ca6 # v3.94.3
@@ -275,7 +269,7 @@ jobs:
 
           # 获取 JSON 格式的审计结果（仅执行一次），分离 stdout 和 stderr
           AUDIT_EXIT_CODE=0
-          AUDIT_JSON=$(pnpm audit --json --audit-level=moderate 2>/tmp/audit-stderr.log) || AUDIT_EXIT_CODE=$?
+          AUDIT_JSON=$(bun audit --json 2>/tmp/audit-stderr.log) || AUDIT_EXIT_CODE=$?
           
           # 从 JSON 中提取或格式化人类可读的输出
           JQ_AVAILABLE=0
@@ -372,7 +366,7 @@ jobs:
 
           echo "#### 代码安全规则检查 (ESLint)" >> $GITHUB_STEP_SUMMARY
           ESLINT_EXIT_CODE=0
-          SECURITY_OUTPUT=$(pnpm eslint --no-error-on-unmatched-pattern \
+          SECURITY_OUTPUT=$(bunx eslint --no-error-on-unmatched-pattern \
             --rule 'no-eval: error' \
             --rule 'no-implied-eval: error' \
             --rule 'no-new-func: error' \
@@ -405,8 +399,7 @@ jobs:
     permissions:
       contents: read
     env:
-      NODE_VERSION: ${{ needs.setup.outputs.node_version }}
-      PNPM_VERSION: ${{ needs.setup.outputs.pnpm_version }}
+      BUN_VERSION: ${{ needs.setup.outputs.bun_version }}
       EXTENSION_SIZE_LIMIT_MB: ${{ needs.setup.outputs.extension_size_limit_mb }}
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -419,16 +412,15 @@ jobs:
           fetch-depth: 0
 
       - name: 安装项目依赖
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: 缓存 WXT 构建缓存
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: .wxt
-          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/pnpm-lock.yaml', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'src/data/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
+          key: ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-${{ hashFiles('**/bun.lock', '**/bun.lockb', 'src/entrypoints/**/*', 'src/components/**/*', 'src/hooks/**/*', 'src/i18n/**/*', 'src/lib/**/*', 'src/types/**/*', 'src/utils/**/*', 'src/data/**/*', 'public/**/*', 'wxt.config.ts', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-${{ needs.setup.outputs.ref_slug }}-wxt-
             ${{ runner.os }}-wxt-
@@ -442,11 +434,11 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.sha }}"
-            pnpm run verify:cookie-baseline --pr "$BASE_SHA" "$HEAD_SHA"
+            bun run verify:cookie-baseline --pr "$BASE_SHA" "$HEAD_SHA"
           else
             BEFORE_SHA="${{ github.event.before }}"
             AFTER_SHA="${{ github.sha }}"
-            pnpm run verify:cookie-baseline --push "$BEFORE_SHA" "$AFTER_SHA"
+            bun run verify:cookie-baseline --push "$BEFORE_SHA" "$AFTER_SHA"
           fi
 
       - name: 准备 Cookie 数据
@@ -461,12 +453,12 @@ jobs:
             echo "   规则: 只有当 EasyPrivacy 成功且版本日期可证明新鲜时，才视为满足新鲜度要求"
             echo "   无法证明新鲜时，一律失败"
             echo "   lastUpdated 仅是本地生成时间，不代表上游发布日期"
-            pnpm run prepare:cookie-data:release 2>&1
+            bun run prepare:cookie-data:release 2>&1
             echo "enforce_freshness=true" >> $GITHUB_OUTPUT
             echo "require_easyprivacy=true" >> $GITHUB_OUTPUT
           else
             echo "⚠️  PR/非主分支 - 允许外部源失败；失败时不覆盖现有 Cookie 数据，成功时更新到最新结果"
-            pnpm run prepare:cookie-data:allow-failure 2>&1
+            bun run prepare:cookie-data:allow-failure 2>&1
             echo "enforce_freshness=false" >> $GITHUB_OUTPUT
             echo "require_easyprivacy=false" >> $GITHUB_OUTPUT
           fi
@@ -476,7 +468,7 @@ jobs:
         run: |
           set -e
           echo "🔨 开始构建..."
-          pnpm run build:dist 2>&1
+          bun run build:dist 2>&1
           echo "✅ 构建命令完成"
 
           echo "📁 构建后检查 .output/ 目录:"
@@ -548,15 +540,15 @@ jobs:
 
       - name: 打包扩展
         run: |
-          echo "=========================================="
+          echo "========================================"
           echo "📦 开始打包扩展"
-          echo "=========================================="
+          echo "========================================"
           echo "📁 打包前 .output/ 目录内容:"
           ls -la .output/
 
           echo ""
-          echo "🔨 运行 pnpm run zip:dist..."
-          pnpm run zip:dist
+          echo "🔨 运行 bun run zip:dist..."
+          bun run zip:dist
 
           echo ""
           echo "📁 打包后 .output/ 目录内容 (递归):"
@@ -570,7 +562,7 @@ jobs:
           echo "📊 在 .output/ 中找到 $ZIP_COUNT 个 zip 文件"
 
           if [ "$ZIP_COUNT" -eq 0 ]; then
-            echo "❌ pnpm run zip:dist 执行完成，但未生成 zip 文件"
+            echo "❌ bun run zip:dist 执行完成，但未生成 zip 文件"
             exit 1
           fi
 

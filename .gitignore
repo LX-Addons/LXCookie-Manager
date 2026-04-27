@@ -2,7 +2,7 @@
 node_modules
 .npm
 .yarn
-.pnpm
+.bun
 
 # Build outputs
 build

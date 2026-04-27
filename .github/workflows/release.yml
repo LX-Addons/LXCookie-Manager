@@ -27,8 +27,7 @@ jobs:
     permissions:
       contents: write
     env:
-      NODE_VERSION: ${{ needs.get-env.outputs.node_version }}
-      PNPM_VERSION: ${{ needs.get-env.outputs.pnpm_version }}
+      BUN_VERSION: ${{ needs.get-env.outputs.bun_version }}
     steps:
       - name: 校验发布条件
         run: |
@@ -96,10 +95,9 @@ jobs:
 
       - name: 安装项目依赖
         if: steps.check_tag.outputs.exists == 'false'
-        uses: ./.github/actions/setup-pnpm
+        uses: ./.github/actions/setup-bun
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          pnpm-version: ${{ env.PNPM_VERSION }}
+          bun-version: ${{ env.BUN_VERSION }}
 
       - name: 获取上一个版本标签
         if: steps.check_tag.outputs.exists == 'false'
@@ -118,15 +116,15 @@ jobs:
           echo "   规则: 只有当 EasyPrivacy 成功且版本日期可证明新鲜时，才视为满足新鲜度要求"
           echo "   无法证明新鲜时，一律失败"
           echo "   lastUpdated 仅是本地生成时间，不代表上游发布日期"
-          pnpm run prepare:cookie-data:release
+          bun run prepare:cookie-data:release
 
       - name: 构建扩展
         if: steps.check_tag.outputs.exists == 'false'
-        run: pnpm run build:dist
+        run: bun run build:dist
 
       - name: 打包扩展
         if: steps.check_tag.outputs.exists == 'false'
-        run: pnpm run zip:dist
+        run: bun run zip:dist
 
       - name: 获取 zip 文件路径
         if: steps.check_tag.outputs.exists == 'false'
@@ -149,9 +147,9 @@ jobs:
           PREVIOUS_TAG: ${{ steps.previous-tag.outputs.tag }}
           RELEASE_KIND: ${{ github.ref == 'refs/heads/main' && '正式版' || '预发布版' }}
         run: |
-          node --input-type=module <<'EOF'
-          import { execSync } from 'node:child_process';
-          import { writeFileSync } from 'node:fs';
+          bun run - << 'EOF'
+          import { execSync } from 'child_process';
+          import { writeFileSync } from 'fs';
 
           const version = process.env.VERSION;
           const displayName = process.env.DISPLAY_NAME;
@@ -201,7 +199,7 @@ jobs:
           const categories = [
             { title: '核心功能升级', intro: '本次版本带来以下重点能力与体验增强：', types: ['feat'], items: [], collapsible: false },
             { title: '体验与界面优化', intro: '围绕使用流畅度与界面表现做了进一步打磨：', types: ['style', 'ui'], items: [], collapsible: false },
-            { title: '稳定性与问题修复', intro: '针对已知问题和边缘场景进行了修复与增强：', types: ['fix', 'hotfix'], items: [], collapsible: true },
+            { title: '稳定性与问题修复', intro: '针对已知问题与边缘场景进行了修复与增强：', types: ['fix', 'hotfix'], items: [], collapsible: true },
             { title: '工程与质量改进', intro: '在代码结构、测试、构建与依赖层面持续优化：', types: ['refactor', 'perf', 'test', 'docs', 'build', 'ci', 'chore', 'deps'], items: [], collapsible: true },
             { title: '其他更新', intro: '此外还包含以下补充调整：', types: [], items: [], collapsible: false },
           ];
@@ -210,7 +208,7 @@ jobs:
           let commitCount = 0;
 
           const commitBodies = rawCommitsBuffer
-            .toString('utf8')
+            .toString('utf-8')
             .split('---COMMIT_SEP---')
             .map((s) => s.trim())
             .filter(Boolean);
@@ -256,12 +254,12 @@ jobs:
 
             if (category.collapsible) {
               return [
-                `<details>`,
+                '<details>',
                 `<summary><strong>${category.title}</strong></summary>`,
                 '',
                 content,
                 '',
-                `</details>`,
+                '</details>',
               ].join('\n');
             }
 
